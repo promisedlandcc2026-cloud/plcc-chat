@@ -1,17 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * The church's Supabase project (awc-vault). These are PUBLIC values — the same
- * ones every visitor's browser already receives from Connect and the Vault — so
- * they're built in. Vercel env vars only override them. Never put a
- * service-role key here.
+ * PLCC's own Supabase project, from Vercel env vars (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
+ * No built-in fallback: PLCC must never fall back to another church's database.
+ * Never put a service-role key here.
  */
-const AWC_SUPABASE_URL = 'https://yrpwdrioomdihjlmcfnu.supabase.co';
-const AWC_SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlycHdkcmlvb21kaWhqbG1jZm51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMjk2ODgsImV4cCI6MjA4NTgwNTY4OH0.Ohv1ko8QcMhdkwI_pBJ-HmyNqzV3XcmSsxX40Eb5reE';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || AWC_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || AWC_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || '';
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
