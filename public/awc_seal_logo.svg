@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <circle cx="60" cy="60" r="58" fill="#1d372c" stroke="#C9A35A" stroke-width="4"/>
+  <circle cx="60" cy="60" r="48" fill="none" stroke="#C9A35A" stroke-width="1.5" opacity="0.6"/>
+  <text x="60" y="58" text-anchor="middle" fill="#C9A35A" font-family="Georgia, serif" font-size="28" font-weight="bold">PLCC</text>
+  <text x="60" y="78" text-anchor="middle" fill="#C9A35A" font-family="Arial, sans-serif" font-size="8" letter-spacing="2" opacity="0.9">KAMPALA</text>
+</svg>

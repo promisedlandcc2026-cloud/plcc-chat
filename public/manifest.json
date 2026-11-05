@@ -1,0 +1,14 @@
+{
+  "short_name": "PLCC Chat",
+  "name": "Promised Land Christian Center Chat",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "64x64", "type": "image/png" },
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ],
+  "start_url": "/community/chat",
+  "display": "standalone",
+  "theme_color": "#0e1512",
+  "background_color": "#FAF7F2"
+}

@@ -1,0 +1,363 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --awc-burgundy: #1d372c;
+  --awc-gold: #C9A35A;
+  --awc-eggshell: #F8F5F2;
+  /* Sanctuary redesign — evening grounds, gold-leaf light, cream pages. */
+  --awc-wine-night: #0e1512;
+  --awc-wine: #0d1914;
+  --awc-leaf: #E4C36A;
+  --awc-leaf-soft: #F2D98A;
+  --awc-cream: #F8F5F2;
+}
+
+body {
+  @apply text-[#1A1A1A] antialiased;
+  /* Slightly cooler outer frame so the 500px app column reads as centered on desktop */
+  background-color: #ebe4dc;
+}
+
+/*
+ * Design kit (Sanctuary): UI text and headings use Plus Jakarta Sans; the
+ * Playfair serif is reserved for page titles and hero moments via
+ * `font-display`. Minimum UI text is 12px.
+ */
+h1, h2, h3 {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: 'Playfair Display', serif;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+input, textarea, select {
+  font-size: 16px !important;
+}
+
+/* Home shell — Sanctuary evening: deep wine ground with a warm glow top-right. */
+.awc-home-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100%;
+  color: var(--awc-cream);
+  background:
+    radial-gradient(120% 55% at 85% -8%, #1c3429 0%, rgba(13, 25, 20, 0) 60%),
+    linear-gradient(180deg, var(--awc-wine) 0%, var(--awc-wine-night) 70%);
+}
+
+.awc-home-shell[data-mode='live'] {
+  background:
+    radial-gradient(90% 45% at 50% 0%, #192e24 0%, rgba(10, 18, 14, 0) 65%),
+    linear-gradient(180deg, #101814 0%, var(--awc-wine-deep, #0b0f0d) 75%);
+}
+
+.awc-home-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- Seasonal theme (mirrored from PLCC Vault index.css — keep in sync) ---- */
+/*
+ * Seasonal accents. Burgundy and gold stay the brand.
+ * White on --season-accent and ink #0d1a14 on --season-accent-soft meet WCAG AA.
+ */
+:root,
+html[data-season='brand'] {
+  --season-accent: #1d372c;
+  --season-accent-soft: #fdf6d8;
+  --season-gradient: linear-gradient(135deg, rgba(29, 55, 44, 0.2), transparent);
+}
+html[data-season='fall'],
+html[data-season='thanksgiving'] {
+  --season-accent: #9a3412;
+  --season-accent-soft: #ffedd5;
+  --season-gradient: linear-gradient(180deg, rgba(154, 52, 18, 0.28), transparent);
+}
+html[data-season='winter'] {
+  --season-accent: #1e3a5f;
+  --season-accent-soft: #e8eef5;
+  --season-gradient: linear-gradient(180deg, rgba(30, 58, 95, 0.28), transparent);
+}
+html[data-season='spring'] {
+  --season-accent: #166534;
+  --season-accent-soft: #f0fdf4;
+  --season-gradient: linear-gradient(180deg, rgba(22, 101, 52, 0.22), transparent);
+}
+html[data-season='easter'] {
+  --season-accent: #6b21a8;
+  --season-accent-soft: #faf5ff;
+  --season-gradient: linear-gradient(180deg, rgba(107, 33, 168, 0.22), transparent);
+}
+html[data-season='summer'] {
+  --season-accent: #854d0e;
+  --season-accent-soft: #fef9c3;
+  --season-gradient: linear-gradient(180deg, rgba(133, 77, 14, 0.2), transparent);
+}
+html[data-season='christmas'] {
+  --season-accent: #14532d;
+  --season-accent-soft: #f0fdf4;
+  --season-gradient: linear-gradient(180deg, rgba(20, 83, 45, 0.28), transparent);
+}
+html[data-season='new_year'],
+html[data-season='anniversary'] {
+  --season-accent: #1d372c;
+  --season-accent-soft: #fdf6d8;
+  --season-gradient: linear-gradient(180deg, rgba(201, 163, 90, 0.35), transparent);
+}
+
+/* Home hub: seasonal wash + falling-effect canvas live behind the hero only. */
+.awc-home-shell > .season-wash {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 420px;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--season-gradient);
+}
+
+.awc-home-shell > .season-particles {
+  position: absolute;
+  inset: 0 0 auto 0;
+  width: 100%;
+  height: 520px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+
+/* ======================================================================
+ * Sanctuary pieces. All motion here is decorative and stops for people
+ * who set "reduce motion" (see the block at the end).
+ * ====================================================================== */
+
+/* Stained-glass light behind the greeting; tinted by the season accent. */
+.awc-stained-glass {
+  position: absolute;
+  right: -72px;
+  top: 28px;
+  width: 300px;
+  height: 360px;
+  pointer-events: none;
+  z-index: 0;
+}
+.awc-stained-glass__glow {
+  position: absolute;
+  inset: 40px 30px 80px 30px;
+  border-radius: 140px 140px 0 0;
+  background:
+    radial-gradient(60% 50% at 50% 30%, color-mix(in srgb, var(--season-accent) 55%, transparent), transparent 70%),
+    radial-gradient(40% 30% at 50% 20%, rgba(242, 217, 138, 0.28), transparent 70%);
+  filter: blur(18px);
+  opacity: 0.85;
+  animation: awc-glass-breathe 9s ease-in-out infinite;
+}
+@keyframes awc-glass-breathe {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Season chip under the greeting. */
+.awc-season-chip {
+  background: color-mix(in srgb, var(--season-accent) 60%, transparent);
+}
+
+/* Next-up ticket: two cream halves with real notches cut at the tear line,
+ * so the wine ground shows through; the shadow follows the cut shape. */
+.awc-ticket {
+  position: relative;
+  color: #1A1A1A;
+  filter: drop-shadow(0 20px 22px rgba(0, 0, 0, 0.32));
+}
+.awc-ticket__top,
+.awc-ticket__bottom {
+  background: var(--awc-cream);
+}
+.awc-ticket__top {
+  border-radius: 26px 26px 0 0;
+  -webkit-mask:
+    radial-gradient(circle 11px at 0 100%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 100%, #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 11px at 0 100%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 100%, #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.awc-ticket__bottom {
+  border-radius: 0 0 26px 26px;
+  -webkit-mask:
+    radial-gradient(circle 11px at 0 0, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 0, #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 11px at 0 0, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 0, #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.awc-ticket__tear {
+  margin: 0 20px;
+  border-top: 2px dashed #E3D6C8;
+}
+
+.awc-ring__fill {
+  transition: stroke-dashoffset 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Story circles: gold ring when there's something new, faint ring once seen. */
+.awc-story-ring {
+  background: rgba(248, 245, 242, 0.22);
+}
+.awc-story-ring[data-unseen='true'] {
+  background: conic-gradient(from 200deg, #F2D98A, #B8862B, #F2D98A, var(--season-accent), #F2D98A);
+}
+
+/* Story viewer progress bars. */
+.awc-story-bar__fill {
+  transform-origin: left center;
+  transform: scaleX(var(--awc-story-progress, 0));
+}
+.awc-story-bar__fill[data-running='true'] {
+  animation: awc-story-fill var(--awc-story-ms, 6000ms) linear forwards;
+}
+@keyframes awc-story-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Live pulse on the Sunday "LIVE NOW" pill. */
+.awc-live-dot {
+  animation: awc-live-pulse 1.8s infinite;
+}
+.awc-live-dot--green {
+  animation-name: awc-live-pulse-green;
+}
+@keyframes awc-live-pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+@keyframes awc-live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Wallet-style PLCC Card: a gold sheen that follows tilt or pointer. */
+.awc-wallet {
+  --sheen-x: 50%;
+  --sheen-y: 30%;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(135deg, #15281f 0%, #1d372c 42%, #0d1914 100%);
+  color: var(--awc-cream);
+  box-shadow: 0 24px 46px rgba(13, 26, 20, 0.35);
+}
+.awc-wallet__sheen {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(40% 30% at var(--sheen-x) var(--sheen-y), rgba(242, 217, 138, 0.38), transparent 70%),
+    linear-gradient(115deg, transparent 35%, rgba(242, 217, 138, 0.22) 48%, transparent 60%);
+  transition: background-position 120ms linear;
+}
+.awc-wallet[data-sheen='ambient'] .awc-wallet__sheen {
+  animation: awc-sheen-drift 7s ease-in-out infinite alternate;
+}
+@keyframes awc-sheen-drift {
+  from { transform: translateX(-12%); }
+  to { transform: translateX(12%); }
+}
+.awc-wallet > :not(.awc-wallet__sheen):not([aria-hidden]) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Floating glass dock. */
+.awc-dock-tab {
+  transition: flex-grow 360ms cubic-bezier(0.22, 1, 0.36, 1), background-color 200ms ease, color 200ms ease, padding 360ms cubic-bezier(0.22, 1, 0.36, 1), transform 120ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .awc-dock-tab {
+    transition: none;
+  }
+}
+
+.awc-dock {
+  background: rgba(8, 15, 12, 0.88);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(242, 217, 138, 0.22);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+}
+
+/* Welcome page "Slide to begin" */
+.awc-slide-shine {
+  color: rgba(255, 255, 255, 0.55);
+  background: linear-gradient(90deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.45) 40%, #F2D98A 50%, rgba(255,255,255,0.45) 60%, rgba(255,255,255,0.45) 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: awc-slide-shine 2.6s linear infinite;
+}
+@keyframes awc-slide-shine {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+.awc-slide-nudge { animation: awc-slide-nudge 1.6s ease-in-out infinite; }
+@keyframes awc-slide-nudge {
+  0%, 60%, 100% { transform: translateX(0); }
+  30% { transform: translateX(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awc-slide-shine, .awc-slide-nudge { animation: none; }
+  .awc-slide-shine { -webkit-text-fill-color: rgba(255,255,255,0.7); }
+  .awc-stained-glass__glow,
+  .awc-live-dot,
+  .awc-wallet[data-sheen='ambient'] .awc-wallet__sheen,
+  .awc-story-bar__fill[data-running='true'] {
+    animation: none !important;
+  }
+  .awc-ring__fill,
+  .awc-wallet__sheen {
+    transition: none !important;
+  }
+  .awc-story-bar__fill[data-running='true'] {
+    transform: scaleX(1);
+  }
+}
+
+/* Chat "typing…" bubble */
+.awc-typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #1d372c;
+  opacity: 0.35;
+  animation: awc-typing-bounce 1.2s ease-in-out infinite;
+}
+@keyframes awc-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-5px); opacity: 0.9; }
+}
+.awc-typing-in { animation: awc-typing-pop 0.18s ease-out; }
+@keyframes awc-typing-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .awc-typing-dot, .awc-typing-in { animation: none; }
+  .awc-typing-dot { opacity: 0.6; }
+}
