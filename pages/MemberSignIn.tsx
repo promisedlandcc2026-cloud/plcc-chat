@@ -427,7 +427,7 @@ export const MemberSignIn: React.FC = () => {
 
           <p className="text-xs text-gray-500 leading-relaxed text-center px-2">
             Email: we send you a one-time code. Phone: use your account password. Same account
-            as PLCC Connect and the Vault.
+            as PLCC Connect and PLCC Canaan.
           </p>
           <p className="text-sm text-center">
             <a href="https://plcc-connect.vercel.app/" className="font-bold text-burgundy underline">
@@ -435,7 +435,7 @@ export const MemberSignIn: React.FC = () => {
             </a>
             <span className="text-gray-400 mx-2">·</span>
             <a href="https://plcc-opal.vercel.app/" className="font-bold text-burgundy underline">
-              Go to the Vault
+              Go to PLCC Canaan
             </a>
           </p>
         </form>

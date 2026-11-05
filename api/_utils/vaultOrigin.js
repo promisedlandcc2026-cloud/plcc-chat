@@ -416,7 +416,7 @@ export function buildVaultCommunityChatVoiceEndUrl(origin) {
   return `${base}${VAULT_COMMUNITY_CHAT_VOICE_END_PATH}`;
 }
 
-/** Vault News list/create — writes stay role-gated on Vault. */
+/** Canaan News list/create — writes stay role-gated on Vault. */
 export const VAULT_NEWS_PATH = '/api/vault?resource=vault-news';
 
 /** Public database health probe (no auth on Vault). */

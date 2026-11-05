@@ -130,7 +130,7 @@ export const AccountMenu: React.FC = () => {
         type="button"
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-1.5 min-h-[44px] pl-1 pr-2.5 rounded-full border border-gray-200 bg-white shadow-sm hover:bg-gray-50 active:bg-gray-50"
-        aria-label="Your account: PLCC Connect, the Vault, and sign out"
+        aria-label="Your account: PLCC Connect, PLCC Canaan, and sign out"
         aria-haspopup="dialog"
       >
         <span className="h-9 w-9 rounded-full bg-burgundy text-white text-sm font-bold flex items-center justify-center">
@@ -176,7 +176,7 @@ export const AccountMenu: React.FC = () => {
             </a>
             <a href={VAULT_URL} className={linkRow}>
               <span>
-                Open the PLCC Vault
+                Open the PLCC Canaan
                 <span className="block text-xs font-medium text-gray-500">Your profile and account settings</span>
               </span>
               <ExternalLink size={18} className="text-burgundy" aria-hidden />
@@ -194,7 +194,7 @@ export const AccountMenu: React.FC = () => {
               </button>
               {error ? <p className="text-sm text-burgundy mt-2">{error}</p> : null}
               <p className="text-xs text-gray-500 mt-2 text-center">
-                Signing out here doesn’t sign you out of Connect or the Vault.
+                Signing out here doesn’t sign you out of Connect or PLCC Canaan.
               </p>
             </div>
           </div>

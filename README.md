@@ -3,7 +3,7 @@
 Standalone chat and Live Huddle app for Promised Land Christian Center.
 
 PLCC Chat has **no database of its own**. Rooms, messages, members and huddles all
-live in the **PLCC Vault**, so PLCC Chat, Vault Chat and PLCC Connect always show the
+live in the **PLCC Canaan**, so PLCC Chat, Vault Chat and PLCC Connect always show the
 same rooms and the same live calls. A huddle started in one app is live in all three.
 
 ## What it does

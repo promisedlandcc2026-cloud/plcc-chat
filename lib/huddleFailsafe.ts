@@ -1,5 +1,5 @@
 /**
- * Live Huddle fail-safes for Connect — mirrors PLCC Vault (Oct 2026):
+ * Live Huddle fail-safes for Connect — mirrors PLCC Canaan (Oct 2026):
  *
  *  1. Database down: every successful huddle token comes with a Vault-signed
  *     12-hour permission (fallbackPass). We keep it on the phone; if Vault can't

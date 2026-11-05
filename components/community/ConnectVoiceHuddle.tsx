@@ -213,7 +213,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [musicBusy, setMusicBusy] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
   const [musicVolume, setMusicVolume] = useState(HUDDLE_MUSIC_DEFAULT_VOLUME);
-  // Ephemeral emoji reactions (same wire format as PLCC Vault — not chat, nothing is saved).
+  // Ephemeral emoji reactions (same wire format as PLCC Canaan — not chat, nothing is saved).
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [activeReactions, setActiveReactions] = useState<HuddleReactionEvent[]>([]);
   const [reactionBusy, setReactionBusy] = useState(false);
@@ -228,7 +228,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     // the Vault for signed-in staff, PLCC Connect for everyone else — same live call.
     const url = `${VAULT_PUBLIC_ORIGIN}/api/share-huddle?channel=${encodeURIComponent(channelId)}`;
     const name = title || channelName || 'Live Huddle';
-    const text = `Join the "${name}" Live Huddle. Sign in to PLCC Connect or PLCC Vault, then tap the huddle link. It opens right into the prayer call:`;
+    const text = `Join the "${name}" Live Huddle. Sign in to PLCC Connect or PLCC Canaan, then tap the huddle link. It opens right into the prayer call:`;
     const flash = (msg: string) => {
       setShareDone(msg);
       window.setTimeout(() => setShareDone(null), 2000);

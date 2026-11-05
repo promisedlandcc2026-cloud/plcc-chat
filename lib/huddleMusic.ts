@@ -1,5 +1,5 @@
 /**
- * Live Huddle shared waiting music (mirrors PLCC Vault api/_utils/huddleMusic.ts).
+ * Live Huddle shared waiting music (mirrors PLCC Canaan api/_utils/huddleMusic.ts).
  *
  * Channel moderators and the session host may play a looping track into the
  * same LiveKit room as voice. Everyone in the huddle hears it, whether they

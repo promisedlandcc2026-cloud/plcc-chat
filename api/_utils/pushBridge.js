@@ -4,7 +4,7 @@
  *   POST /api/push?action=subscribe   { subscription, topics }
  *   POST /api/push?action=unsubscribe { endpoint }
  *   POST /api/push?action=test
- * → PLCC Vault /api/vault?resource=push (stores phones, sends the alerts).
+ * → PLCC Canaan /api/vault?resource=push (stores phones, sends the alerts).
  * Rides on api/vault-news.js (bridge=push) for the Hobby function limit.
  * Staff broadcasts are sent from the Vault itself, never through Connect.
  * Fixed upstream; forwards only the member's Bearer token; never logs it.

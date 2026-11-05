@@ -1,6 +1,6 @@
 /**
  * Live Huddle on the backup line (Daily), used when LiveKit is out of minutes.
- * Mirrors PLCC Vault's in-page Daily huddle: audio first, who's here, mute,
+ * Mirrors PLCC Canaan's in-page Daily huddle: audio first, who's here, mute,
  * raise hand (same `awc.huddle.hand` app message as Vault), and leave.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';

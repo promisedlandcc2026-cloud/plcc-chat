@@ -1,5 +1,5 @@
 /**
- * LiveKit connect with "out of minutes" detection — mirrored from PLCC Vault
+ * LiveKit connect with "out of minutes" detection — mirrored from PLCC Canaan
  * lib/huddle/livekit.ts. A 429 from LiveKit Cloud means the project quota is
  * used up; we stop retrying regions and switch the huddle to the backup line.
  */

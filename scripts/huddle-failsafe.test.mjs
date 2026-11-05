@@ -1,5 +1,5 @@
 /**
- * Live Huddle fail-safes (mirrors PLCC Vault, Oct 2026):
+ * Live Huddle fail-safes (mirrors PLCC Canaan, Oct 2026):
  * database-down saved permission, shared line + Daily backup, start retries.
  * Run: node --test scripts/test-huddle-failsafe.mjs
  */

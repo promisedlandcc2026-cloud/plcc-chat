@@ -1008,7 +1008,7 @@ export function parseVaultHuddleTokenResponse(body) {
 }
 
 // ---------------------------------------------------------------------------
-// Huddle fail-safes (mirrors PLCC Vault huddleFallbackPass.ts + huddleProvider.ts)
+// Huddle fail-safes (mirrors PLCC Canaan huddleFallbackPass.ts + huddleProvider.ts)
 // ---------------------------------------------------------------------------
 
 export const HUDDLE_FALLBACK_PASS_MAX_CHARS = 2048;

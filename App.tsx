@@ -8,7 +8,7 @@ import { LazyRoute } from './components/routing/LazyRoute';
 /**
  * PLCC Chat — standalone chat + Live Huddle for Promised Land Christian Center.
  *
- * Everything goes through the PLCC Vault (same rooms, messages and huddles as
+ * Everything goes through the PLCC Canaan (same rooms, messages and huddles as
  * Vault Chat and PLCC Connect). Paths match Connect so shared links keep working.
  */
 const MemberSignIn = lazy(() =>

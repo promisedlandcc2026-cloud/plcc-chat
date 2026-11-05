@@ -1,7 +1,7 @@
 /**
  * Live Huddle ephemeral emoji reactions.
  * Transport: LiveKit publishData / DataReceived on the huddle room.
- * Wire format matches PLCC Vault (awc.huddle.reaction) for interop.
+ * Wire format matches PLCC Canaan (awc.huddle.reaction) for interop.
  * Ephemeral / room-scoped only — not chat, not Raise Hand, no DB.
  */
 

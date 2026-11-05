@@ -1,6 +1,6 @@
 /**
  * Phone alerts (web push) for PLCC Chat — new chat messages only.
- * (Church announcements, prayer and Vault News alerts stay in PLCC Connect.)
+ * (Church announcements, prayer and Canaan News alerts stay in PLCC Connect.)
  *
  * - The service worker (/sw.js) shows alerts and opens the chat when tapped.
  * - Turning alerts on asks the phone for permission, then saves this phone's

@@ -20,7 +20,7 @@ export const SignedOut: React.FC = () => (
         href={VAULT_URL}
         className="w-full min-h-[56px] rounded-2xl bg-wine text-cream font-extrabold text-base flex items-center justify-center"
       >
-        Go to the PLCC Vault
+        Go to the PLCC Canaan
       </a>
       <Link
         to="/sign-in"
