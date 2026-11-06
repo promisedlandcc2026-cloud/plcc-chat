@@ -25,6 +25,7 @@ import {
   type RemoteParticipant,
   type RemoteTrack,
   type TrackPublication,
+  DisconnectReason,
 } from 'livekit-client';
 import { CommunityChatError } from '../../lib/communityChatTypes';
 import { endHuddle } from '../../lib/communityChatClient';
@@ -101,6 +102,23 @@ import {
   isHuddleMusicPublication,
   roomHasHuddleMusic,
 } from '../../lib/huddleMusic';
+
+/** LiveKit closed this copy on purpose (joined elsewhere, removed, or ended): do not auto-rejoin. */
+function huddleDisconnectIsFinal(reason?: DisconnectReason): boolean {
+  return (
+    reason === DisconnectReason.DUPLICATE_IDENTITY ||
+    reason === DisconnectReason.PARTICIPANT_REMOVED ||
+    reason === DisconnectReason.ROOM_DELETED
+  );
+}
+
+function huddleDisconnectMessage(reason?: DisconnectReason): string {
+  if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+    return 'You joined this huddle somewhere else (another tab, app or device). Tap Join to bring it back here.';
+  }
+  if (reason === DisconnectReason.PARTICIPANT_REMOVED) return 'You were removed from the huddle.';
+  return 'The huddle has ended.';
+}
 
 type ConnState = 'prejoin' | 'connecting' | 'reconnecting' | 'connected' | 'error';
 
@@ -727,7 +745,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         .on(RoomEvent.TrackPublished, onChange)
         .on(RoomEvent.TrackUnpublished, onChange)
-        .on(RoomEvent.Disconnected, () => {
+        .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
           if (!mountedRef.current) return;
           if (connectingRef.current) return;
           clearRemoteAudio();
@@ -739,6 +757,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             setChatUnread(0);
             setActiveTab(null);
             setConn('prejoin');
+            return;
+          }
+          if (huddleDisconnectIsFinal(reason)) {
+            lostConnectionRef.current = true;
+            setError(huddleDisconnectMessage(reason));
+            setConn('error');
             return;
           }
           if (reconnectAttemptsRef.current >= MAX_HUDDLE_RECONNECTS) {
