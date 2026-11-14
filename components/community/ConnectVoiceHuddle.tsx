@@ -1811,7 +1811,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 {captionsOn ? <CaptionsOff size={22} aria-hidden /> : <Captions size={22} aria-hidden />}
               </button>
             ) : null}
-            {canModerate && !audioOnly && !prayerWatch ? (
+            {canModerate && !audioOnly && !prayerWatch && screenShareSupported() ? (
               <button
                 type="button"
                 onClick={() => void toggleScreenShare()}
@@ -1819,7 +1819,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 title={sharer && !sharer.isLocal ? `${sharer.name} is sharing` : undefined}
                 className={`min-h-[44px] min-w-[44px] sm:min-h-[52px] sm:min-w-[52px] rounded-2xl flex items-center justify-center disabled:opacity-50 ${
                   sharer?.isLocal ? 'bg-gold text-burgundy' : 'bg-white/10 text-white'
-                } ${screenShareSupported() ? '' : 'opacity-50'}`}
+                }`}
                 aria-label={sharer?.isLocal ? 'Stop sharing your screen' : 'Share your screen'}
                 aria-pressed={Boolean(sharer?.isLocal)}
                 data-testid="huddle-screen-share-toggle"
