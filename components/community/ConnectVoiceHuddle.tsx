@@ -1071,7 +1071,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     if (!room || !canModerateRef.current) return;
     setScreenError(null);
     if (!screenShareSupported()) {
-      setScreenError('Screen sharing works on a computer in Chrome, Edge, Firefox or Safari.');
+      setScreenError('Phones can’t share their screen from a browser. Join this huddle on a computer (Chrome, Edge, Firefox or Safari) to share.');
       return;
     }
     const sharingNow = room.localParticipant.isScreenShareEnabled;
@@ -1590,7 +1590,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               {camEnabled ? <Video size={22} /> : <VideoOff size={22} />}
             </button>
             )}
-            {canModerate && !audioOnly && !prayerWatch && screenShareSupported() ? (
+            {canModerate && !audioOnly && !prayerWatch ? (
               <button
                 type="button"
                 onClick={() => void toggleScreenShare()}
@@ -1598,7 +1598,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 title={sharer && !sharer.isLocal ? `${sharer.name} is sharing` : undefined}
                 className={`min-h-[44px] min-w-[44px] sm:min-h-[52px] sm:min-w-[52px] rounded-2xl flex items-center justify-center disabled:opacity-50 ${
                   sharer?.isLocal ? 'bg-gold text-burgundy' : 'bg-white/10 text-white'
-                }`}
+                } ${screenShareSupported() ? '' : 'opacity-50'}`}
                 aria-label={sharer?.isLocal ? 'Stop sharing your screen' : 'Share your screen'}
                 aria-pressed={Boolean(sharer?.isLocal)}
                 data-testid="huddle-screen-share-toggle"
