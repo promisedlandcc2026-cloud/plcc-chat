@@ -1,5 +1,7 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Captions,
+  CaptionsOff,
   Hand,
   Loader2,
   Maximize2,
@@ -41,6 +43,37 @@ import {
   type DailyCredentials,
 } from '../../lib/huddleFailsafe';
 import { connectLiveKitOnce, LiveKitQuotaError } from '../../lib/livekitConnect';
+import {
+  CAPTION_LANGUAGES,
+  CaptionRecognizer,
+  HUDDLE_CAPTION_TOPIC,
+  decodeCaptionWire,
+  encodeCaptionWire,
+  speechCaptionsSupported,
+  upsertCaption,
+  visibleCaptions,
+  type CaptionLanguage,
+  type CaptionLine,
+} from '../../lib/huddleCaptions';
+
+const CAPTIONS_PREF_KEY = 'plcc_huddle_captions_v1';
+const CAPTION_LANG_KEY = 'plcc_huddle_caption_lang_v1';
+
+function readPref(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writePref(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* private mode */
+  }
+}
 // Backup line (Daily SDK) downloads only when a huddle actually switches to it.
 const DailyBackupHuddle = lazy(() =>
   import('./DailyBackupHuddle').then((m) => ({ default: m.DailyBackupHuddle }))
@@ -282,6 +315,18 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [sharer, setSharer] = useState<ScreenSharer | null>(null);
   const [screenBusy, setScreenBusy] = useState(false);
   const [screenError, setScreenError] = useState<string | null>(null);
+  /** Live captions: whether I'm reading them, the language I speak, and the lines on screen. */
+  const [captionsOn, setCaptionsOn] = useState<boolean>(() => readPref(CAPTIONS_PREF_KEY) === '1');
+  const [captionLang, setCaptionLang] = useState<CaptionLanguage>(() => {
+    const saved = readPref(CAPTION_LANG_KEY);
+    return saved === 'sw' || saved === 'lg' ? saved : 'en';
+  });
+  /** Someone in the room wants captions, so my speech should be captioned too. */
+  const [roomWantsCaptions, setRoomWantsCaptions] = useState(false);
+  const [captionLines, setCaptionLines] = useState<Record<string, CaptionLine>>({});
+  const [captionNotice, setCaptionNotice] = useState<string | null>(null);
+  const [captionClock, setCaptionClock] = useState(() => Date.now());
+  const captionsOnRef = useRef(captionsOn);
   const [needSoundTap, setNeedSoundTap] = useState(false);
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [roster, setRoster] = useState<HuddleRosterEntry[]>([]);
@@ -718,12 +763,25 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       const onChange = () => refreshTiles(room);
 
       room
-        .on(RoomEvent.ParticipantConnected, onChange)
+        .on(RoomEvent.ParticipantConnected, () => {
+          if (captionsOnRef.current) {
+            void room.localParticipant
+              .publishData(encodeCaptionWire({ v: 1, t: 'on' }), { reliable: true, topic: HUDDLE_CAPTION_TOPIC })
+              .catch(() => undefined);
+          }
+          onChange();
+        })
         .on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
           const prefix = `${p.identity}:`;
           for (const key of Array.from(audioElsRef.current.keys()) as string[]) {
             if (key === p.identity || key.startsWith(prefix)) detachRemoteAudio(key);
           }
+          setCaptionLines((prev) => {
+            if (!prev[p.identity]) return prev;
+            const next = { ...prev };
+            delete next[p.identity];
+            return next;
+          });
           onChange();
         })
         .on(RoomEvent.ParticipantMetadataChanged, onChange)
@@ -770,6 +828,26 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         .on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
           if (!mountedRef.current || !participant) return;
+          if (topic === HUDDLE_CAPTION_TOPIC) {
+            const wire = decodeCaptionWire(payload);
+            if (!wire) return;
+            if (wire.t === 'on') {
+              setRoomWantsCaptions(true);
+              return;
+            }
+            setCaptionLines((prev) =>
+              upsertCaption(prev, {
+                identity: participant.identity,
+                name: displayName(participant),
+                isLocal: false,
+                id: wire.id,
+                text: wire.text,
+                final: wire.final,
+                at: Date.now(),
+              })
+            );
+            return;
+          }
           // Emoji reactions share the data channel with chat; handle them first.
           if (!topic || topic === HUDDLE_REACTION_TOPIC) {
             try {
@@ -1065,6 +1143,91 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       selfMuteIntentRef.current = false;
     }
   }, [micEnabled, refreshTiles]);
+
+  useEffect(() => {
+    captionsOnRef.current = captionsOn;
+    writePref(CAPTIONS_PREF_KEY, captionsOn ? '1' : '0');
+    const room = roomRef.current;
+    if (captionsOn && room && conn === 'connected') {
+      void room.localParticipant
+        .publishData(encodeCaptionWire({ v: 1, t: 'on' }), { reliable: true, topic: HUDDLE_CAPTION_TOPIC })
+        .catch(() => undefined);
+    }
+  }, [captionsOn, conn]);
+
+  useEffect(() => {
+    writePref(CAPTION_LANG_KEY, captionLang);
+  }, [captionLang]);
+
+  // Caption my own speech while my mic is on and anyone (me included) wants captions.
+  const shouldTranscribe =
+    conn === 'connected' && micEnabled && !prayerWatch && (captionsOn || roomWantsCaptions) && speechCaptionsSupported();
+  useEffect(() => {
+    if (!shouldTranscribe) return undefined;
+    let lastSent = 0;
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const send = (line: { id: string; text: string; final: boolean }) => {
+      const room = roomRef.current;
+      if (!room) return;
+      void room.localParticipant
+        .publishData(encodeCaptionWire({ v: 1, t: 'line', ...line, lang: captionLang }), {
+          reliable: line.final,
+          topic: HUDDLE_CAPTION_TOPIC,
+        })
+        .catch(() => undefined);
+      setCaptionLines((prev) =>
+        upsertCaption(prev, {
+          identity: room.localParticipant.identity,
+          name: 'You',
+          isLocal: true,
+          ...line,
+          at: Date.now(),
+        })
+      );
+    };
+    const recognizer = new CaptionRecognizer(
+      (line) => {
+        // Words in progress go out a few times a second; finished lines go at once.
+        if (pending) clearTimeout(pending);
+        const wait = line.final ? 0 : Math.max(0, 350 - (Date.now() - lastSent));
+        pending = setTimeout(() => {
+          lastSent = Date.now();
+          send(line);
+        }, wait);
+      },
+      (error) => {
+        if (error === 'language-not-supported') {
+          setCaptionNotice(
+            captionLang === 'lg'
+              ? 'Luganda captions are not available in this browser yet. Pick English or Kiswahili for your speech.'
+              : 'This language is not available for captions in this browser.'
+          );
+        } else if (error === 'not-allowed') {
+          setCaptionNotice('Allow the microphone for this site so your speech can be captioned.');
+        } else if (error === 'network') {
+          setCaptionNotice('Captions need an internet connection to the speech service. Retrying…');
+        }
+      }
+    );
+    setCaptionNotice(null);
+    recognizer.start(captionLang);
+    return () => {
+      if (pending) clearTimeout(pending);
+      recognizer.stop();
+    };
+  }, [shouldTranscribe, captionLang]);
+
+  // Tick so finished lines fade out.
+  useEffect(() => {
+    if (!captionsOn) return undefined;
+    const timer = window.setInterval(() => setCaptionClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [captionsOn]);
+
+  const shownCaptions = useMemo(
+    () => (captionsOn ? visibleCaptions(captionLines, captionClock) : []),
+    [captionsOn, captionLines, captionClock]
+  );
 
   const toggleScreenShare = useCallback(async () => {
     const room = roomRef.current;
@@ -1567,6 +1730,50 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 : { label: 'Share', Icon: Share2, onClick: () => void shareHuddle(), doneLabel: shareDone }
             }
           />
+          {captionsOn && !prayerWatch ? (
+            <section
+              aria-label="Live captions"
+              className="max-w-3xl mx-auto w-full rounded-2xl bg-black/70 border border-white/10 px-3 py-2.5"
+              data-testid="huddle-captions"
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gold">Live captions</p>
+                <label className="flex items-center gap-1.5 text-[11px] font-bold text-white/70">
+                  I speak
+                  <select
+                    value={captionLang}
+                    onChange={(e) => setCaptionLang(e.target.value as CaptionLanguage)}
+                    className="min-h-[32px] rounded-lg bg-white/10 px-2 text-xs font-bold text-white [&>option]:text-black"
+                  >
+                    {CAPTION_LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.label}
+                        {l.note ? ` (${l.note})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div aria-live="polite" className="min-h-[2.75rem] space-y-0.5">
+                {shownCaptions.length ? (
+                  shownCaptions.map((line) => (
+                    <p key={line.identity} className="text-sm sm:text-base leading-snug text-white">
+                      <span className="font-bold text-gold">{line.name}: </span>
+                      <span className={line.final ? '' : 'text-white/85'}>{line.text}</span>
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-sm text-white/50">Captions appear here when someone speaks.</p>
+                )}
+              </div>
+              {captionNotice ? <p className="mt-1 text-xs text-gold/90">{captionNotice}</p> : null}
+              {!speechCaptionsSupported() ? (
+                <p className="mt-1 text-xs text-white/55">
+                  This browser can show captions but can&apos;t caption your own speech. Chrome, Edge or Safari can.
+                </p>
+              ) : null}
+            </section>
+          ) : null}
           <div className="flex items-center justify-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -1590,6 +1797,20 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               {camEnabled ? <Video size={22} /> : <VideoOff size={22} />}
             </button>
             )}
+            {!prayerWatch ? (
+              <button
+                type="button"
+                onClick={() => setCaptionsOn((v) => !v)}
+                className={`min-h-[44px] min-w-[44px] sm:min-h-[52px] sm:min-w-[52px] rounded-2xl flex items-center justify-center ${
+                  captionsOn ? 'bg-gold text-burgundy' : 'bg-white/10 text-white'
+                }`}
+                aria-label={captionsOn ? 'Turn live captions off' : 'Turn live captions on'}
+                aria-pressed={captionsOn}
+                data-testid="huddle-captions-toggle"
+              >
+                {captionsOn ? <CaptionsOff size={22} aria-hidden /> : <Captions size={22} aria-hidden />}
+              </button>
+            ) : null}
             {canModerate && !audioOnly && !prayerWatch ? (
               <button
                 type="button"
