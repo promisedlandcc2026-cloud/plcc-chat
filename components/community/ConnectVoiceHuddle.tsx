@@ -2,8 +2,11 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import {
   Hand,
   Loader2,
+  Maximize2,
   Mic,
   MicOff,
+  Monitor,
+  MonitorOff,
   Music,
   PhoneOff,
   Share2,
@@ -193,6 +196,68 @@ function ParticipantVideo({
   );
 }
 
+type ScreenSharer = { identity: string; name: string; isLocal: boolean };
+
+function screenShareSupported(): boolean {
+  return typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getDisplayMedia);
+}
+
+/** The presenter's screen, shown large to everyone in the huddle (a preview for the presenter). */
+function ScreenShareStage({ participant, sharer }: { participant: Participant; sharer: ScreenSharer }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return undefined;
+    const pub = participant.getTrackPublication(Track.Source.ScreenShare);
+    const track = pub?.track;
+    if (!track) return undefined;
+    track.attach(el);
+    el.muted = true; // the shared tab's sound plays through its own audio element
+    return () => {
+      try {
+        track.detach(el);
+      } catch {
+        /* already gone */
+      }
+    };
+  }, [participant, sharer.identity]);
+
+  const label = sharer.isLocal ? 'You are sharing your screen' : `${sharer.name} is sharing their screen`;
+
+  return (
+    <section
+      aria-label={label}
+      className="max-w-5xl mx-auto rounded-2xl overflow-hidden border border-gold/40 bg-black"
+      data-testid="huddle-screen-share"
+    >
+      <div className="flex items-center justify-between gap-3 px-3 py-2 bg-[#0c110f]">
+        <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gold min-w-0">
+          <Monitor size={14} aria-hidden className="shrink-0" />
+          <span className="truncate">{label}</span>
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            const el = frameRef.current;
+            if (!el) return;
+            if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+            else void el.requestFullscreen?.().catch(() => undefined);
+          }}
+          className="min-h-[36px] min-w-[36px] rounded-xl bg-white/10 flex items-center justify-center text-white"
+          aria-label="Full screen"
+        >
+          <Maximize2 size={16} aria-hidden />
+        </button>
+      </div>
+      <div ref={frameRef} className="aspect-video w-full bg-black flex items-center justify-center">
+        <video ref={videoRef} className="h-full w-full object-contain" playsInline muted autoPlay />
+      </div>
+    </section>
+  );
+}
+
 export const ConnectVoiceHuddle: React.FC<Props> = ({
   channelId,
   channelName,
@@ -213,6 +278,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [micEnabled, setMicEnabled] = useState(false);
   const [camEnabled, setCamEnabled] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
+  /** Screen share: who is presenting (one at a time), and our own share controls (moderators and up). */
+  const [sharer, setSharer] = useState<ScreenSharer | null>(null);
+  const [screenBusy, setScreenBusy] = useState(false);
+  const [screenError, setScreenError] = useState<string | null>(null);
   const [needSoundTap, setNeedSoundTap] = useState(false);
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [roster, setRoster] = useState<HuddleRosterEntry[]>([]);
@@ -419,6 +488,18 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     for (const r of remotes) push(r, false);
     const sorted = sortTilesRaisedFirst(next);
     setTiles(sorted);
+    const isSharing = (p: Participant) => {
+      const pub = p.getTrackPublication(Track.Source.ScreenShare);
+      return Boolean(pub?.track && !pub.isMuted);
+    };
+    const remoteSharer = remotes.find(isSharing);
+    if (remoteSharer) {
+      setSharer({ identity: remoteSharer.identity, name: displayName(remoteSharer), isLocal: false });
+    } else if (isSharing(room.localParticipant)) {
+      setSharer({ identity: room.localParticipant.identity, name: displayName(room.localParticipant), isLocal: true });
+    } else {
+      setSharer(null);
+    }
     setMusicActive(roomHasHuddleMusic(collectRoomPublications(room)));
     setRoster((prev) => syncRosterFromTiles(prev, sorted));
   }, []);
@@ -985,6 +1066,50 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     }
   }, [micEnabled, refreshTiles]);
 
+  const toggleScreenShare = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room || !canModerateRef.current) return;
+    setScreenError(null);
+    if (!screenShareSupported()) {
+      setScreenError('Screen sharing works on a computer in Chrome, Edge, Firefox or Safari.');
+      return;
+    }
+    const sharingNow = room.localParticipant.isScreenShareEnabled;
+    if (!sharingNow && sharer && !sharer.isLocal) {
+      setScreenError(`${sharer.name} is already sharing. Only one screen at a time.`);
+      return;
+    }
+    setScreenBusy(true);
+    try {
+      await room.localParticipant.setScreenShareEnabled(
+        !sharingNow,
+        !sharingNow
+          ? {
+              audio: true,
+              selfBrowserSurface: 'exclude',
+              surfaceSwitching: 'include',
+              systemAudio: 'include',
+              resolution: { width: 1920, height: 1080, frameRate: 15 },
+            }
+          : undefined
+      );
+    } catch (e) {
+      const name = (e as { name?: string })?.name;
+      // Closing the browser's picker is not an error.
+      if (name !== 'NotAllowedError' && name !== 'AbortError') {
+        const msg = String((e as Error)?.message || '');
+        setScreenError(
+          /permission|insufficient|not allowed/i.test(msg)
+            ? 'Only moderators and up can share their screen in a huddle.'
+            : 'Could not share your screen. Please try again.'
+        );
+      }
+    } finally {
+      setScreenBusy(false);
+      refreshTiles(room);
+    }
+  }, [refreshTiles, sharer]);
+
   const toggleCam = useCallback(async () => {
     const room = roomRef.current;
     if (!room) {
@@ -1235,6 +1360,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         </p>
       ) : null}
 
+      {screenError ? (
+        <p className="mx-3 sm:mx-4 mt-2 sm:mt-3 rounded-2xl bg-white/10 px-4 py-3 text-sm text-white leading-relaxed" role="alert">
+          {screenError}
+        </p>
+      ) : null}
+
       {notice ? (
         <p className="mx-3 sm:mx-4 mt-2 sm:mt-3 rounded-2xl bg-white/10 px-4 py-3 text-sm text-white/85 leading-relaxed" role="status">
           {notice}
@@ -1327,6 +1458,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 </p>
                 <p className="text-xs font-bold text-white mt-1 leading-snug">{raisedNames.join(', ')}</p>
               </div>
+            ) : null}
+            {sharer && participantFor(sharer.identity) ? (
+              <ScreenShareStage participant={participantFor(sharer.identity)!} sharer={sharer} />
             ) : null}
             <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 max-w-5xl mx-auto">
               {tiles.map((tile) => {
@@ -1456,6 +1590,28 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               {camEnabled ? <Video size={22} /> : <VideoOff size={22} />}
             </button>
             )}
+            {canModerate && !audioOnly && !prayerWatch && screenShareSupported() ? (
+              <button
+                type="button"
+                onClick={() => void toggleScreenShare()}
+                disabled={screenBusy || Boolean(sharer && !sharer.isLocal)}
+                title={sharer && !sharer.isLocal ? `${sharer.name} is sharing` : undefined}
+                className={`min-h-[44px] min-w-[44px] sm:min-h-[52px] sm:min-w-[52px] rounded-2xl flex items-center justify-center disabled:opacity-50 ${
+                  sharer?.isLocal ? 'bg-gold text-burgundy' : 'bg-white/10 text-white'
+                }`}
+                aria-label={sharer?.isLocal ? 'Stop sharing your screen' : 'Share your screen'}
+                aria-pressed={Boolean(sharer?.isLocal)}
+                data-testid="huddle-screen-share-toggle"
+              >
+                {screenBusy ? (
+                  <Loader2 size={22} className="animate-spin" aria-hidden />
+                ) : sharer?.isLocal ? (
+                  <MonitorOff size={22} aria-hidden />
+                ) : (
+                  <Monitor size={22} aria-hidden />
+                )}
+              </button>
+            ) : null}
             {!prayerWatch ? (
               <div className="relative">
                 <button
