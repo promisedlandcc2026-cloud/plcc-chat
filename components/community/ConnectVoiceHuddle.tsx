@@ -357,10 +357,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   /** Share a one-tap join link for this huddle (native share sheet, else copy). */
   const shareHuddle = useCallback(async () => {
     // One link for both apps: the Vault's share page shows the WhatsApp card and opens
-    // the Vault for signed-in staff, PLCC Connect for everyone else — same live call.
+    // the Vault for signed-in staff, Tribes for everyone else — same live call.
     const url = `${VAULT_PUBLIC_ORIGIN}/api/share-huddle?channel=${encodeURIComponent(channelId)}`;
     const name = title || channelName || 'Live Huddle';
-    const text = `Join the "${name}" Live Huddle. Sign in to PLCC Connect or PLCC Canaan, then tap the huddle link. It opens right into the prayer call:`;
+    const text = `Join the "${name}" Live Huddle. Sign in to Tribes or PLCC Canaan, then tap the huddle link. It opens right into the prayer call:`;
     const flash = (msg: string) => {
       setShareDone(msg);
       window.setTimeout(() => setShareDone(null), 2000);

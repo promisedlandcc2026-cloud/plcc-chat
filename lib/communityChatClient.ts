@@ -826,7 +826,7 @@ export async function setEventGoing(eventId: string, going: boolean, messageId?:
   );
 }
 
-/** Serve sign-up / cancel — checked by PLCC Connect's Serve rules (eligibility). */
+/** Serve sign-up / cancel — checked by Tribes's Serve rules (eligibility). */
 export async function serveSignup(opportunityId: string, action: 'signup' | 'cancel'): Promise<void> {
   await postJson('serve-signup', { opportunityId, action }, 'Could not save that. Please try again.');
 }

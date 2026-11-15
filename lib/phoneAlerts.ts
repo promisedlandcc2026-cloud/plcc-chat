@@ -1,6 +1,6 @@
 /**
- * Phone alerts (web push) for PLCC Chat — new chat messages only.
- * (Church announcements, prayer and Canaan News alerts stay in PLCC Connect.)
+ * Phone alerts (web push) for Jordan — new chat messages only.
+ * (Church announcements, prayer and Canaan News alerts stay in Tribes.)
  *
  * - The service worker (/sw.js) shows alerts and opens the chat when tapped.
  * - Turning alerts on asks the phone for permission, then saves this phone's

@@ -1,5 +1,5 @@
 /**
- * "Add PLCC Connect to your home screen" — ask once, then stop.
+ * "Add Tribes to your home screen" — ask once, then stop.
  *
  * We never ask again when:
  *  - Connect is already running as the installed app (home-screen icon);

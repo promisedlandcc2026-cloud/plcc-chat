@@ -350,7 +350,7 @@ export const CommunityChatPage: React.FC = () => {
       <div className="flex items-center justify-between gap-3 mb-4">
         <img
           src="/awc_chat_wordmark.png"
-          alt="PLCC Chat"
+          alt="Jordan"
           width={146}
           height={32}
           className="h-8 w-auto select-none"

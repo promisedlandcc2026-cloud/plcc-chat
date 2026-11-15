@@ -46,7 +46,7 @@ const AlertsRow: React.FC = () => {
     state == null
       ? 'Checking…'
       : state.kind === 'needs-install'
-        ? 'On iPhone, add PLCC Chat to your Home Screen first, then turn this on there.'
+        ? 'On iPhone, add Jordan to your Home Screen first, then turn this on there.'
         : state.kind === 'blocked'
           ? 'Blocked. Allow notifications for this site in your phone or browser settings.'
           : on
@@ -99,7 +99,7 @@ const AlertsRow: React.FC = () => {
   );
 };
 
-/** Your name + menu: message alerts, open PLCC Connect, open the Vault, sign out. */
+/** Your name + menu: message alerts, open Tribes, open the Vault, sign out. */
 export const AccountMenu: React.FC = () => {
   const { identity, signOut } = useAuth();
   const navigate = useNavigate();
@@ -130,7 +130,7 @@ export const AccountMenu: React.FC = () => {
         type="button"
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-1.5 min-h-[44px] pl-1 pr-2.5 rounded-full border border-gray-200 bg-white shadow-sm hover:bg-gray-50 active:bg-gray-50"
-        aria-label="Your account: PLCC Connect, PLCC Canaan, and sign out"
+        aria-label="Your account: Tribes, PLCC Canaan, and sign out"
         aria-haspopup="dialog"
       >
         <span className="h-9 w-9 rounded-full bg-burgundy text-white text-sm font-bold flex items-center justify-center">
@@ -171,7 +171,7 @@ export const AccountMenu: React.FC = () => {
             <AlertsRow />
 
             <a href={CONNECT_URL} className={linkRow}>
-              <span>Open PLCC Connect</span>
+              <span>Open Tribes</span>
               <ExternalLink size={18} className="text-burgundy" aria-hidden />
             </a>
             <a href={VAULT_URL} className={linkRow}>
@@ -190,7 +190,7 @@ export const AccountMenu: React.FC = () => {
                 className="w-full min-h-[52px] rounded-2xl border-2 border-burgundy text-burgundy font-extrabold flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {busy ? <Loader2 className="animate-spin" size={18} /> : <LogOut size={18} aria-hidden />}
-                Sign out of PLCC Chat
+                Sign out of Jordan
               </button>
               {error ? <p className="text-sm text-burgundy mt-2">{error}</p> : null}
               <p className="text-xs text-gray-500 mt-2 text-center">

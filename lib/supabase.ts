@@ -17,7 +17,7 @@ if (!isSupabaseConfigured) {
 }
 
 /**
- * Single browser Supabase client for PLCC Chat.
+ * Single browser Supabase client for Jordan.
  * Uses the anon key only — never a service-role key.
  * Session persistence and refresh are handled by the Auth client.
  */

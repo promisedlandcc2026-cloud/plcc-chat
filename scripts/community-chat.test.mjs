@@ -515,7 +515,7 @@ describe('Live Huddle start rule (members join, leaders/moderators start)', () =
   });
 });
 
-describe('PLCC Chat: members join, leaders/moderators start', () => {
+describe('Jordan: members join, leaders/moderators start', () => {
   it('bridge exposes huddle-can-start and returns only a boolean', () => {
     const bridge = readFileSync(join(root, 'api/community-chat.js'), 'utf8');
     const origin = readFileSync(join(root, 'api/_utils/vaultOrigin.js'), 'utf8');
@@ -529,7 +529,7 @@ describe('PLCC Chat: members join, leaders/moderators start', () => {
     assert.ok(room.includes('mayStart'));
     assert.ok(room.includes("hasn't started yet"));
   });
-  it('Prayer Watch opens in PLCC Connect (not a missing local page)', () => {
+  it('Prayer Watch opens in Tribes (not a missing local page)', () => {
     const room = readFileSync(join(root, 'pages/CommunityChatRoom.tsx'), 'utf8');
     assert.ok(room.includes('https://plcc-connect.vercel.app/intercessors'));
     assert.equal(room.includes('to="/intercessors"'), false);
@@ -542,7 +542,7 @@ describe('PLCC Chat: members join, leaders/moderators start', () => {
   });
 });
 
-describe('PLCC Chat media: photos, voice notes, videos, documents', async () => {
+describe('Jordan media: photos, voice notes, videos, documents', async () => {
   const s = await import('../api/_utils/communityChatSanitize.js');
   const C = '11111111-1111-4111-8111-111111111111';
   const M = '22222222-2222-4222-8222-222222222222';
@@ -603,7 +603,7 @@ describe('PLCC Chat media: photos, voice notes, videos, documents', async () => 
   });
 });
 
-describe('PLCC Chat: instant messages, typing, phone alerts, desktop', () => {
+describe('Jordan: instant messages, typing, phone alerts, desktop', () => {
   const bridge = readFileSync(join(root, 'api/community-chat.js'), 'utf8');
   it('room-info only passes a well-formed live topic, plus Start/mute/name', () => {
     assert.ok(bridge.includes("'room-info'"));
@@ -641,7 +641,7 @@ describe('PLCC Chat: instant messages, typing, phone alerts, desktop', () => {
   });
 });
 
-describe('PLCC Chat: replies, reactions, edit, mentions, read receipts', async () => {
+describe('Jordan: replies, reactions, edit, mentions, read receipts', async () => {
   const s = await import('../api/_utils/communityChatSanitize.js');
   const C = '11111111-1111-4111-8111-111111111111';
   const M = '22222222-2222-4222-8222-222222222222';
@@ -689,7 +689,7 @@ describe('PLCC Chat: replies, reactions, edit, mentions, read receipts', async (
   });
 });
 
-describe('PLCC Chat room: swipe/hold actions, reply bar, reactions, ticks', () => {
+describe('Jordan room: swipe/hold actions, reply bar, reactions, ticks', () => {
   const room = readFileSync(join(root, 'pages/CommunityChatRoom.tsx'), 'utf8');
   const bubble = readFileSync(join(root, 'components/chat/ChatMessageBubble.tsx'), 'utf8');
   const actions = readFileSync(join(root, 'components/chat/MessageActions.tsx'), 'utf8');
@@ -711,7 +711,7 @@ describe('PLCC Chat room: swipe/hold actions, reply bar, reactions, ticks', () =
   });
 });
 
-describe('PLCC Chat set 4: groups, announcements, pins, search', async () => {
+describe('Jordan set 4: groups, announcements, pins, search', async () => {
   const s = await import('../api/_utils/communityChatSanitize.js');
   const C = '11111111-1111-4111-8111-111111111111';
   const U = '33333333-3333-4333-8333-333333333333';
@@ -737,7 +737,7 @@ describe('PLCC Chat set 4: groups, announcements, pins, search', async () => {
   });
 });
 
-describe('PLCC Chat set 4 screens + account', () => {
+describe('Jordan set 4 screens + account', () => {
   const room = readFileSync(join(root, 'pages/CommunityChatRoom.tsx'), 'utf8');
   const list = readFileSync(join(root, 'pages/CommunityChat.tsx'), 'utf8');
   const account = readFileSync(join(root, 'components/chat/AccountMenu.tsx'), 'utf8');

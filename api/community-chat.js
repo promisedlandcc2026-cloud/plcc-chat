@@ -147,7 +147,7 @@ function json(res, status, body) {
   res.status(status).json(body);
 }
 
-/** PLCC Connect (Serve sign-ups). Fixed server-side; never from the browser. */
+/** Tribes (Serve sign-ups). Fixed server-side; never from the browser. */
 function connectApiOrigin() {
   const raw = String(process.env.CONNECT_API_ORIGIN || 'https://plcc-connect.vercel.app').trim().replace(/\/+$/, '');
   return /^https:\/\/[a-z0-9.-]+$/i.test(raw) ? raw : null;
@@ -708,7 +708,7 @@ export default async function handler(req, res) {
         return json(res, 200, { ok: true, going: body?.going === true, goingCount: Math.max(0, Math.floor(Number(body?.goingCount) || 0)) });
       }
       if (resource === 'serve-signup') {
-        // Serve sign-up runs through PLCC Connect's Serve API (staff-verified eligibility + RPC).
+        // Serve sign-up runs through Tribes's Serve API (staff-verified eligibility + RPC).
         if (!only(['opportunityId', 'action']) || !UUID_RE.test(String(b.opportunityId || ''))) return bad();
         if (b.action !== 'signup' && b.action !== 'cancel') return bad();
         const connectOrigin = connectApiOrigin();

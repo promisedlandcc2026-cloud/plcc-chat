@@ -6,10 +6,10 @@ import { MemberGate } from './components/auth/MemberGate';
 import { LazyRoute } from './components/routing/LazyRoute';
 
 /**
- * PLCC Chat — standalone chat + Live Huddle for Promised Land Christian Center.
+ * Jordan — standalone chat + Live Huddle for Promised Land Christian Center.
  *
  * Everything goes through the PLCC Canaan (same rooms, messages and huddles as
- * Vault Chat and PLCC Connect). Paths match Connect so shared links keep working.
+ * Vault Chat and Tribes). Paths match Connect so shared links keep working.
  */
 const MemberSignIn = lazy(() =>
   import('./pages/MemberSignIn').then((m) => ({ default: m.MemberSignIn }))

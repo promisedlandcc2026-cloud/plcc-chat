@@ -73,9 +73,9 @@ export const ChatAlertsCard: React.FC = () => {
 
   const body =
     state.kind === 'needs-install'
-      ? 'On iPhone, alerts work from the Home Screen app: tap Share, then “Add to Home Screen”, then open PLCC Chat from that icon.'
+      ? 'On iPhone, alerts work from the Home Screen app: tap Share, then “Add to Home Screen”, then open Jordan from that icon.'
       : state.kind === 'blocked'
-        ? 'Alerts are blocked for PLCC Chat. Allow notifications for this site in your phone or browser settings, then come back.'
+        ? 'Alerts are blocked for Jordan. Allow notifications for this site in your phone or browser settings, then come back.'
         : 'Get a notification on this phone when someone sends a message — just like WhatsApp.';
 
   return (

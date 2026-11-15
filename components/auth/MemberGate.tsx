@@ -40,7 +40,7 @@ function GateMessage(props: {
       )}
       <div>
         <a href="/" className="inline-block text-burgundy font-bold text-sm underline min-h-[44px]">
-          Back to PLCC Chat
+          Back to Jordan
         </a>
       </div>
     </div>

@@ -1,9 +1,9 @@
-# PLCC Chat
+# Jordan
 
 Standalone chat and Live Huddle app for Promised Land Christian Center.
 
-PLCC Chat has **no database of its own**. Rooms, messages, members and huddles all
-live in the **PLCC Canaan**, so PLCC Chat, Canaan Chat and PLCC Connect always show the
+Jordan has **no database of its own**. Rooms, messages, members and huddles all
+live in the **PLCC Canaan**, so Jordan, Canaan Chat and Tribes always show the
 same rooms and the same live calls. A huddle started in one app is live in all three.
 
 ## What it does
@@ -23,7 +23,7 @@ same rooms and the same live calls. A huddle started in one app is live in all t
 | Member | – | ✓ rooms they can see | – |
 | Either person in a direct call | ✓ | ✓ | – |
 
-PLCC Canaan enforces this (`api/_utils/huddleStartPolicy.ts` in awc-vault). PLCC Chat asks
+PLCC Canaan enforces this (`api/_utils/huddleStartPolicy.ts` in awc-vault). Jordan asks
 `huddle-can-start` only to hide the Start button from members; members see
 "This huddle hasn't started yet…" until a leader or moderator starts it.
 

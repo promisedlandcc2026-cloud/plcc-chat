@@ -128,7 +128,7 @@ async function postBridge(resource: string, body: Record<string, unknown>, opts:
       if (token) res = await send(token);
     }
   } catch {
-    throw new CommunityChatError('network', 'Could not reach PLCC Chat. Check your connection and try again.', 0);
+    throw new CommunityChatError('network', 'Could not reach Jordan. Check your connection and try again.', 0);
   }
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   return { res, data };

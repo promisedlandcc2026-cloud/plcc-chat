@@ -13,7 +13,7 @@ export const AWCLogo: React.FC<AWCLogoProps> = ({
 }) => (
   <img
     src={src}
-    alt="PLCC Chat — Promised Land Christian Center"
+    alt="Jordan — Promised Land Christian Center"
     width={size}
     height={size}
     className={`object-contain ${className}`}

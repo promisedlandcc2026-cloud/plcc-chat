@@ -73,7 +73,7 @@ import { CHAT_LEADER_ROLES } from '../lib/chatRoles';
 /** Backup refresh when the live connection is up (it normally delivers instantly). */
 const LIVE_POLL_MS = 30_000;
 
-/** The Intercessors Prayer Watch lives in PLCC Connect. */
+/** The Intercessors Prayer Watch lives in Tribes. */
 const PRAYER_WATCH_URL = 'https://plcc-connect.vercel.app/intercessors';
 const HUDDLE_NOT_STARTED_TEXT =
   "This huddle hasn't started yet. A leader or room moderator will start it — you can join as soon as it's live.";

@@ -1,6 +1,6 @@
 {
-  "short_name": "PLCC Chat",
-  "name": "Promised Land Christian Center Chat",
+  "short_name": "Jordan",
+  "name": "Jordan — Promised Land Christian Center",
   "icons": [
     { "src": "/favicon.png", "sizes": "64x64", "type": "image/png" },
     { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
