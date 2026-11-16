@@ -361,3 +361,41 @@ html[data-season='anniversary'] {
   .awc-typing-dot, .awc-typing-in { animation: none; }
   .awc-typing-dot { opacity: 0.6; }
 }
+
+/* Live Huddle (full screen): mic orb, sound waves and action tiles */
+.huddle-orb {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: clamp(7.5rem, 26vw, 10.5rem); aspect-ratio: 1; border-radius: 9999px; color: #e8d8b2;
+  background: radial-gradient(circle at 35% 30%, #2c4d3e, #12231c 70%);
+  box-shadow: 0 0 0 6px rgba(201,163,90,.9), 0 0 0 18px rgba(201,163,90,.16), 0 0 0 34px rgba(201,163,90,.07), 0 18px 40px -10px rgba(18,35,28,.6);
+  transition: transform .15s ease;
+}
+.huddle-orb:active { transform: scale(.97); }
+.huddle-orb-open { box-shadow: 0 0 0 6px #2f9d5c, 0 0 0 18px rgba(47,157,92,.18), 0 0 0 34px rgba(47,157,92,.07), 0 18px 40px -10px rgba(18,35,28,.6); }
+.huddle-orb-speaking { box-shadow: 0 0 0 6px #2f9d5c, 0 0 0 18px rgba(47,157,92,.18), 0 0 0 34px rgba(47,157,92,.07); animation: huddle-glow 1.4s ease-in-out infinite; }
+.huddle-wave { display: flex; align-items: center; gap: 5px; height: 90px; }
+.huddle-wave-l { flex-direction: row-reverse; }
+.huddle-wave i { display: block; width: 4px; border-radius: 4px; background: #c9a35a; opacity: .35; height: 10px; }
+.huddle-wave i:nth-child(2n) { height: 22px; } .huddle-wave i:nth-child(3n) { height: 40px; } .huddle-wave i:nth-child(5) { height: 64px; }
+.huddle-wave.is-active i { opacity: .85; animation: huddle-bar 1.1s ease-in-out infinite; }
+.huddle-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem;
+  min-height: 7.25rem; padding: .9rem .5rem; border-radius: 1.25rem; text-align: center;
+  background: #fff; border: 1.5px solid #e3d7bf; color: #16251f; transition: transform .15s ease, box-shadow .15s ease;
+}
+.huddle-tile:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -14px rgba(18,35,28,.5); }
+.huddle-tile:active { transform: scale(.97); }
+.huddle-tile-icon { display: flex; height: 2.75rem; width: 2.75rem; align-items: center; justify-content: center; border-radius: 9999px; background: #efe7d6; color: #1d372c; }
+.huddle-tile-title { font-size: .875rem; font-weight: 800; line-height: 1.15; }
+.huddle-tile-sub { font-size: .7rem; color: #3e5148; line-height: 1.2; }
+.huddle-tile.is-gold { border-color: #c9a35a; background: linear-gradient(180deg, rgba(228,201,143,.32), rgba(228,201,143,.08)); }
+.huddle-tile.is-gold .huddle-tile-icon { background: #c9a35a; color: #16251f; }
+.huddle-tile.is-on { border-color: #c9a35a; background: #c9a35a; }
+.huddle-tile.is-on .huddle-tile-icon { background: rgba(255,255,255,.5); }
+.huddle-tile.is-live { border-color: #2f9d5c; background: rgba(47,157,92,.1); }
+.huddle-tile.is-live .huddle-tile-icon { background: #2f9d5c; color: #fff; }
+@media (min-width: 640px) { .huddle-tile-title { font-size: 1rem; } .huddle-tile-sub { font-size: .75rem; } }
+@media (max-width: 420px) { .huddle-wave { height: 60px; gap: 3px; } .huddle-wave i:nth-child(n+7) { display: none; } }
+@keyframes huddle-bar { 0%, 100% { transform: scaleY(.45); } 50% { transform: scaleY(1.15); } }
+@keyframes huddle-glow { 50% { box-shadow: 0 0 0 6px #2f9d5c, 0 0 0 26px rgba(47,157,92,.24), 0 0 0 46px rgba(47,157,92,.1); } }
+@media (prefers-reduced-motion: reduce) { .huddle-wave.is-active i, .huddle-orb-speaking { animation: none !important; } }
