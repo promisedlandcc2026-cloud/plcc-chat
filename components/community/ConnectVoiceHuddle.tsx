@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookHeart,
+  RefreshCw,
   Captions,
   CircleHelp,
   Crown,
@@ -48,6 +49,7 @@ import { CommunityChatError } from '../../lib/communityChatTypes';
 import { endHuddle } from '../../lib/communityChatClient';
 import { VAULT_URL } from '../../lib/appLinks';
 import { GuidelinesSheet, PrayerRequestSheet } from './PrayerRoomSheets';
+import { findSanctumOverflow, isRoomFullError, openSanctumOverflow, type SanctumOverflow } from '../../lib/sanctumOverflow';
 import {
   claimHuddleLine,
   fetchDailyCredentials,
@@ -356,6 +358,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [shareDone, setShareDone] = useState<string | null>(null);
   /** Full-screen prayer room: listen-only mode, sheets and participant search. */
   const [listenOnly, setListenOnly] = useState(false);
+  /** Set when this room is at its 50-seat cap: offer PLCC Sanctum's overflow room. */
+  const [roomFull, setRoomFull] = useState<{ checking: boolean; overflow: SanctumOverflow | null } | null>(null);
   const [sheet, setSheet] = useState<'prayer' | 'guidelines' | null>(null);
   const [peopleSearchOpen, setPeopleSearchOpen] = useState(false);
   const [peopleQuery, setPeopleQuery] = useState('');
@@ -743,6 +747,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     const reconnecting = Boolean(opts?.reconnect);
     setConn(reconnecting ? 'reconnecting' : 'connecting');
     setError(null);
+    setRoomFull(null);
     if (!reconnecting) {
       setRoster([]);
       setChatMessages([]);
@@ -1039,6 +1044,15 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         }
       }
       setNotice(null);
+      if ((err instanceof CommunityChatError && err.code === 'huddle_room_full') || isRoomFullError(err)) {
+        setError('This prayer room is full.');
+        setRoomFull({ checking: true, overflow: null });
+        setConn('error');
+        void findSanctumOverflow(channelId).then((overflow) => {
+          if (mountedRef.current) setRoomFull({ checking: false, overflow });
+        });
+        return;
+      }
       const message =
         err instanceof CommunityChatError
           ? err.message
@@ -1321,6 +1335,17 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     if (camEnabled) await toggleCam();
     setListenOnly(true);
   }, [listenOnly, micEnabled, camEnabled, toggleMic, toggleCam]);
+
+  // While the room is full and no overflow is open yet, look again every 15 seconds.
+  useEffect(() => {
+    if (!roomFull || roomFull.checking || roomFull.overflow?.available) return;
+    const timer = window.setInterval(() => {
+      void findSanctumOverflow(channelId).then((overflow) => {
+        if (mountedRef.current && overflow.available) setRoomFull({ checking: false, overflow });
+      });
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [roomFull, channelId]);
 
   const toggleHand = useCallback(async () => {
     const room = roomRef.current;
@@ -1663,6 +1688,44 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                     <p className="text-base font-semibold">
                       {conn === 'reconnecting' ? 'Reconnecting…' : mode === 'start' ? 'Starting huddle…' : 'Joining huddle…'}
                     </p>
+                  </div>
+                ) : roomFull ? (
+                  <div className="pr-full" role="status" aria-live="polite">
+                    <span className="pr-full-icon"><Users className="h-8 w-8" aria-hidden /></span>
+                    <p className="pr-full-title">This prayer room is full</p>
+                    <p className="pr-full-text">
+                      All 50 seats in <strong>{title}</strong> are taken right now.
+                    </p>
+                    {roomFull.checking ? (
+                      <p className="pr-full-text inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Looking for the overflow room…
+                      </p>
+                    ) : roomFull.overflow?.available && roomFull.overflow.joinUrl ? (
+                      <>
+                        <button type="button" onClick={() => openSanctumOverflow(roomFull.overflow!.joinUrl!)} className="pr-full-go">
+                          <Headphones className="h-6 w-6" aria-hidden />
+                          Join the overflow room
+                        </button>
+                        <p className="pr-full-text">
+                          <strong>{roomFull.overflow.roomName}</strong> in PLCC Sanctum
+                          {roomFull.overflow.hearsJordan
+                            ? ' — you will hear the same live prayer.'
+                            : ' — led by its own prayer leaders.'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="pr-full-text">
+                        The overflow room isn&apos;t open yet. We&apos;ll show it here as soon as a moderator opens it — or try again in a moment.
+                      </p>
+                    )}
+                    <div className="flex flex-wrap justify-center gap-2.5">
+                      <button type="button" onClick={() => void join()} className="pr-tool">
+                        <RefreshCw size={16} aria-hidden /> Try this room again
+                      </button>
+                      <button type="button" onClick={() => void leave()} className="pr-tool">
+                        Not now
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>

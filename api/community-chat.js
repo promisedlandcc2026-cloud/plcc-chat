@@ -1423,6 +1423,18 @@ export default async function handler(req, res) {
           const errBody = await upstream.json().catch(() => null);
           if (isHuddleStartForbidden(403, errBody)) return huddleNotStarted(res);
         }
+        if (upstream.status === 409) {
+          const errBody = await upstream.json().catch(() => null);
+          if (errBody && errBody.code === 'HUDDLE_ROOM_FULL') {
+            // All 50 seats taken: the app offers PLCC Sanctum's overflow room.
+            return json(res, 409, {
+              ok: false,
+              code: 'huddle_room_full',
+              message: 'This prayer room is full.',
+              capacity: typeof errBody.capacity === 'number' ? errBody.capacity : 50,
+            });
+          }
+        }
         return mapUpstreamError(
           res,
           upstream.status,

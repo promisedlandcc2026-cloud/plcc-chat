@@ -391,3 +391,21 @@ button.pr-tile:active { transform: scale(.97); }
   .pr-titlebar-meta { width: 100%; flex-direction: row !important; justify-content: space-between; align-items: center; padding-top: 0.6rem; border-top: 1px solid var(--pr-line); }
   .pr-role.is-member { display: none; }
 }
+
+/* Room full → PLCC Sanctum overflow offer */
+.pr-full { display: flex; flex-direction: column; align-items: center; gap: 0.85rem; padding: 2rem 1rem 1.5rem; text-align: center; }
+.pr-full-icon { display: flex; align-items: center; justify-content: center; width: 4.5rem; height: 4.5rem; border-radius: 9999px; background: var(--pr-green); color: var(--pr-gold-light); box-shadow: 0 0 0 6px rgba(233,197,111,.35); }
+.pr-full-title { font-family: 'Playfair Display', 'Fraunces', Georgia, serif; font-weight: 700; font-size: 1.6rem; line-height: 1.15; color: var(--pr-ink); }
+@media (min-width: 1024px) { .pr-full-title { font-size: 2.1rem; } }
+.pr-full-text { max-width: 30rem; font-size: 0.95rem; line-height: 1.5; color: #2f3b35; }
+@media (min-width: 1024px) { .pr-full-text { font-size: 1.08rem; } }
+.pr-full-go {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.65rem;
+  min-height: 60px; padding: 0 1.6rem; border-radius: 9999px; margin-top: 0.4rem; white-space: nowrap;
+  background: linear-gradient(180deg, var(--pr-gold-light), var(--pr-gold)); color: #1d2414;
+  font-size: 1.05rem; font-weight: 800; box-shadow: 0 14px 28px -14px rgba(122,90,28,.85);
+  transition: transform .15s ease;
+}
+@media (min-width: 1024px) { .pr-full-go { font-size: 1.15rem; padding: 0 2.2rem; } }
+.pr-full-go:hover { transform: translateY(-2px); }
+.pr-full-go:active { transform: scale(.98); }

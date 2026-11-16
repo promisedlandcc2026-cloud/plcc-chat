@@ -41,6 +41,9 @@ function mapStatus(
   if (status === 401) {
     return { code: 'unauthorized', message: 'Please sign in again to continue.' };
   }
+  if (status === 409 && bodyCode === 'huddle_room_full') {
+    return { code: 'huddle_room_full', message: 'This prayer room is full.' };
+  }
   if (status === 403 && bodyCode === 'huddle_not_started') {
     return { code: 'huddle_not_started', message: HUDDLE_NOT_STARTED_MESSAGE };
   }

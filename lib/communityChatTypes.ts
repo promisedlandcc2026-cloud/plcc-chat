@@ -135,6 +135,7 @@ export type CommunityChatErrorCode =
   | 'backup_line_unavailable'
   | 'huddle_line_busy'
   | 'huddle_not_started'
+  | 'huddle_room_full'
   | 'upload_failed'
   | 'too_large';
 
