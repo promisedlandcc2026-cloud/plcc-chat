@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import './prayer-room.css';
 import { reloadOnceForNewVersion } from './lib/staleBuild';
 import { initInstallPrompt } from './lib/installPrompt';
 import { registerAlertsWorker } from './lib/phoneAlerts';

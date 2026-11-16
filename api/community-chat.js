@@ -78,6 +78,7 @@ import {
  * POST /api/community-chat?resource=huddle-end    { channelId }
  * GET  /api/community-chat?resource=directory&q=
  * POST /api/community-chat?resource=dm            { partnerId }
+ * POST /api/community-chat?resource=prayer-request { content, category, shareWith }  → Canaan Prayer Wall
  */
 
 const UPSTREAM_TIMEOUT_MS = 15000;
@@ -109,6 +110,7 @@ const ALLOWED_RESOURCES = new Set([
   'group-members',
   'group-member-add',
   'group-member-remove',
+  'prayer-request',
   'people',
   'ministries',
   'dm-list',
@@ -611,6 +613,45 @@ export default async function handler(req, res) {
         });
       }
       return json(res, 200, { ok: true, byChannel: parsed.byChannel });
+    }
+
+    // Prayer request from a Live Huddle → PLCC Canaan's Prayer Wall (name and user come from the sign-in there).
+    if (resource === 'prayer-request') {
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
+      }
+      const parsedBody = parseJsonBody(req);
+      const b =
+        parsedBody.ok && parsedBody.body && typeof parsedBody.body === 'object' && !Array.isArray(parsedBody.body)
+          ? parsedBody.body
+          : null;
+      const content = typeof b?.content === 'string' ? b.content.trim().slice(0, 2000) : '';
+      const category = ['Healing', 'Guidance', 'Praise Report', 'Family', 'Financial'].includes(String(b?.category))
+        ? String(b.category)
+        : 'Healing';
+      const shareWith = ['wall', 'intercessors', 'pastor'].includes(String(b?.shareWith)) ? String(b.shareWith) : 'wall';
+      if (!b || !content || !Object.keys(b).every((k) => ['content', 'category', 'shareWith'].includes(k))) {
+        return json(res, 400, { ok: false, code: 'invalid_body', message: 'Write your prayer request first.' });
+      }
+      const upstream = await fetch(`${originResult.origin}/api/vault?resource=community&subResource=prayer`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify({ content, category, share_with: shareWith }),
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      if (upstream.status === 401) return mapUpstreamError(res, 401);
+      const body = await upstream.json().catch(() => null);
+      if (!upstream.ok) {
+        return json(res, upstream.status === 403 ? 403 : 400, {
+          ok: false,
+          code: 'request_failed',
+          message: typeof body?.error === 'string' ? body.error.slice(0, 160) : 'Could not send your prayer request.',
+        });
+      }
+      const status = ['Published', 'Vetting', 'Confidential'].includes(String(body?.status)) ? String(body.status) : 'Vetting';
+      return json(res, 200, { ok: true, status, shareWith });
     }
 
     if (

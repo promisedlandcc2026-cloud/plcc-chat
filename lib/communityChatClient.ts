@@ -880,3 +880,14 @@ export async function updateRequest(
   );
   return d.request;
 }
+
+export type PrayerRequestShare = 'wall' | 'intercessors' | 'pastor';
+
+/** Send a prayer request from a Live Huddle to PLCC Canaan's Prayer Wall. */
+export async function submitPrayerRequest(input: {
+  content: string;
+  category: string;
+  shareWith: PrayerRequestShare;
+}): Promise<{ status: 'Published' | 'Vetting' | 'Confidential'; shareWith: PrayerRequestShare }> {
+  return postJson('prayer-request', input, 'Could not send your prayer request.');
+}
