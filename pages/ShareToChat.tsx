@@ -3,14 +3,16 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CalendarDays, HandHeart, Loader2, Megaphone, Search, Users } from 'lucide-react';
 import { fetchCardOptions, fetchChatChannels, shareCard } from '../lib/communityChatClient';
 import type { CommunityChatChannel } from '../lib/communityChatTypes';
+import { ShareVerse } from './ShareVerse';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * /share?kind=event|serve&id=…  — opened from Tribes or the Vault ("Share to Jordan").
+ * (kind=verse is handled by ShareVerse.)
  * Pick a chat, add a note, and the event or Serve need posts there as a card.
  */
-export const ShareToChat: React.FC = () => {
+const ShareCard: React.FC = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const kind = params.get('kind') === 'serve' ? 'serve' : 'event';
@@ -155,6 +157,12 @@ export const ShareToChat: React.FC = () => {
       )}
     </main>
   );
+};
+
+/** kind=verse → a Bible verse from the church Bible reader; otherwise an event or Serve card. */
+export const ShareToChat: React.FC = () => {
+  const [params] = useSearchParams();
+  return params.get('kind') === 'verse' ? <ShareVerse /> : <ShareCard />;
 };
 
 export default ShareToChat;

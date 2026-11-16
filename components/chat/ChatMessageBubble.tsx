@@ -7,6 +7,8 @@ import { PollCard } from './PollCard';
 import { ChatAttachments } from './ChatAttachments';
 import { visibleCaption } from '../../lib/chatMedia';
 import { seenBy, seenLabel, splitRich, tickState } from '../../lib/chatMessageUtils';
+import { parseVerseMessage } from '../../lib/verseShare';
+import { VerseCard } from './VerseCard';
 
 const SWIPE_REPLY_PX = 60;
 const LONG_PRESS_MS = 450;
@@ -118,6 +120,7 @@ export const ChatMessageBubble: React.FC<{
   };
 
   const text = msg.isDeleted ? 'This message was removed' : visibleCaption(msg.content, msg.attachments);
+  const verse = msg.isDeleted ? null : parseVerseMessage(text);
   const seen = mine && !msg.isDeleted ? seenBy(msg, readers) : [];
   const reactions = msg.reactions || [];
 
@@ -196,6 +199,11 @@ export const ChatMessageBubble: React.FC<{
         ) : text ? (
           msg.isDeleted ? (
             <p className="text-sm italic">{text}</p>
+          ) : verse ? (
+            <>
+              {verse.note ? <div className="mb-2"><MessageText text={verse.note} mine={mine} /></div> : null}
+              <VerseCard verse={verse} />
+            </>
           ) : (
             <MessageText text={text} mine={mine} />
           )
