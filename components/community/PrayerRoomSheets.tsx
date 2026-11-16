@@ -154,7 +154,7 @@ export function GuidelinesSheet({ onClose, overflow = false }: { onClose: () => 
     'Keep every prayer respectful, focused and kind.',
     'Never share private details about other people.',
     overflow
-      ? 'This overflow room opens when the main Jordan room is full.'
+      ? 'This overflow room opens when the main PLCC Ka Link room is full.'
       : 'When this room is full, PLCC Sanctum opens an overflow room.',
     'Moderators may mute or remove anyone to keep the room safe.',
   ];

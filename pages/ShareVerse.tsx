@@ -24,7 +24,7 @@ type Target =
 const targetKey = (t: Target) => (t.kind === 'person' ? `p:${t.partnerId}` : `${t.kind}:${t.id}`);
 
 /**
- * /share?kind=verse&t=eng_kjv&b=JHN&c=1&v=10-11 — "Share to Jordan" from the church Bible reader.
+ * /share?kind=verse&t=eng_kjv&b=JHN&c=1&v=10-11 — "Share to PLCC Ka Link" from the church Bible reader.
  * Pick a room or a person, see the verse, add a message, Send.
  */
 export const ShareVerse: React.FC = () => {
@@ -136,7 +136,7 @@ export const ShareVerse: React.FC = () => {
   if (!passage) {
     return (
       <main className="flex-1 w-full max-w-[520px] mx-auto px-5 pt-6 pb-10">
-        <h1 className="text-2xl font-bold text-[#1A1A1A]">Share to Jordan</h1>
+        <h1 className="text-2xl font-bold text-[#1A1A1A]">Share to PLCC Ka Link</h1>
         <p className="mt-3 text-base text-burgundy">That link isn’t complete. Please go back to the Bible and try again.</p>
       </main>
     );
@@ -144,7 +144,7 @@ export const ShareVerse: React.FC = () => {
 
   return (
     <main className="flex-1 w-full max-w-[520px] mx-auto px-5 pt-6 pb-10 flex flex-col gap-5">
-      <h1 className="text-2xl font-bold text-[#1A1A1A]">Share to Jordan</h1>
+      <h1 className="text-2xl font-bold text-[#1A1A1A]">Share to PLCC Ka Link</h1>
 
       {verse ? (
         <VerseCard verse={verse} />

@@ -1,4 +1,4 @@
-/** Jordan home tabs: Prayer Gathering | Ministries | Messages | Live Huddles (URL + session). */
+/** PLCC Ka Link home tabs: Prayer Gathering | Ministries | Messages | Live Huddles (URL + session). */
 
 export type ChatHomeTab = 'prayer' | 'ministries' | 'messages' | 'huddles';
 

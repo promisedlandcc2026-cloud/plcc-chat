@@ -6,7 +6,7 @@ import { MemberGate } from './components/auth/MemberGate';
 import { LazyRoute } from './components/routing/LazyRoute';
 
 /**
- * Jordan — standalone chat + Live Huddle for Promised Land Christian Center.
+ * PLCC Ka Link — standalone chat + Live Huddle for Promised Land Christian Center.
  *
  * Everything goes through the PLCC Canaan (same rooms, messages and huddles as
  * Vault Chat and Tribes). Paths match Connect so shared links keep working.

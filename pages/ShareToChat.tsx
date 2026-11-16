@@ -8,7 +8,7 @@ import { ShareVerse } from './ShareVerse';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * /share?kind=event|serve&id=…  — opened from Tribes or the Vault ("Share to Jordan").
+ * /share?kind=event|serve&id=…  — opened from Tribes or the Vault ("Share to PLCC Ka Link").
  * (kind=verse is handled by ShareVerse.)
  * Pick a chat, add a note, and the event or Serve need posts there as a card.
  */
@@ -68,7 +68,7 @@ const ShareCard: React.FC = () => {
 
   return (
     <main className="flex-1 w-full max-w-[500px] mx-auto px-5 pt-6 pb-10 flex flex-col gap-4">
-      <h1 className="text-2xl font-bold text-[#1A1A1A]">Share to Jordan</h1>
+      <h1 className="text-2xl font-bold text-[#1A1A1A]">Share to PLCC Ka Link</h1>
 
       {!valid ? (
         <p className="text-base text-burgundy">That link isn’t complete. Please go back and try again.</p>

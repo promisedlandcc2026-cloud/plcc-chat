@@ -329,7 +329,7 @@ export function useVoiceRecorder(opts: {
       }, 1000);
     } catch {
       cleanup();
-      opts.onError('Allow the microphone for Jordan to send voice messages.');
+      opts.onError('Allow the microphone for PLCC Ka Link to send voice messages.');
     }
   }, [cleanup, opts, supported]);
 

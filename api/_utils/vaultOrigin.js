@@ -8,7 +8,7 @@
  * @param {{ allowHttpLocal?: boolean }} [opts]
  * @returns {{ ok: true, origin: string } | { ok: false, reason: string }}
  */
-/** Jordan always talks to the church's Vault; VAULT_API_ORIGIN only overrides it (e.g. local dev). */
+/** PLCC Ka Link always talks to the church's Vault; VAULT_API_ORIGIN only overrides it (e.g. local dev). */
 export const DEFAULT_VAULT_API_ORIGIN = 'https://plcc-opal.vercel.app';
 
 export function parseVaultApiOrigin(raw, opts = {}) {

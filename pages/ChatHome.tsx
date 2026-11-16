@@ -64,7 +64,7 @@ export const ChatHome: React.FC = () => {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-10 text-gray-500">
             <MessageCircle size={48} className="text-burgundy/40 mb-4" aria-hidden />
-            <p className="text-lg font-bold text-[#1A1A1A]">Jordan</p>
+            <p className="text-lg font-bold text-[#1A1A1A]">PLCC Ka Link</p>
             <p className="text-sm mt-1 max-w-sm">
               Pick a room or a person on the left to start chatting. Live Huddles open right here.
             </p>

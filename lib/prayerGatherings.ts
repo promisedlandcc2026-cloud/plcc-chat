@@ -1,5 +1,5 @@
 /**
- * The Prayer Gathering rooms shown on Jordan's first tab, in order.
+ * The Prayer Gathering rooms shown on PLCC Ka Link's first tab, in order.
  * Each one is an ordinary chat room found by its name (any capitals / spacing).
  * Intercessors is the Vault's Intercessor room (by id), open to the Intercessors team.
  */

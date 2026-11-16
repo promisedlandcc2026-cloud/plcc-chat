@@ -7,7 +7,7 @@ import { CONNECT_URL, VAULT_URL } from '../lib/appLinks';
 export const SignedOut: React.FC = () => (
   <main className="flex-1 px-6 pt-16 pb-10 flex flex-col items-center text-center">
     <AWCLogo size={88} className="mb-4" />
-    <h1 className="text-2xl font-bold text-[#1A1A1A]">You’re signed out of Jordan</h1>
+    <h1 className="text-2xl font-bold text-[#1A1A1A]">You’re signed out of PLCC Ka Link</h1>
     <p className="text-sm text-gray-500 mt-2 max-w-sm">Where would you like to go?</p>
     <div className="w-full max-w-sm mt-8 space-y-3">
       <a
@@ -26,7 +26,7 @@ export const SignedOut: React.FC = () => (
         to="/sign-in"
         className="w-full min-h-[56px] rounded-2xl border-2 border-burgundy text-burgundy font-extrabold text-base flex items-center justify-center"
       >
-        Sign in to Jordan again
+        Sign in to PLCC Ka Link again
       </Link>
     </div>
   </main>

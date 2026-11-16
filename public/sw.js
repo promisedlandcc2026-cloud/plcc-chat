@@ -1,6 +1,6 @@
 /*
- * Jordan service worker — phone alerts only.
- * It does not cache pages or files (Jordan always loads fresh), so a deploy
+ * PLCC Ka Link service worker — phone alerts only.
+ * It does not cache pages or files (PLCC Ka Link always loads fresh), so a deploy
  * can never leave members stuck on an old version.
  */
 self.addEventListener('install', () => self.skipWaiting());
@@ -23,7 +23,7 @@ self.addEventListener('push', (event) => {
   } catch (_) {
     data = { body: event.data ? event.data.text() : '' };
   }
-  const title = String(data.title || 'Jordan').slice(0, 80);
+  const title = String(data.title || 'PLCC Ka Link').slice(0, 80);
   const url = safeUrl(data.url);
   event.waitUntil(
     (async () => {
@@ -64,5 +64,5 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // The browser replaced this phone's subscription: alerts resume next time
-// Jordan opens (lib/phoneAlerts.ts re-saves it).
+// PLCC Ka Link opens (lib/phoneAlerts.ts re-saves it).
 self.addEventListener('pushsubscriptionchange', () => {});

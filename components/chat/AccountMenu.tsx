@@ -46,7 +46,7 @@ const AlertsRow: React.FC = () => {
     state == null
       ? 'Checking…'
       : state.kind === 'needs-install'
-        ? 'On iPhone, add Jordan to your Home Screen first, then turn this on there.'
+        ? 'On iPhone, add PLCC Ka Link to your Home Screen first, then turn this on there.'
         : state.kind === 'blocked'
           ? 'Blocked. Allow notifications for this site in your phone or browser settings.'
           : on
@@ -190,7 +190,7 @@ export const AccountMenu: React.FC = () => {
                 className="w-full min-h-[52px] rounded-2xl border-2 border-burgundy text-burgundy font-extrabold flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {busy ? <Loader2 className="animate-spin" size={18} /> : <LogOut size={18} aria-hidden />}
-                Sign out of Jordan
+                Sign out of PLCC Ka Link
               </button>
               {error ? <p className="text-sm text-burgundy mt-2">{error}</p> : null}
               <p className="text-xs text-gray-500 mt-2 text-center">

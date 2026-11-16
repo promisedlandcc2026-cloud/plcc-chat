@@ -17,7 +17,7 @@ if (!isSupabaseConfigured) {
 }
 
 /**
- * Single browser Supabase client for Jordan.
+ * Single browser Supabase client for PLCC Ka Link.
  * Uses the anon key only — never a service-role key.
  * Session persistence and refresh are handled by the Auth client.
  */

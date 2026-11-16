@@ -1,5 +1,5 @@
 /**
- * Phone alerts (web push) for Jordan — new chat messages only.
+ * Phone alerts (web push) for PLCC Ka Link — new chat messages only.
  * (Church announcements, prayer and Canaan News alerts stay in Tribes.)
  *
  * - The service worker (/sw.js) shows alerts and opens the chat when tapped.

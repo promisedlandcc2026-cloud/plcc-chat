@@ -1,4 +1,4 @@
-/** PLCC Sanctum's overflow room, offered when a Jordan prayer room is full (50 seats). */
+/** PLCC Sanctum's overflow room, offered when a PLCC Ka Link prayer room is full (50 seats). */
 const env = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
 
 export const SANCTUM_ORIGIN = String(env.VITE_SANCTUM_ORIGIN || 'https://plcc-sanctum.onrender.com').replace(/\/+$/, '');
@@ -7,7 +7,7 @@ export interface SanctumOverflow {
   available: boolean;
   roomName?: string;
   joinUrl?: string;
-  /** The overflow room is relaying this Jordan room's live audio. */
+  /** The overflow room is relaying this PLCC Ka Link room's live audio. */
   hearsJordan?: boolean;
 }
 
@@ -48,7 +48,7 @@ export function isRoomFullError(err: unknown): boolean {
   return /max(imum)? participants|room is full|room full|exceeded its max/.test(msg);
 }
 
-/** Open the overflow in a new tab so Jordan stays open; same tab if the browser blocks it. */
+/** Open the overflow in a new tab so PLCC Ka Link stays open; same tab if the browser blocks it. */
 export function openSanctumOverflow(joinUrl: string) {
   const tab = window.open(joinUrl, '_blank');
   if (tab) tab.opener = null;

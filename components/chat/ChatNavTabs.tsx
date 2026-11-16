@@ -12,7 +12,7 @@ type TabDef = {
 };
 
 /**
- * Prayer Gathering | Ministries | Messages | Live Huddles — under the Jordan header.
+ * Prayer Gathering | Ministries | Messages | Live Huddles — under the PLCC Ka Link header.
  * Large touch targets, keyboard-friendly tablist.
  */
 export const ChatNavTabs: React.FC<{
@@ -34,7 +34,7 @@ export const ChatNavTabs: React.FC<{
   return (
     <div
       role="tablist"
-      aria-label="Jordan sections"
+      aria-label="PLCC Ka Link sections"
       className="mb-5 grid grid-cols-4 gap-1 rounded-2xl bg-white border border-gray-200 p-1 shadow-sm"
       data-testid="jordan-home-tabs"
     >
