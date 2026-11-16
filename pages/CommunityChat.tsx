@@ -1,9 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Archive,
   ArchiveRestore,
   ChevronDown,
+  Church,
+  HandHeart,
+  Lock,
+  MoonStar,
+  Radio,
+  Sun,
+  Sunrise,
   Loader2,
   Megaphone,
   MessageCircle,
@@ -41,6 +48,29 @@ import { CHAT_LEADER_ROLES } from '../lib/chatRoles';
 import { fetchArchivedChatIds, fetchDmList, searchChatMessages, setChatArchived } from '../lib/communityChatClient';
 import { Portal } from '../components/chat/Portal';
 import type { ChatSearchHit } from '../lib/communityChatTypes';
+import { ChatNavTabs } from '../components/chat/ChatNavTabs';
+import {
+  parseChatHomeTab,
+  readStoredChatHomeTab,
+  storeChatHomeTab,
+  type ChatHomeTab,
+} from '../lib/chatHomeTabs';
+import {
+  matchPrayerGatherings,
+  prayerGatheringRoomIds,
+  PRAYER_GATHERINGS,
+  type PrayerGatheringKey,
+} from '../lib/prayerGatherings';
+import { huddleRoomPath, liveHuddleRows } from '../lib/liveHuddles';
+import { fetchIntercessorsAccess } from '../lib/intercessorsClient';
+
+const GATHERING_ICONS: Record<PrayerGatheringKey, React.ReactNode> = {
+  'morning-glory': <Sunrise size={22} aria-hidden />,
+  'lunch-hour': <Sun size={22} aria-hidden />,
+  'midnight-watch': <MoonStar size={22} aria-hidden />,
+  'upper-room': <Church size={22} aria-hidden />,
+  intercessors: <HandHeart size={22} aria-hidden />,
+};
 
 const SEARCH_DEBOUNCE_MS = 280;
 
@@ -90,6 +120,18 @@ export const CommunityChatPage: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [openingPartnerId, setOpeningPartnerId] = useState<string | null>(null);
+  /** Which home tab is showing (URL ?tab= wins, then this visit's last tab, then Prayer). */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+  const activeTab: ChatHomeTab = urlTab ? parseChatHomeTab(urlTab) : readStoredChatHomeTab() ?? 'prayer';
+  const setActiveTab = (tab: ChatHomeTab) => {
+    storeChatHomeTab(tab);
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', tab);
+    setSearchParams(next, { replace: true });
+  };
+  /** The Vault's Intercessor room id, when this member is on the Intercessors team. */
+  const [intercessors, setIntercessors] = useState<{ allowed: boolean; roomId: string | null } | null>(null);
 
   const load = useCallback(async () => {
     if (memberAccessState !== 'approved_member') return;
@@ -136,6 +178,17 @@ export const CommunityChatPage: React.FC = () => {
   }, [load]);
 
   useEffect(() => {
+    if (memberAccessState !== 'approved_member') return;
+    let alive = true;
+    fetchIntercessorsAccess()
+      .then((a) => alive && setIntercessors({ allowed: a.allowed, roomId: a.allowed ? a.roomId : null }))
+      .catch(() => alive && setIntercessors({ allowed: false, roomId: null }));
+    return () => {
+      alive = false;
+    };
+  }, [memberAccessState]);
+
+  useEffect(() => {
     if (!newChatOpen) return;
     const q = searchQ.trim();
     if (!q) {
@@ -175,11 +228,22 @@ export const CommunityChatPage: React.FC = () => {
     () => channels.filter((c) => !isDmChannel(c)),
     [channels]
   );
-  const activeGroups = groupChannels.filter((c) => !archivedIds.has(c.id));
+  const gatherings = useMemo(
+    () => matchPrayerGatherings(groupChannels, intercessors?.roomId ?? null),
+    [groupChannels, intercessors]
+  );
+  const gatheringIds = useMemo(() => prayerGatheringRoomIds(gatherings), [gatherings]);
+  const activeGroups = groupChannels.filter((c) => !archivedIds.has(c.id) && !gatheringIds.has(c.id));
+  const liveRows = useMemo(() => liveHuddleRows(groupChannels, huddleByChannel), [groupChannels, huddleByChannel]);
+  const unreadOf = (id: string) => (activeChannelId === id ? 0 : unreadByChannel[id] || 0);
+  const prayerUnread = [...gatheringIds].reduce((n, id) => n + unreadOf(id), 0);
+  const ministryUnread = activeGroups.reduce((n, c) => n + unreadOf(c.id), 0);
   const archivedGroups = groupChannels.filter((c) => archivedIds.has(c.id));
   const activeDms = dmRecents.filter((d) => !archivedIds.has(d.channelId));
   const archivedDms = dmRecents.filter((d) => archivedIds.has(d.channelId));
-  const archivedCount = archivedGroups.length + archivedDms.length;
+  /** Archived chats for the tab that's showing (DMs on Messages, rooms on Ministries). */
+  const archivedCount = activeTab === 'messages' ? archivedDms.length : activeTab === 'ministries' ? archivedGroups.length : 0;
+  const messageUnread = activeDms.reduce((n, d) => n + unreadOf(d.channelId), 0);
 
   const closeNewChat = () => {
     setNewChatOpen(false);
@@ -396,10 +460,19 @@ export const CommunityChatPage: React.FC = () => {
       <MemberPageHeader
         title="Chat"
         backTo={null}
-        subtitle={`${identity?.name ? `Signed in as ${identity.name}. ` : ''}Message members, open your ministry rooms, and join a Live Huddle.`}
+        subtitle={`${identity?.name ? `Signed in as ${identity.name}. ` : ''}Prayer gatherings, ministry rooms, messages and Live Huddles — each in its own tab.`}
       />
 
       <ChatAlertsCard />
+
+      <ChatNavTabs
+        active={activeTab}
+        onChange={setActiveTab}
+        prayerUnread={prayerUnread}
+        ministryUnread={ministryUnread}
+        messageUnread={messageUnread}
+        liveCount={liveRows.length}
+      />
 
       <label className="relative block mb-5">
         <span className="sr-only">Search messages</span>
@@ -483,51 +556,190 @@ export const CommunityChatPage: React.FC = () => {
               {toast}
             </p>
           ) : null}
-          {activeDms.length > 0 ? (
-            <section>
-              <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2 px-1">
-                Direct
-              </h2>
-              <ul className="space-y-2">
-                {activeDms.map((dm) =>
-                  renderChannelRow(
-                    {
-                      id: dm.channelId,
-                      name: dm.partnerName,
-                      description: null,
-                      visibility: 'dm',
-                      type: 'private',
-                      ministryId: null,
-                    },
-                    dm.partnerName,
-                    { isDm: true }
-                  )
-                )}
+          {activeTab === 'prayer' ? (
+            <div role="tabpanel" id="chat-panel-prayer" aria-labelledby="chat-tab-prayer" className="space-y-3">
+              <div className="px-1">
+                <h2 className="text-lg font-bold text-[#1A1A1A]">Prayer Gathering</h2>
+                <p className="text-sm text-gray-500">Tap a gathering to open its room. A green Live mark means people are praying now.</p>
+              </div>
+              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-1">
+                {PRAYER_GATHERINGS.map((g) => {
+                  const room = gatherings[g.key];
+                  const huddle = room ? huddleByChannel[room.id] : undefined;
+                  const live = room ? isHuddleChannelLive(huddle) : false;
+                  const unread = room ? unreadOf(room.id) : 0;
+                  const lockedIntercessors = g.key === 'intercessors' && !room && intercessors && !intercessors.allowed;
+                  const body = (
+                    <>
+                      <span
+                        className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center ${
+                          room ? 'bg-gradient-to-br from-burgundy to-wine text-gold' : 'bg-gray-100 text-gray-400'
+                        }`}
+                      >
+                        {GATHERING_ICONS[g.key]}
+                      </span>
+                      <span className="min-w-0 flex-1 text-left">
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className={`text-base font-bold truncate ${room ? 'text-[#1A1A1A]' : 'text-gray-500'}`}>{g.name}</span>
+                          {live ? <HuddleLiveBadge /> : null}
+                        </span>
+                        <span className="block text-xs text-gray-500 mt-0.5">
+                          {live && huddle?.participantCount
+                            ? `${huddle.participantCount} praying now · tap to join`
+                            : room
+                              ? g.blurb
+                              : lockedIntercessors
+                                ? 'For the Intercessors team.'
+                                : 'This room is not open yet.'}
+                        </span>
+                      </span>
+                      {unread > 0 ? (
+                        <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-burgundy text-white text-xs font-black leading-[22px] text-center">
+                          {unread > 99 ? '99+' : unread}
+                        </span>
+                      ) : null}
+                      {lockedIntercessors ? <Lock size={16} className="text-gray-400 shrink-0" aria-hidden /> : null}
+                      {room && live ? (
+                        <span className="shrink-0 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-wider px-3 py-2">
+                          Join
+                        </span>
+                      ) : null}
+                    </>
+                  );
+                  return (
+                    <li key={g.key}>
+                      {room ? (
+                        <Link
+                          to={live ? huddleRoomPath(room.id, 'join') : `/community/chat/${room.id}`}
+                          state={{ channelName: room.name }}
+                          aria-current={activeChannelId === room.id ? 'page' : undefined}
+                          data-prayer-gathering={g.key}
+                          className={`flex items-center gap-3 rounded-2xl border shadow-sm p-4 min-h-[76px] transition-colors ${
+                            activeChannelId === room.id
+                              ? 'bg-burgundy/5 border-burgundy/40'
+                              : live
+                                ? 'bg-emerald-50/60 border-emerald-200 hover:border-emerald-300'
+                                : 'bg-white border-gray-100 hover:border-burgundy/25'
+                          }`}
+                        >
+                          {body}
+                        </Link>
+                      ) : (
+                        <div
+                          className="flex items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-white/60 p-4 min-h-[76px]"
+                          data-prayer-gathering={g.key}
+                          aria-disabled="true"
+                        >
+                          {body}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
+            </div>
+          ) : null}
+
+          {activeTab === 'ministries' ? (
+            <section role="tabpanel" id="chat-panel-ministries" aria-labelledby="chat-tab-ministries">
+              <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2 px-1">
+                Ministry channels
+              </h2>
+              {activeGroups.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500">
+                  No ministry channels are available yet.
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {activeGroups.map((channel) =>
+                    renderChannelRow(
+                      channel,
+                      isDmChannel(channel) ? dmDisplayName(channel.id, channel.name, ownerId) : channel.name
+                    )
+                  )}
+                </ul>
+              )}
             </section>
           ) : null}
 
-          <section>
-            <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2 px-1">
-              Channels
-            </h2>
-            {activeGroups.length === 0 ? (
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500">
-                No group channels are available yet. Use New to message a member.
+          {activeTab === 'messages' ? (
+            <section role="tabpanel" id="chat-panel-messages" aria-labelledby="chat-tab-messages">
+              <div className="flex items-center justify-between gap-2 mb-2 px-1">
+                <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">Messages</h2>
+                <button
+                  type="button"
+                  onClick={() => setNewChatOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-xl bg-burgundy text-white text-sm font-bold min-h-[44px] px-3"
+                >
+                  <Plus size={16} aria-hidden /> New message
+                </button>
               </div>
-            ) : (
-              <ul className="space-y-2">
-                {activeGroups.map((channel) =>
-                  renderChannelRow(
-                    channel,
-                    isDmChannel(channel)
-                      ? dmDisplayName(channel.id, channel.name, ownerId)
-                      : channel.name
-                  )
-                )}
-              </ul>
-            )}
-          </section>
+              {activeDms.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500">
+                  No private messages yet. Tap New message to write to a member.
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {activeDms.map((dm) =>
+                    renderChannelRow(
+                      {
+                        id: dm.channelId,
+                        name: dm.partnerName,
+                        description: null,
+                        visibility: 'dm',
+                        type: 'private',
+                        ministryId: null,
+                      },
+                      dm.partnerName,
+                      { isDm: true }
+                    )
+                  )}
+                </ul>
+              )}
+            </section>
+          ) : null}
+
+          {activeTab === 'huddles' ? (
+            <section role="tabpanel" id="chat-panel-huddles" aria-labelledby="chat-tab-huddles" className="space-y-3">
+              <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 px-1 flex items-center gap-2">
+                <Radio size={14} className="text-emerald-600" aria-hidden /> Live Huddles now
+              </h2>
+              {liveRows.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500 space-y-2">
+                  <p>No Live Huddles right now.</p>
+                  <p>When a prayer gathering or ministry room goes live, it shows up here so you can join in one tap. To start one, open any room and tap Start huddle.</p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {liveRows.map((row) => (
+                    <li key={row.id}>
+                      <Link
+                        to={huddleRoomPath(row.id, 'join')}
+                        state={{ channelName: row.name }}
+                        className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 shadow-sm p-4 transition-colors min-h-[64px] hover:border-emerald-300"
+                      >
+                        <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                          <Radio size={18} aria-hidden />
+                        </div>
+                        <div className="min-w-0 flex-1 text-left">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <p className="text-sm font-bold text-[#1A1A1A] truncate">{row.name}</p>
+                            <HuddleLiveBadge count={row.count} />
+                          </div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+                            {row.count > 0 ? `${row.count} in huddle · Tap to join` : 'Tap to join'}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-wider px-3 py-2">
+                          Join
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ) : null}
 
           {archivedCount > 0 ? (
             <section>
@@ -544,14 +756,14 @@ export const CommunityChatPage: React.FC = () => {
               </button>
               {showArchived ? (
                 <ul className="space-y-2 opacity-80">
-                  {archivedDms.map((dm) =>
+                  {activeTab === 'messages' && archivedDms.map((dm) =>
                     renderChannelRow(
                       { id: dm.channelId, name: dm.partnerName, description: null, visibility: 'dm', type: 'private', ministryId: null },
                       dm.partnerName,
                       { isDm: true }
                     )
                   )}
-                  {archivedGroups.map((channel) => renderChannelRow(channel, channel.name))}
+                  {activeTab === 'ministries' && archivedGroups.map((channel) => renderChannelRow(channel, channel.name))}
                 </ul>
               ) : null}
             </section>
