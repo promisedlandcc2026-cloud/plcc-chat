@@ -21,6 +21,7 @@ const AuthCallback = lazy(() =>
 const SignedOut = lazy(() => import('./pages/SignedOut').then((m) => ({ default: m.SignedOut })));
 const ChatHome = lazy(() => import('./pages/ChatHome').then((m) => ({ default: m.ChatHome })));
 const ShareToChat = lazy(() => import('./pages/ShareToChat').then((m) => ({ default: m.ShareToChat })));
+const LivePrayer = lazy(() => import('./pages/LivePrayer').then((m) => ({ default: m.LivePrayer })));
 
 /** Phone-width column on phones; full-width two-pane chat on desktop (see pages/ChatHome). */
 const AppShell: React.FC = () => (
@@ -85,6 +86,16 @@ const AppShell: React.FC = () => (
           <MemberGate requireAccess="approved_member">
             <LazyRoute label="Opening…" sectionLabel="share">
               <ShareToChat />
+            </LazyRoute>
+          </MemberGate>
+        }
+      />
+      <Route
+        path="/live"
+        element={
+          <MemberGate requireAccess="approved_member">
+            <LazyRoute label="Looking for live prayer…" sectionLabel="live prayer">
+              <LivePrayer />
             </LazyRoute>
           </MemberGate>
         }
