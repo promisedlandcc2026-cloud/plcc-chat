@@ -246,7 +246,7 @@
   display: flex; flex-direction: column; gap: 0.6rem; min-height: 0;
   border-radius: 1.25rem; padding: 0.75rem; background: rgba(4, 25, 15, 0.6); border: 1px solid var(--pr-line);
 }
-.pr-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; flex-shrink: 0; }
+.pr-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.4rem; flex-shrink: 0; }
 .pr-tab {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; min-height: 38px; border-radius: 9999px;
   border: 1px solid var(--pr-line); color: var(--pr-text); font-size: 0.82rem; font-weight: 800; white-space: nowrap;
@@ -306,6 +306,22 @@
   background: linear-gradient(180deg, var(--pr-gold-light), var(--pr-gold)); color: #1d2414; font-size: 1rem; font-weight: 800;
   box-shadow: 0 14px 28px -14px rgba(0,0,0,.85);
 }
+
+/* Bible inside the prayer room: a light reading card (computer side panel / phone sheet) */
+@media (min-width: 1024px) { .pr-content.is-reading { grid-template-columns: minmax(0, 1fr) 27rem; } }
+.pr-bible {
+  flex: 1; min-height: 0; overflow-y: auto; border-radius: 1rem; padding: 0.75rem 0.75rem 0;
+  background: #fffdf7; color: #16251f;
+}
+.pr-bible-sheet {
+  position: fixed; inset: 0; z-index: 450; display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top); background: #04190f; color: #f4eedd;
+}
+.pr-bible-sheet-head { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(217,180,94,.32); }
+.pr-bible-sheet-head p { display: inline-flex; align-items: center; gap: 0.45rem; font-family: 'Playfair Display', 'Fraunces', Georgia, serif; font-size: 1.2rem; font-weight: 700; color: #fff; }
+.pr-bible-sheet-head p svg { color: #f1d58a; }
+.pr-bible-sheet-sub { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.72rem; color: rgba(244,238,221,.7); }
+.pr-bible-sheet-body { margin: 0.6rem; margin-bottom: calc(0.6rem + env(safe-area-inset-bottom)); }
 
 /* Minimized: floating bar over the chat */
 .pr-mini {

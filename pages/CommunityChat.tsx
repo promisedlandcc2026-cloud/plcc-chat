@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import {
   Archive,
   ArchiveRestore,
-  BookOpen,
   ChevronDown,
   Church,
   HandHeart,
@@ -426,14 +425,6 @@ export const CommunityChatPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-6">
         <AccountMenu />
         <div className="flex items-center">
-          <Link
-            to="/bible"
-            className="inline-flex items-center gap-1 text-burgundy text-sm font-bold min-h-[44px] px-1.5"
-            aria-label="Open the Bible"
-          >
-            <BookOpen size={16} aria-hidden />
-            Bible
-          </Link>
           {canCreateGroups ? (
             <button
               type="button"

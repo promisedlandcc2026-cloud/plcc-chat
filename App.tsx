@@ -22,7 +22,6 @@ const SignedOut = lazy(() => import('./pages/SignedOut').then((m) => ({ default:
 const ChatHome = lazy(() => import('./pages/ChatHome').then((m) => ({ default: m.ChatHome })));
 const ShareToChat = lazy(() => import('./pages/ShareToChat').then((m) => ({ default: m.ShareToChat })));
 const LivePrayer = lazy(() => import('./pages/LivePrayer').then((m) => ({ default: m.LivePrayer })));
-const BiblePage = lazy(() => import('./pages/BiblePage').then((m) => ({ default: m.BiblePage })));
 
 /** Phone-width column on phones; full-width two-pane chat on desktop (see pages/ChatHome). */
 const AppShell: React.FC = () => (
@@ -97,16 +96,6 @@ const AppShell: React.FC = () => (
           <MemberGate requireAccess="approved_member">
             <LazyRoute label="Looking for live prayer…" sectionLabel="live prayer">
               <LivePrayer />
-            </LazyRoute>
-          </MemberGate>
-        }
-      />
-      <Route
-        path="/bible"
-        element={
-          <MemberGate requireAccess="approved_member">
-            <LazyRoute label="Opening the Bible…" sectionLabel="Bible">
-              <BiblePage />
             </LazyRoute>
           </MemberGate>
         }

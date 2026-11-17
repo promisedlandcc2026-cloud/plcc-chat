@@ -1,6 +1,10 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { BibleSelection } from '../bible/BibleReader';
+
+const BibleReader = lazy(() => import('../bible/BibleReader').then((m) => ({ default: m.BibleReader })));
 import {
   BookHeart,
+  BookOpen,
   RefreshCw,
   Captions,
   CircleHelp,
@@ -354,7 +358,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   /** Prayer room shrunk to a small floating bar so the chat underneath can be used. */
   const [minimized, setMinimized] = useState(false);
   /** Side panel tab in the prayer room: who is here, or the room's information. */
-  const [sideTab, setSideTab] = useState<'people' | 'info'>('people');
+  const [sideTab, setSideTab] = useState<'people' | 'bible' | 'info'>('people');
+  /** Phones: the Bible opens as a tall sheet over the prayer room. */
+  const [bibleSheetOpen, setBibleSheetOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<HuddleChatMessage[]>([]);
   const [chatUnread, setChatUnread] = useState(0);
   const [chatSending, setChatSending] = useState(false);
@@ -1546,6 +1552,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     const openNewTab = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
     const nav: Array<{ key: string; label: string; Icon: React.ElementType; onClick: () => void; active?: boolean }> = [
       { key: 'room', label: 'Prayer Room', Icon: Radio, active: true, onClick: () => undefined },
+      { key: 'bible', label: 'Bible', Icon: BookOpen, onClick: () => openBible() },
       { key: 'rooms', label: 'All Rooms', Icon: LayoutGrid, onClick: () => openNewTab('/live') },
       { key: 'request', label: 'Prayer Request', Icon: HandHeart, onClick: () => setSheet('prayer') },
       { key: 'wall', label: 'Prayer Wall', Icon: BookHeart, onClick: () => openNewTab(`${VAULT_URL.replace(/\/+$/, '')}/#/community/prayer-wall`) },
@@ -1564,6 +1571,27 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         : 'You will join muted';
 
     const handLabel = handRaised ? 'Lower Hand' : 'Raise Hand';
+    const openBible = () => {
+      if (typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches) setSideTab('bible');
+      else setBibleSheetOpen(true);
+    };
+    /** Posts the selected verses in the prayer room's chat for everyone in the room. */
+    const shareVerseInRoom = async (s: BibleSelection) => {
+      const head = `📖 ${s.label} · ${s.translationShort}\n`;
+      const room = 500 - head.length - 2;
+      const quote = s.text.length > room ? `${s.text.slice(0, room - 1).replace(/\s+\S*$/, '')}…` : s.text;
+      await sendChat(`${head}“${quote}”`);
+      setBibleSheetOpen(false);
+      setNotice(`${s.label} shared in the room chat.`);
+      window.setTimeout(() => setNotice((cur) => (cur && cur.endsWith('shared in the room chat.') ? null : cur)), 4000);
+    };
+    const bibleReader = (
+      <Suspense fallback={<p className="flex items-center gap-2 py-8 text-sm text-gray-500"><Loader2 className="animate-spin" size={18} aria-hidden /> Opening the Bible…</p>}>
+        <BibleReader
+          actions={connected ? [{ label: 'Share in room', primary: true, onShare: shareVerseInRoom }] : []}
+        />
+      </Suspense>
+    );
     const micTileLabel = listenOnly ? 'Unmute' : micEnabled ? 'Mute' : 'Unmute';
 
     // Minimized: a small floating bar; the chat underneath stays usable and the call keeps going.
@@ -1684,7 +1712,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             </nav>
           </aside>
 
-          <div className="pr-content">
+          <div className={`pr-content ${sideTab === 'bible' ? 'is-reading' : ''}`}>
             <main className="pr-room">
               <div className="pr-titlebar">
                 <span className="pr-room-icon"><Headphones aria-hidden /></span>
@@ -1944,6 +1972,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                       </div>
 
                       <div className="pr-tools">
+                        <button type="button" onClick={openBible} className={`pr-tool ${sideTab === 'bible' ? 'is-on' : ''}`} title="Read the Bible">
+                          <BookOpen size={17} aria-hidden /> <span>Bible</span>
+                        </button>
                         {!prayerWatch ? (
                           <button type="button" onClick={() => setSheet('prayer')} className="pr-tool" title="Send a prayer request">
                             <HandHeart size={17} aria-hidden /> <span>Prayer Request</span>
@@ -2073,14 +2104,19 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             <aside className="pr-side" aria-label="Who is here and room information">
               <div className="pr-tabs" role="tablist">
                 <button type="button" role="tab" aria-selected={sideTab === 'people'} onClick={() => setSideTab('people')} className={`pr-tab ${sideTab === 'people' ? 'is-active' : ''}`}>
-                  <Users size={16} aria-hidden /> Participants{connected ? ` (${peopleCount})` : ''}
+                  <Users size={16} aria-hidden /> People{connected ? ` (${peopleCount})` : ''}
+                </button>
+                <button type="button" role="tab" aria-selected={sideTab === 'bible'} onClick={() => setSideTab('bible')} className={`pr-tab ${sideTab === 'bible' ? 'is-active' : ''}`}>
+                  <BookOpen size={16} aria-hidden /> Bible
                 </button>
                 <button type="button" role="tab" aria-selected={sideTab === 'info'} onClick={() => setSideTab('info')} className={`pr-tab ${sideTab === 'info' ? 'is-active' : ''}`}>
                   <Info size={16} aria-hidden /> Info
                 </button>
               </div>
 
-              {sideTab === 'people' ? (
+              {sideTab === 'bible' ? (
+                <div className="pr-bible">{bibleReader}</div>
+              ) : sideTab === 'people' ? (
                 connected ? (
                   <>
                     <label className="pr-search">
@@ -2143,6 +2179,19 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 
         {sheet === 'prayer' ? <PrayerRequestSheet onClose={() => setSheet(null)} roomName={title} /> : null}
         {sheet === 'guidelines' ? <GuidelinesSheet onClose={() => setSheet(null)} /> : null}
+
+        {bibleSheetOpen ? (
+          <div className="pr-bible-sheet" role="dialog" aria-modal="true" aria-label="Bible">
+            <div className="pr-bible-sheet-head">
+              <p><BookOpen size={18} aria-hidden /> Bible</p>
+              <span className="pr-bible-sheet-sub">{connected ? 'The prayer keeps going while you read' : ''}</span>
+              <button type="button" onClick={() => setBibleSheetOpen(false)} className="pr-icon-btn" aria-label="Close the Bible">
+                <X size={20} aria-hidden />
+              </button>
+            </div>
+            <div className="pr-bible pr-bible-sheet-body">{bibleReader}</div>
+          </div>
+        ) : null}
 
         <HuddleTabSheet tab={activeTab} onClose={() => setActiveTab(null)}>
           {activeTab === 'hands' && !prayerWatch ? (
