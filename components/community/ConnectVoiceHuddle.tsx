@@ -208,6 +208,11 @@ type Props = {
   prayerWatch?: boolean;
 };
 
+const SIDE_WIDTH_KEY = 'plcc_prayer_room_side_width_v1';
+const SIDE_MIN = 288;
+/** Keep at least ~420px for the room itself. */
+const sideMax = () => Math.max(SIDE_MIN, Math.min(900, (typeof window !== 'undefined' ? window.innerWidth : 1440) - 12.5 * 16 - 460));
+
 function displayName(p: Participant): string {
   return (p.name || p.identity || 'Member').trim() || 'Member';
 }
@@ -361,6 +366,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [sideTab, setSideTab] = useState<'people' | 'bible' | 'info'>('people');
   /** Phones: the Bible opens as a tall sheet over the prayer room. */
   const [bibleSheetOpen, setBibleSheetOpen] = useState(false);
+  /** Computers: the side panel's width, set by dragging the handle between room and panel (remembered). */
+  const [sideWidth, setSideWidth] = useState<number | null>(() => {
+    try {
+      const saved = Number(localStorage.getItem(SIDE_WIDTH_KEY));
+      return Number.isFinite(saved) && saved > 0 ? saved : null;
+    } catch {
+      return null;
+    }
+  });
+  const [resizing, setResizing] = useState(false);
   const [chatMessages, setChatMessages] = useState<HuddleChatMessage[]>([]);
   const [chatUnread, setChatUnread] = useState(0);
   const [chatSending, setChatSending] = useState(false);
@@ -1571,6 +1586,46 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         : 'You will join muted';
 
     const handLabel = handRaised ? 'Lower Hand' : 'Raise Hand';
+    const saveSideWidth = (w: number | null) => {
+      try {
+        if (w) localStorage.setItem(SIDE_WIDTH_KEY, String(Math.round(w)));
+        else localStorage.removeItem(SIDE_WIDTH_KEY);
+      } catch {
+        /* private mode */
+      }
+    };
+    const clampSide = (w: number) => Math.round(Math.min(sideMax(), Math.max(SIDE_MIN, w)));
+    const startResize = (e: React.PointerEvent<HTMLDivElement>) => {
+      const panel = e.currentTarget.parentElement;
+      if (!panel) return;
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = panel.getBoundingClientRect().width;
+      let last = startW;
+      setResizing(true);
+      document.body.style.userSelect = 'none';
+      const move = (ev: PointerEvent) => {
+        last = clampSide(startW + (startX - ev.clientX));
+        setSideWidth(last);
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        document.body.style.userSelect = '';
+        setResizing(false);
+        saveSideWidth(last);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    };
+    const nudgeSide = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const current = sideWidth ?? e.currentTarget.parentElement?.getBoundingClientRect().width ?? 320;
+      const next = clampSide(current + (e.key === 'ArrowLeft' ? 32 : -32));
+      setSideWidth(next);
+      saveSideWidth(next);
+    };
     const openBible = () => {
       if (typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches) setSideTab('bible');
       else setBibleSheetOpen(true);
@@ -1712,7 +1767,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             </nav>
           </aside>
 
-          <div className={`pr-content ${sideTab === 'bible' ? 'is-reading' : ''}`}>
+          <div
+            className={`pr-content ${sideTab === 'bible' ? 'is-reading' : ''}`}
+            style={sideWidth ? ({ '--pr-side-w': `${Math.min(sideWidth, sideMax())}px` } as React.CSSProperties) : undefined}
+          >
             <main className="pr-room">
               <div className="pr-titlebar">
                 <span className="pr-room-icon"><Headphones aria-hidden /></span>
@@ -2102,6 +2160,20 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             </main>
 
             <aside className="pr-side" aria-label="Who is here and room information">
+              <div
+                className={`pr-resize ${resizing ? 'is-dragging' : ''}`}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Drag to make the side panel wider or narrower"
+                title="Drag left or right · double-click to reset"
+                tabIndex={0}
+                onPointerDown={startResize}
+                onKeyDown={nudgeSide}
+                onDoubleClick={() => {
+                  setSideWidth(null);
+                  saveSideWidth(null);
+                }}
+              />
               <div className="pr-tabs" role="tablist">
                 <button type="button" role="tab" aria-selected={sideTab === 'people'} onClick={() => setSideTab('people')} className={`pr-tab ${sideTab === 'people' ? 'is-active' : ''}`}>
                   <Users size={16} aria-hidden /> People{connected ? ` (${peopleCount})` : ''}

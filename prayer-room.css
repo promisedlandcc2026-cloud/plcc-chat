@@ -308,7 +308,25 @@
 }
 
 /* Bible inside the prayer room: a light reading card (computer side panel / phone sheet) */
-@media (min-width: 1024px) { .pr-content.is-reading { grid-template-columns: minmax(0, 1fr) 27rem; } }
+@media (min-width: 1024px) {
+  .pr-content.is-reading { grid-template-columns: minmax(0, 1fr) 27rem; }
+  /* width chosen by dragging the handle (Ka Link) */
+  .pr-content[style*="--pr-side-w"] { grid-template-columns: minmax(0, 1fr) var(--pr-side-w); }
+}
+/* Drag handle in the gap between the room and the side panel (computers) */
+.pr-side { position: relative; }
+.pr-resize { display: none; }
+@media (min-width: 1024px) {
+  .pr-resize {
+    display: block; position: absolute; top: 0; bottom: 0; left: -0.9rem; width: 0.9rem; z-index: 5;
+    cursor: col-resize; touch-action: none; outline: none;
+  }
+  .pr-resize::after {
+    content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 4px; height: 56px; border-radius: 4px; background: rgba(217, 180, 94, 0.45); transition: height .15s ease, background .15s ease;
+  }
+  .pr-resize:hover::after, .pr-resize:focus-visible::after, .pr-resize.is-dragging::after { height: 96px; background: var(--pr-gold); }
+}
 .pr-bible {
   flex: 1; min-height: 0; overflow-y: auto; border-radius: 1rem; padding: 0.75rem 0.75rem 0;
   background: #fffdf7; color: #16251f;
