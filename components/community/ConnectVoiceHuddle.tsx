@@ -16,6 +16,7 @@ import {
   Info,
   Loader2,
   Maximize2,
+  Minimize2,
   MessageCircle,
   Mic,
   MicOff,
@@ -350,6 +351,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [roster, setRoster] = useState<HuddleRosterEntry[]>([]);
   const [activeTab, setActiveTab] = useState<HuddleMobileTabId | null>(null);
+  /** Prayer room shrunk to a small floating bar so the chat underneath can be used. */
+  const [minimized, setMinimized] = useState(false);
+  /** Side panel tab in the prayer room: who is here, or the room's information. */
+  const [sideTab, setSideTab] = useState<'people' | 'info'>('people');
   const [chatMessages, setChatMessages] = useState<HuddleChatMessage[]>([]);
   const [chatUnread, setChatUnread] = useState(0);
   const [chatSending, setChatSending] = useState(false);
@@ -1558,6 +1563,54 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         ? 'You will join unmuted'
         : 'You will join muted';
 
+    const handLabel = handRaised ? 'Lower Hand' : 'Raise Hand';
+    const micTileLabel = listenOnly ? 'Unmute' : micEnabled ? 'Mute' : 'Unmute';
+
+    // Minimized: a small floating bar; the chat underneath stays usable and the call keeps going.
+    if (minimized) {
+      return (
+        <div className="pr-mini" role="region" aria-label="Live Ka Link (minimized)">
+          <button type="button" onClick={() => setMinimized(false)} className="pr-mini-main" aria-label="Open the prayer room">
+            <span className={`pr-mini-dot ${connected ? 'is-live' : ''}`} aria-hidden />
+            <span className="min-w-0">
+              <span className="pr-mini-title">{title}</span>
+              <span className="pr-mini-sub">
+                {connected
+                  ? speakingNow.length
+                    ? `Praying: ${speakingNow.slice(0, 2).join(', ')}`
+                    : `${peopleCount} in the room · ${listenOnly ? 'listening' : micEnabled ? 'mic on' : 'muted'}`
+                  : conn === 'reconnecting'
+                    ? 'Reconnecting…'
+                    : 'Not connected'}
+              </span>
+            </span>
+          </button>
+          {connected && !listenOnly ? (
+            <button
+              type="button"
+              onClick={() => void toggleMic()}
+              className={`pr-mini-btn ${micEnabled ? 'is-on' : ''}`}
+              aria-label={micEnabled ? 'Mute microphone' : 'Unmute microphone'}
+              aria-pressed={micEnabled}
+            >
+              {micEnabled ? <Mic size={18} aria-hidden /> : <MicOff size={18} aria-hidden />}
+            </button>
+          ) : null}
+          {connected && !prayerWatch ? (
+            <button type="button" onClick={() => void toggleHand()} className={`pr-mini-btn ${handRaised ? 'is-gold' : ''}`} aria-label={handLabel} aria-pressed={handRaised}>
+              <Hand size={18} aria-hidden />
+            </button>
+          ) : null}
+          <button type="button" onClick={() => setMinimized(false)} className="pr-mini-btn" aria-label="Open the prayer room">
+            <Maximize2 size={18} aria-hidden />
+          </button>
+          <button type="button" onClick={() => void leave()} className="pr-mini-btn is-leave" aria-label="Leave Ka Link">
+            <LogOut size={18} aria-hidden />
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className={`${shellClass} pr-shell overflow-hidden`} role="dialog" aria-modal aria-label="Live Ka Link">
         {connected && activeReactions.length > 0 ? (
@@ -1583,8 +1636,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             <div className="pr-brand">
               <img src="/prayer-room/prayer-emblem.png" alt="" aria-hidden className="pr-emblem" />
               <div className="min-w-0">
-                <p className="pr-brand-name">PLCC JORDAN</p>
-                <p className="pr-brand-sub">Main Prayer Room</p>
+                <p className="pr-brand-name">PLCC KA LINK</p>
+                <p className="pr-brand-sub">{prayerWatch ? 'Prayer Call' : 'Main Prayer Room'}</p>
               </div>
             </div>
             <div className="pr-church">
@@ -1596,38 +1649,35 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setActiveTab('attendance')}
-                  className="pr-icon-btn"
+                  className="pr-icon-btn pr-phone-only"
                   aria-label={`Attendance, ${inCount} in Ka Link`}
                 >
-                  <Users size={22} aria-hidden />
+                  <Users size={20} aria-hidden />
                   <span className="tabular-nums">{peopleCount}</span>
                 </button>
               ) : null}
               <button type="button" onClick={() => setSheet('guidelines')} className="pr-icon-btn pr-desktop-only" aria-label="Guidelines">
-                <CircleHelp size={24} aria-hidden />
+                <CircleHelp size={22} aria-hidden />
               </button>
+              {connected || conn === 'reconnecting' ? (
+                <button type="button" onClick={() => setMinimized(true)} className="pr-icon-btn" aria-label="Minimize — keep praying and use the chat">
+                  <Minimize2 size={20} aria-hidden />
+                  <span className="pr-desktop-only">Minimize</span>
+                </button>
+              ) : null}
               <button type="button" onClick={() => void leave()} className="pr-icon-btn is-solid" aria-label="Close Ka Link">
-                <X size={22} aria-hidden />
+                <X size={20} aria-hidden />
               </button>
             </div>
           </div>
         </header>
-
-        <nav className="pr-chips" aria-label="Prayer room">
-          {nav.map(({ key, label, Icon, onClick, active }) => (
-            <button key={key} type="button" onClick={onClick} className={`pr-chip ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined}>
-              <Icon size={16} aria-hidden />
-              {label}
-            </button>
-          ))}
-        </nav>
 
         <div className="pr-body">
           <aside className="pr-sidebar" aria-label="Prayer room">
             <nav className="pr-nav">
               {nav.map(({ key, label, Icon, onClick, active }) => (
                 <button key={key} type="button" onClick={onClick} className={`pr-nav-item ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined}>
-                  <Icon size={22} aria-hidden />
+                  <Icon size={20} aria-hidden />
                   {label}
                 </button>
               ))}
@@ -1635,102 +1685,106 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           </aside>
 
           <div className="pr-content">
-            <div className="pr-panel">
-              <main className="pr-room">
-                <div className="pr-titlebar">
-                  <div className="flex min-w-0 items-center gap-3 lg:gap-4">
-                    <span className="pr-room-icon"><Headphones className="h-6 w-6 lg:h-9 lg:w-9" aria-hidden /></span>
-                    <div className="min-w-0">
-                      <p className="pr-room-title line-clamp-2">{title}</p>
-                      <p className="pr-room-sub">
-                        {prayerWatch ? 'Prayer call • Voice only' : 'Audio Prayer Room • Main Room'}
-                        <Info size={16} aria-hidden className="opacity-70" />
+            <main className="pr-room">
+              <div className="pr-titlebar">
+                <span className="pr-room-icon"><Headphones aria-hidden /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="pr-room-title">{title}</p>
+                  <p className="pr-room-sub">{prayerWatch ? 'Prayer call • Voice only' : 'Audio Prayer Room • Main Room'}</p>
+                </div>
+                {connected ? <span className="pr-live"><i aria-hidden /> LIVE</span> : null}
+                {connected ? (
+                  <span className="pr-count" aria-label={`${peopleCount} in the room`}>
+                    <Users aria-hidden /> {peopleCount}
+                  </span>
+                ) : null}
+              </div>
+
+              {needSoundTap ? (
+                <button type="button" onClick={() => void enableSound()} className="pr-sound">
+                  <Volume2 size={18} aria-hidden />
+                  Tap to hear the prayer
+                </button>
+              ) : null}
+              {hostMuteNotice ? <p className="pr-notice is-strong" role="status">{hostMuteNotice}</p> : null}
+              {screenError ? <p className="pr-notice is-bad" role="alert">{screenError}</p> : null}
+              {notice ? <p className="pr-notice" role="status">{notice}</p> : null}
+              {connected && sharer && participantFor(sharer.identity) ? (
+                <ScreenShareStage participant={participantFor(sharer.identity)!} sharer={sharer} />
+              ) : null}
+
+              {conn === 'connecting' || conn === 'reconnecting' ? (
+                <div className="pr-stage">
+                  <Loader2 className="animate-spin" size={30} aria-hidden />
+                  <p className="pr-hint">
+                    {conn === 'reconnecting' ? 'Reconnecting…' : mode === 'start' ? 'Starting Ka Link…' : 'Joining Ka Link…'}
+                  </p>
+                </div>
+              ) : roomFull ? (
+                <div className="pr-full" role="status" aria-live="polite">
+                  <span className="pr-full-icon"><Users className="h-8 w-8" aria-hidden /></span>
+                  <p className="pr-full-title">This prayer room is full</p>
+                  <p className="pr-full-text">
+                    All 50 seats in <strong>{title}</strong> are taken right now.
+                  </p>
+                  {roomFull.checking ? (
+                    <p className="pr-full-text inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Looking for the overflow room…
+                    </p>
+                  ) : roomFull.overflow?.available && roomFull.overflow.joinUrl ? (
+                    <>
+                      <button type="button" onClick={() => openSanctumOverflow(roomFull.overflow!.joinUrl!)} className="pr-full-go">
+                        <Headphones className="h-6 w-6" aria-hidden />
+                        Join the overflow room
+                      </button>
+                      <p className="pr-full-text">
+                        <strong>{roomFull.overflow.roomName}</strong> in PLCC Sanctum
+                        {roomFull.overflow.hearsJordan
+                          ? ' — you will hear the same live prayer.'
+                          : ' — led by its own prayer leaders.'}
                       </p>
-                    </div>
-                  </div>
-                  <div className="pr-titlebar-meta flex shrink-0 flex-col items-end gap-2">
-                    {connected ? (
-                      <span className="pr-live"><i aria-hidden /> LIVE</span>
-                    ) : null}
-                    {connected ? (
-                      <span className="pr-count">
-                        <Users className="h-4 w-4 lg:h-6 lg:w-6" aria-hidden /> {peopleCount} {peopleCount === 1 ? 'Participant' : 'Participants'}
-                      </span>
-                    ) : null}
+                    </>
+                  ) : (
+                    <p className="pr-full-text">
+                      The overflow room isn&apos;t open yet. We&apos;ll show it here as soon as a moderator opens it — or try again in a moment.
+                    </p>
+                  )}
+                  <div className="flex flex-wrap justify-center gap-2.5">
+                    <button type="button" onClick={() => void join()} className="pr-tool">
+                      <RefreshCw size={16} aria-hidden /> Try this room again
+                    </button>
+                    <button type="button" onClick={() => void leave()} className="pr-tool">
+                      Not now
+                    </button>
                   </div>
                 </div>
-
-                {needSoundTap ? (
-                  <button
-                    type="button"
-                    onClick={() => void enableSound()}
-                    className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-[#d9b45e] text-sm font-bold text-[#1d2414]"
-                  >
-                    <Volume2 size={18} aria-hidden />
-                    Enable sound
-                  </button>
-                ) : null}
-                {hostMuteNotice ? <p className="pr-notice is-strong" role="status">{hostMuteNotice}</p> : null}
-                {screenError ? <p className="pr-notice is-bad" role="alert">{screenError}</p> : null}
-                {notice ? <p className="pr-notice" role="status">{notice}</p> : null}
-                {connected && raisedNames.length > 0 && !prayerWatch ? (
-                  <div className="pr-hands-strip" data-testid="hands-raised-strip">
-                    <p><Hand size={14} aria-hidden /> Hands raised</p>
-                    <p>{raisedNames.join(', ')}</p>
-                  </div>
-                ) : null}
-                {connected && sharer && participantFor(sharer.identity) ? (
-                  <ScreenShareStage participant={participantFor(sharer.identity)!} sharer={sharer} />
-                ) : null}
-
-                {conn === 'connecting' || conn === 'reconnecting' ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-20 text-[#3a4640]">
-                    <Loader2 className="animate-spin" size={30} aria-hidden />
-                    <p className="text-base font-semibold">
-                      {conn === 'reconnecting' ? 'Reconnecting…' : mode === 'start' ? 'Starting Ka Link…' : 'Joining Ka Link…'}
-                    </p>
-                  </div>
-                ) : roomFull ? (
-                  <div className="pr-full" role="status" aria-live="polite">
-                    <span className="pr-full-icon"><Users className="h-8 w-8" aria-hidden /></span>
-                    <p className="pr-full-title">This prayer room is full</p>
-                    <p className="pr-full-text">
-                      All 50 seats in <strong>{title}</strong> are taken right now.
-                    </p>
-                    {roomFull.checking ? (
-                      <p className="pr-full-text inline-flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Looking for the overflow room…
-                      </p>
-                    ) : roomFull.overflow?.available && roomFull.overflow.joinUrl ? (
-                      <>
-                        <button type="button" onClick={() => openSanctumOverflow(roomFull.overflow!.joinUrl!)} className="pr-full-go">
-                          <Headphones className="h-6 w-6" aria-hidden />
-                          Join the overflow room
-                        </button>
-                        <p className="pr-full-text">
-                          <strong>{roomFull.overflow.roomName}</strong> in PLCC Sanctum
-                          {roomFull.overflow.hearsJordan
-                            ? ' — you will hear the same live prayer.'
-                            : ' — led by its own prayer leaders.'}
-                        </p>
-                      </>
+              ) : (
+                <>
+                  <div className="pr-stage">
+                    {connected && raisedNames.length > 0 && !prayerWatch ? (
+                      <button type="button" onClick={() => setActiveTab('hands')} className="pr-hands-strip" data-testid="hands-raised-strip">
+                        <Hand size={14} aria-hidden />
+                        <span className="truncate">Hands raised: {raisedNames.join(', ')}</span>
+                      </button>
+                    ) : null}
+                    {connected && anyVideo ? (
+                      <ul className="pr-videos">
+                        {tiles
+                          .filter((t) => t.camOn)
+                          .map((tile) => {
+                            const participant = participantFor(tile.identity);
+                            return (
+                              <li key={tile.identity} className={`pr-video ${tile.speaking ? 'is-speaking' : ''}`}>
+                                {participant ? <ParticipantVideo participant={participant} isLocal={tile.isLocal} camOn={tile.camOn} /> : null}
+                                <p className="absolute inset-x-0 bottom-0 z-10 truncate bg-gradient-to-t from-black/80 to-transparent p-2 text-xs font-bold text-white">
+                                  {tile.name}
+                                  {tile.isLocal ? ' (you)' : ''}
+                                </p>
+                              </li>
+                            );
+                          })}
+                      </ul>
                     ) : (
-                      <p className="pr-full-text">
-                        The overflow room isn&apos;t open yet. We&apos;ll show it here as soon as a moderator opens it — or try again in a moment.
-                      </p>
-                    )}
-                    <div className="flex flex-wrap justify-center gap-2.5">
-                      <button type="button" onClick={() => void join()} className="pr-tool">
-                        <RefreshCw size={16} aria-hidden /> Try this room again
-                      </button>
-                      <button type="button" onClick={() => void leave()} className="pr-tool">
-                        Not now
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="pr-stage">
                       <div className="pr-orb-row">
                         <span className={`pr-wave is-left ${speakingNow.length ? 'is-active' : ''}`} aria-hidden>
                           {Array.from({ length: 9 }).map((_, n) => <i key={n} style={{ animationDelay: `${n * 0.11}s` }} />)}
@@ -1748,357 +1802,295 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                           {Array.from({ length: 9 }).map((_, n) => <i key={n} style={{ animationDelay: `${n * 0.11}s` }} />)}
                         </span>
                       </div>
-                      <p className={`pr-status ${micEnabled && !listenOnly ? 'is-open' : ''}`}>
-                        {micEnabled && !listenOnly ? <Mic size={20} aria-hidden /> : listenOnly ? <Volume2 size={20} aria-hidden /> : <MicOff size={20} aria-hidden />}
-                        {statusText}
-                      </p>
-                      <p className="pr-hint">
-                        {connected
-                          ? speakingNow.length
-                            ? <>Now praying: <strong>{speakingNow.slice(0, 3).join(', ')}</strong></>
-                            : audioOnly || prayerWatch
-                              ? 'Audio Only • Raise your hand to pray aloud'
-                              : 'Audio first • Raise your hand to pray aloud'
-                          : mode === 'start'
-                            ? 'Start a Live Ka Link for this room. Everyone in it can join from their phone or computer.'
-                            : `Leaving does not end the prayer for others${canModerate ? ' unless you end it for everyone' : ''}.`}
-                      </p>
-                    </div>
+                    )}
+                    <p className={`pr-status ${micEnabled && !listenOnly ? 'is-open' : ''}`}>
+                      {micEnabled && !listenOnly ? <Mic size={18} aria-hidden /> : listenOnly ? <Volume2 size={18} aria-hidden /> : <MicOff size={18} aria-hidden />}
+                      {statusText}
+                    </p>
+                    <p className="pr-hint">
+                      {connected
+                        ? speakingNow.length
+                          ? <>Now praying: <strong>{speakingNow.slice(0, 3).join(', ')}</strong></>
+                          : audioOnly || prayerWatch
+                            ? 'Audio Only • Raise your hand to pray aloud'
+                            : 'Audio first • Raise your hand to pray aloud'
+                        : mode === 'start'
+                          ? 'Start a Live Ka Link for this room. Everyone in it can join from their phone or computer.'
+                          : `Leaving does not end the prayer for others${canModerate ? ' unless you end it for everyone' : ''}.`}
+                    </p>
+                  </div>
 
-                    {connected && anyVideo ? (
-                      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {tiles
-                          .filter((t) => t.camOn)
-                          .map((tile) => {
-                            const participant = participantFor(tile.identity);
-                            return (
-                              <li
-                                key={tile.identity}
-                                className={`relative aspect-video overflow-hidden rounded-2xl bg-[#062a1d] ring-2 ${tile.speaking ? 'ring-[#d9b45e]' : 'ring-transparent'}`}
-                              >
-                                {participant ? <ParticipantVideo participant={participant} isLocal={tile.isLocal} camOn={tile.camOn} /> : null}
-                                <p className="absolute inset-x-0 bottom-0 z-10 truncate bg-gradient-to-t from-black/80 to-transparent p-2 text-xs font-bold text-white">
-                                  {tile.name}
-                                  {tile.isLocal ? ' (you)' : ''}
-                                </p>
-                              </li>
-                            );
-                          })}
-                      </ul>
-                    ) : null}
-
-                    {conn === 'prejoin' || conn === 'error' ? (
-                      <div className="mx-auto w-full max-w-md space-y-3 pb-2">
-                        {error ? <p className="text-center text-sm font-semibold text-[#9c2a23]">{error}</p> : null}
+                  {conn === 'prejoin' || conn === 'error' ? (
+                    <div className="pr-join">
+                      {error ? <p className="text-center text-sm font-semibold text-[#ffb4a8]">{error}</p> : null}
+                      <button type="button" onClick={() => void join()} className="pr-join-go">
+                        {mode === 'start' ? 'Start Ka Link' : 'Join prayer room'}
+                      </button>
+                      <div className="flex items-center justify-center gap-2">
                         {!audioOnly ? (
-                          <button
-                            type="button"
-                            onClick={() => setCamEnabled((v) => !v)}
-                            className="pr-tool w-full"
-                            aria-pressed={camEnabled}
-                          >
-                            {camEnabled ? <Video size={18} aria-hidden /> : <VideoOff size={18} aria-hidden />}
-                            {camEnabled ? 'Camera on when I join' : 'Camera off when I join'}
+                          <button type="button" onClick={() => setCamEnabled((v) => !v)} className="pr-tool" aria-pressed={camEnabled}>
+                            {camEnabled ? <Video size={16} aria-hidden /> : <VideoOff size={16} aria-hidden />}
+                            {camEnabled ? 'Camera on' : 'Camera off'}
                           </button>
                         ) : null}
-                        <button type="button" onClick={() => void join()} className="min-h-[56px] w-full rounded-2xl bg-[#0f3d2c] text-lg font-bold text-white shadow-lg">
-                          {mode === 'start' ? 'Start Ka Link' : 'Join prayer room'}
-                        </button>
-                        <button type="button" onClick={() => void leave()} className="min-h-[44px] w-full text-sm font-semibold text-[#3a4640]">
+                        <button type="button" onClick={() => void leave()} className="pr-tool">
                           Not now
                         </button>
                       </div>
-                    ) : null}
+                    </div>
+                  ) : null}
 
-                    {connected ? (
-                      <>
-                        <div className="pr-tiles">
-                          {!prayerWatch ? (
-                            <button type="button" onClick={() => void toggleHand()} aria-pressed={handRaised} className={`pr-tile ${handRaised ? 'is-on' : 'is-gold'}`}>
-                              <span className="pr-tile-icon"><Hand className="h-6 w-6 lg:h-7 lg:w-7" aria-hidden /></span>
-                              <span className="pr-tile-title">{handRaised ? 'Hand Raised' : 'Raise Hand'}</span>
-                              <span className="pr-tile-sub">{handRaised ? 'Tap to lower' : 'Request to Speak'}</span>
-                            </button>
-                          ) : (
-                            <button type="button" onClick={() => setActiveTab('chat')} className="pr-tile">
-                              <span className="pr-tile-icon"><MessageCircle className="h-6 w-6" aria-hidden /></span>
-                              <span className="pr-tile-title">Chat</span>
-                              <span className="pr-tile-sub">Pray in writing</span>
-                            </button>
-                          )}
-                          {listenOnly ? (
-                            <div className="pr-tile is-off" aria-disabled>
-                              <span className="pr-tile-icon"><Mic className="h-6 w-6 lg:h-7 lg:w-7" aria-hidden /></span>
-                              <span className="pr-tile-title">Unmute</span>
-                              <span className="pr-tile-sub">(Listen only is on)</span>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => void toggleMic()}
-                              aria-pressed={micEnabled}
-                              className={`pr-tile ${micEnabled ? 'is-live' : 'is-off'}`}
-                              style={{ cursor: 'pointer' }}
-                            >
-                              <span className="pr-tile-icon">{micEnabled ? <Mic className="h-6 w-6 lg:h-7 lg:w-7" aria-hidden /> : <MicOff className="h-6 w-6 lg:h-7 lg:w-7" aria-hidden />}</span>
-                              <span className="pr-tile-title">{micEnabled ? 'Mute' : 'Unmute'}</span>
-                              <span className="pr-tile-sub">{micEnabled ? 'Others hear you' : 'Pray aloud'}</span>
-                            </button>
-                          )}
-                          <button type="button" onClick={() => void toggleListenOnly()} aria-pressed={listenOnly} className={`pr-tile ${listenOnly ? 'is-on' : ''}`}>
-                            <span className="pr-tile-icon"><Volume2 className="h-6 w-6 lg:h-7 lg:w-7" aria-hidden /></span>
-                            <span className="pr-tile-title">Listen Only</span>
-                            <span className="pr-tile-sub">{listenOnly ? 'On — tap to turn off' : 'Keep my mic off'}</span>
-                          </button>
-                        </div>
-
-                        <div className="pr-tools">
-                          {!prayerWatch ? (
-                            <button type="button" onClick={() => setSheet('prayer')} className="pr-tool">
-                              <HandHeart size={18} aria-hidden /> Prayer Request
-                            </button>
-                          ) : null}
-                          {!prayerWatch ? (
-                            <button type="button" onClick={() => setActiveTab('chat')} className="pr-tool relative">
-                              <MessageCircle size={18} aria-hidden /> Chat
-                              {chatUnread > 0 ? <span className="ml-1 rounded-full bg-[#c4352d] px-1.5 text-[11px] font-black text-white">{chatUnread}</span> : null}
-                            </button>
-                          ) : null}
-                          {!audioOnly ? (
-                            <button
-                              type="button"
-                              onClick={() => void toggleCam()}
-                              disabled={listenOnly}
-                              className={`pr-tool is-icon ${camEnabled ? 'is-on' : ''}`}
-                              aria-label={camEnabled ? 'Turn camera off' : 'Turn camera on'}
-                              title={camEnabled ? 'Camera off' : 'Camera on'}
-                            >
-                              {camEnabled ? <Video size={20} /> : <VideoOff size={20} />}
-                            </button>
-                          ) : null}
-                          {!prayerWatch ? (
-                            <button
-                              type="button"
-                              onClick={() => setCaptionsOn((v) => !v)}
-                              className={`pr-tool is-icon ${captionsOn ? 'is-on' : ''}`}
-                              aria-label={captionsOn ? 'Turn live captions off' : 'Turn live captions on'}
-                              aria-pressed={captionsOn}
-                              title="Live captions"
-                              data-testid="huddle-captions-toggle"
-                            >
-                              {captionsOn ? <CaptionsOff size={20} aria-hidden /> : <Captions size={20} aria-hidden />}
-                            </button>
-                          ) : null}
-                          {canModerate && !audioOnly && !prayerWatch && screenShareSupported() ? (
-                            <button
-                              type="button"
-                              onClick={() => void toggleScreenShare()}
-                              disabled={screenBusy || Boolean(sharer && !sharer.isLocal)}
-                              title={sharer && !sharer.isLocal ? `${sharer.name} is sharing` : 'Share screen'}
-                              className={`pr-tool is-icon ${sharer?.isLocal ? 'is-on' : ''}`}
-                              aria-label={sharer?.isLocal ? 'Stop sharing your screen' : 'Share your screen'}
-                              aria-pressed={Boolean(sharer?.isLocal)}
-                              data-testid="huddle-screen-share-toggle"
-                            >
-                              {screenBusy ? <Loader2 size={20} className="animate-spin" aria-hidden /> : sharer?.isLocal ? <MonitorOff size={20} aria-hidden /> : <Monitor size={20} aria-hidden />}
-                            </button>
-                          ) : null}
-                          {!prayerWatch ? (
-                            <div className="relative">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setReactionError(null);
-                                  setReactionPickerOpen((open) => !open);
-                                }}
-                                disabled={reactionBusy}
-                                className={`pr-tool is-icon ${reactionPickerOpen ? 'is-on' : ''}`}
-                                aria-label="Open Ka Link reactions"
-                                aria-expanded={reactionPickerOpen}
-                                aria-haspopup="menu"
-                                title="Reactions"
-                                data-huddle-reaction-control="true"
+                  {connected ? (
+                    <>
+                      {captionsOn && !prayerWatch ? (
+                        <section aria-label="Live captions" className="pr-captions" data-testid="huddle-captions">
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#f1d58a]">Live captions</p>
+                            <label className="flex items-center gap-1.5 text-[11px] font-bold text-white/70">
+                              I speak
+                              <select
+                                value={captionLang}
+                                onChange={(e) => setCaptionLang(e.target.value as CaptionLanguage)}
+                                className="min-h-[32px] rounded-lg bg-white/10 px-2 text-xs font-bold text-white [&>option]:text-black"
                               >
-                                <Smile size={20} aria-hidden />
-                              </button>
-                              {reactionPickerOpen ? (
-                                <div
-                                  role="menu"
-                                  aria-label="Ka Link reactions"
-                                  className="absolute bottom-[calc(100%+0.5rem)] left-1/2 z-50 w-52 -translate-x-1/2 rounded-2xl border border-[#eadfca] bg-white p-2 shadow-xl"
-                                >
-                                  <p className="px-2 pb-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#7a5a1c]">Reactions</p>
-                                  <div className="grid grid-cols-1 gap-1">
-                                    {HUDDLE_REACTION_OPTIONS.map((opt) => (
-                                      <button
-                                        key={opt.key}
-                                        type="button"
-                                        role="menuitem"
-                                        disabled={reactionBusy}
-                                        onClick={() => void sendHuddleReaction(opt.key)}
-                                        className="flex min-h-[44px] items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-bold text-[#16251f] hover:bg-[#f6f1e6] disabled:opacity-40"
-                                        aria-label={opt.label}
-                                      >
-                                        <span className="text-lg leading-none" aria-hidden>{opt.emoji}</span>
-                                        <span>{opt.label}</span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
+                                {CAPTION_LANGUAGES.map((l) => (
+                                  <option key={l.code} value={l.code}>
+                                    {l.label}
+                                    {l.note ? ` (${l.note})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          <div aria-live="polite" className="min-h-[2.5rem] space-y-0.5">
+                            {shownCaptions.length ? (
+                              shownCaptions.map((line) => (
+                                <p key={line.identity} className="text-sm leading-snug">
+                                  <span className="font-bold text-[#f1d58a]">{line.name}: </span>
+                                  <span className={line.final ? '' : 'text-white/85'}>{line.text}</span>
+                                </p>
+                              ))
+                            ) : (
+                              <p className="text-sm text-white/50">Captions appear here when someone speaks.</p>
+                            )}
+                          </div>
+                          {captionNotice ? <p className="mt-1 text-xs text-[#f1d58a]">{captionNotice}</p> : null}
+                          {!speechCaptionsSupported() ? (
+                            <p className="mt-1 text-xs text-white/55">This browser can show captions but can&apos;t caption your own speech. Chrome, Edge or Safari can.</p>
                           ) : null}
-                          {canPlayHuddleMusic ? (
-                            <button
-                              type="button"
-                              onClick={() => void toggleHuddleMusic()}
-                              disabled={musicBusy || (musicActive && !musicPlaying)}
-                              className={`pr-tool ${musicPlaying || musicActive ? 'is-on' : ''}`}
-                              aria-label={musicActive && !musicPlaying ? 'Music is already playing' : huddleMusicButtonLabel(musicPlaying)}
-                              aria-pressed={musicPlaying}
-                              data-huddle-music-control="true"
-                            >
-                              {musicBusy ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Music size={18} aria-hidden />}
-                              <span>{huddleMusicButtonLabel(musicPlaying, musicActive)}</span>
-                            </button>
-                          ) : null}
-                          {!prayerWatch ? (
-                            <button type="button" onClick={() => void shareHuddle()} className="pr-tool">
-                              <Share2 size={18} aria-hidden />
-                              <span>{shareDone || 'Share'}</span>
-                            </button>
+                        </section>
+                      ) : null}
+
+                      {musicActive ? (
+                        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#d9b45e]/20 px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-[#f1d58a]" role="status" data-huddle-music-active="true">
+                            <Music size={12} aria-hidden />
+                            Music playing
+                          </span>
+                          {musicPlaying && canPlayHuddleMusic ? (
+                            <label className="inline-flex items-center gap-2 text-xs font-semibold text-white/80">
+                              <span className="whitespace-nowrap">Music volume</span>
+                              <input
+                                type="range"
+                                min={HUDDLE_MUSIC_MIN_VOLUME}
+                                max={HUDDLE_MUSIC_MAX_VOLUME}
+                                step={0.01}
+                                value={musicVolume}
+                                onChange={(e) => setHuddleMusicVolume(Number(e.target.value))}
+                                className="w-28 accent-[#C9A35A]"
+                                aria-label="Music volume"
+                                data-huddle-music-volume="true"
+                              />
+                            </label>
                           ) : null}
                         </div>
+                      ) : null}
+                      {error ? <p className="text-center text-xs text-[#ffb4a8]">{error}</p> : null}
+                      {reactionError ? <p className="text-center text-xs text-[#f1d58a]" role="status">{reactionError}</p> : null}
+                      {musicError ? <p className="text-center text-xs text-[#f1d58a]" role="status" data-huddle-music-error="true">{musicError}</p> : null}
 
-                        {musicActive ? (
-                          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-                            <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#d9b45e]/25 px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-[#7a5a1c]" role="status" data-huddle-music-active="true">
-                              <Music size={12} aria-hidden />
-                              Music playing
-                            </span>
-                            {musicPlaying && canPlayHuddleMusic ? (
-                              <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#3a4640]">
-                                <span className="whitespace-nowrap">Music volume</span>
-                                <input
-                                  type="range"
-                                  min={HUDDLE_MUSIC_MIN_VOLUME}
-                                  max={HUDDLE_MUSIC_MAX_VOLUME}
-                                  step={0.01}
-                                  value={musicVolume}
-                                  onChange={(e) => setHuddleMusicVolume(Number(e.target.value))}
-                                  className="w-28 accent-[#C9A35A]"
-                                  aria-label="Music volume"
-                                  data-huddle-music-volume="true"
-                                />
-                              </label>
+                      <div className="pr-controls">
+                        {!prayerWatch ? (
+                          <button type="button" onClick={() => void toggleHand()} aria-pressed={handRaised} className={`pr-ctl is-gold ${handRaised ? 'is-on' : ''}`}>
+                            <Hand aria-hidden />
+                            <span>{handLabel}</span>
+                          </button>
+                        ) : (
+                          <button type="button" onClick={() => setActiveTab('chat')} className="pr-ctl">
+                            <MessageCircle aria-hidden />
+                            <span>Chat</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => (listenOnly ? undefined : void toggleMic())}
+                          aria-pressed={micEnabled}
+                          aria-disabled={listenOnly || undefined}
+                          title={listenOnly ? 'Listen only is on' : undefined}
+                          className={`pr-ctl ${micEnabled && !listenOnly ? 'is-live' : ''} ${listenOnly ? 'is-disabled' : ''}`}
+                        >
+                          {micEnabled && !listenOnly ? <Mic aria-hidden /> : <MicOff aria-hidden />}
+                          <span>{micTileLabel}</span>
+                        </button>
+                        <button type="button" onClick={() => void toggleListenOnly()} aria-pressed={listenOnly} className={`pr-ctl ${listenOnly ? 'is-on' : ''}`}>
+                          <Volume2 aria-hidden />
+                          <span>Listen Only</span>
+                        </button>
+                        <span className="pr-ctl-gap" aria-hidden />
+                        <button type="button" onClick={() => void leave()} className="pr-ctl is-leave" aria-label="Leave Ka Link">
+                          <LogOut aria-hidden />
+                          <span>Leave Room</span>
+                        </button>
+                      </div>
+
+                      <div className="pr-tools">
+                        {!prayerWatch ? (
+                          <button type="button" onClick={() => setSheet('prayer')} className="pr-tool" title="Send a prayer request">
+                            <HandHeart size={17} aria-hidden /> <span>Prayer Request</span>
+                          </button>
+                        ) : null}
+                        {!prayerWatch ? (
+                          <button type="button" onClick={() => setActiveTab('chat')} className="pr-tool relative" title="Room chat">
+                            <MessageCircle size={17} aria-hidden /> <span>Chat</span>
+                            {chatUnread > 0 ? <span className="pr-badge">{chatUnread}</span> : null}
+                          </button>
+                        ) : null}
+                        {!audioOnly ? (
+                          <button
+                            type="button"
+                            onClick={() => void toggleCam()}
+                            disabled={listenOnly}
+                            className={`pr-tool is-icon ${camEnabled ? 'is-on' : ''}`}
+                            aria-label={camEnabled ? 'Turn camera off' : 'Turn camera on'}
+                            title={camEnabled ? 'Camera off' : 'Camera on'}
+                          >
+                            {camEnabled ? <Video size={18} /> : <VideoOff size={18} />}
+                          </button>
+                        ) : null}
+                        {!prayerWatch ? (
+                          <button
+                            type="button"
+                            onClick={() => setCaptionsOn((v) => !v)}
+                            className={`pr-tool is-icon ${captionsOn ? 'is-on' : ''}`}
+                            aria-label={captionsOn ? 'Turn live captions off' : 'Turn live captions on'}
+                            aria-pressed={captionsOn}
+                            title="Live captions"
+                            data-testid="huddle-captions-toggle"
+                          >
+                            {captionsOn ? <CaptionsOff size={18} aria-hidden /> : <Captions size={18} aria-hidden />}
+                          </button>
+                        ) : null}
+                        {canModerate && !audioOnly && !prayerWatch && screenShareSupported() ? (
+                          <button
+                            type="button"
+                            onClick={() => void toggleScreenShare()}
+                            disabled={screenBusy || Boolean(sharer && !sharer.isLocal)}
+                            title={sharer && !sharer.isLocal ? `${sharer.name} is sharing` : 'Share screen'}
+                            className={`pr-tool is-icon ${sharer?.isLocal ? 'is-on' : ''}`}
+                            aria-label={sharer?.isLocal ? 'Stop sharing your screen' : 'Share your screen'}
+                            aria-pressed={Boolean(sharer?.isLocal)}
+                            data-testid="huddle-screen-share-toggle"
+                          >
+                            {screenBusy ? <Loader2 size={18} className="animate-spin" aria-hidden /> : sharer?.isLocal ? <MonitorOff size={18} aria-hidden /> : <Monitor size={18} aria-hidden />}
+                          </button>
+                        ) : null}
+                        {!prayerWatch ? (
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReactionError(null);
+                                setReactionPickerOpen((open) => !open);
+                              }}
+                              disabled={reactionBusy}
+                              className={`pr-tool is-icon ${reactionPickerOpen ? 'is-on' : ''}`}
+                              aria-label="Open Ka Link reactions"
+                              aria-expanded={reactionPickerOpen}
+                              aria-haspopup="menu"
+                              title="Reactions"
+                              data-huddle-reaction-control="true"
+                            >
+                              <Smile size={18} aria-hidden />
+                            </button>
+                            {reactionPickerOpen ? (
+                              <div
+                                role="menu"
+                                aria-label="Ka Link reactions"
+                                className="absolute bottom-[calc(100%+0.5rem)] left-1/2 z-50 w-52 -translate-x-1/2 rounded-2xl border border-[#eadfca] bg-white p-2 shadow-xl"
+                              >
+                                <p className="px-2 pb-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#7a5a1c]">Reactions</p>
+                                <div className="grid grid-cols-1 gap-1">
+                                  {HUDDLE_REACTION_OPTIONS.map((opt) => (
+                                    <button
+                                      key={opt.key}
+                                      type="button"
+                                      role="menuitem"
+                                      disabled={reactionBusy}
+                                      onClick={() => void sendHuddleReaction(opt.key)}
+                                      className="flex min-h-[44px] items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-bold text-[#16251f] hover:bg-[#f6f1e6] disabled:opacity-40"
+                                      aria-label={opt.label}
+                                    >
+                                      <span className="text-lg leading-none" aria-hidden>{opt.emoji}</span>
+                                      <span>{opt.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
                             ) : null}
                           </div>
                         ) : null}
-                        {error ? <p className="text-center text-xs text-[#9c2a23]">{error}</p> : null}
-                        {reactionError ? <p className="text-center text-xs text-[#7a5a1c]" role="status">{reactionError}</p> : null}
-                        {musicError ? <p className="text-center text-xs text-[#7a5a1c]" role="status" data-huddle-music-error="true">{musicError}</p> : null}
-
-                        {captionsOn && !prayerWatch ? (
-                          <section aria-label="Live captions" className="w-full rounded-2xl bg-[#062a1d] px-3 py-2.5 text-white" data-testid="huddle-captions">
-                            <div className="mb-1 flex items-center justify-between gap-2">
-                              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#f1d58a]">Live captions</p>
-                              <label className="flex items-center gap-1.5 text-[11px] font-bold text-white/70">
-                                I speak
-                                <select
-                                  value={captionLang}
-                                  onChange={(e) => setCaptionLang(e.target.value as CaptionLanguage)}
-                                  className="min-h-[32px] rounded-lg bg-white/10 px-2 text-xs font-bold text-white [&>option]:text-black"
-                                >
-                                  {CAPTION_LANGUAGES.map((l) => (
-                                    <option key={l.code} value={l.code}>
-                                      {l.label}
-                                      {l.note ? ` (${l.note})` : ''}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            </div>
-                            <div aria-live="polite" className="min-h-[2.75rem] space-y-0.5">
-                              {shownCaptions.length ? (
-                                shownCaptions.map((line) => (
-                                  <p key={line.identity} className="text-sm leading-snug sm:text-base">
-                                    <span className="font-bold text-[#f1d58a]">{line.name}: </span>
-                                    <span className={line.final ? '' : 'text-white/85'}>{line.text}</span>
-                                  </p>
-                                ))
-                              ) : (
-                                <p className="text-sm text-white/50">Captions appear here when someone speaks.</p>
-                              )}
-                            </div>
-                            {captionNotice ? <p className="mt-1 text-xs text-[#f1d58a]">{captionNotice}</p> : null}
-                            {!speechCaptionsSupported() ? (
-                              <p className="mt-1 text-xs text-white/55">This browser can show captions but can&apos;t caption your own speech. Chrome, Edge or Safari can.</p>
-                            ) : null}
-                          </section>
-                        ) : null}
-
-                        <button type="button" onClick={() => void leave()} className="pr-leave" aria-label="Leave Ka Link">
-                          <LogOut className="h-5 w-5 lg:h-6 lg:w-6" aria-hidden />
-                          Leave Room
-                        </button>
-                        {canModerate ? (
-                          <button type="button" onClick={() => void endForEveryone()} disabled={ending} className="pr-end -mt-2 min-h-[40px] disabled:opacity-50">
-                            {ending ? 'Ending…' : 'End Ka Link for everyone'}
+                        {canPlayHuddleMusic ? (
+                          <button
+                            type="button"
+                            onClick={() => void toggleHuddleMusic()}
+                            disabled={musicBusy || (musicActive && !musicPlaying)}
+                            className={`pr-tool ${musicPlaying || musicActive ? 'is-on' : ''}`}
+                            aria-label={musicActive && !musicPlaying ? 'Music is already playing' : huddleMusicButtonLabel(musicPlaying)}
+                            aria-pressed={musicPlaying}
+                            data-huddle-music-control="true"
+                          >
+                            {musicBusy ? <Loader2 size={17} className="animate-spin" aria-hidden /> : <Music size={17} aria-hidden />}
+                            <span>{huddleMusicButtonLabel(musicPlaying, musicActive)}</span>
                           </button>
                         ) : null}
-                      </>
-                    ) : null}
-                  </>
-                )}
-              </main>
+                        {!prayerWatch ? (
+                          <button type="button" onClick={() => void shareHuddle()} className="pr-tool is-icon" aria-label={shareDone || 'Share'} title={shareDone || 'Share'}>
+                            <Share2 size={18} aria-hidden />
+                          </button>
+                        ) : null}
+                        {canModerate ? (
+                          <button type="button" onClick={() => void endForEveryone()} disabled={ending} className="pr-tool is-end">
+                            <PhoneOff size={17} aria-hidden /> <span>{ending ? 'Ending…' : 'End for everyone'}</span>
+                          </button>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              )}
+            </main>
 
-              <aside className="pr-side">
-                <section className="pr-card">
-                  <h3 className="pr-card-title">
-                    <span className="pr-info-icon"><Info size={16} aria-hidden /></span>
-                    Prayer Room Information
-                  </h3>
-                  <p className="pr-card-text">
-                    {prayerWatch
-                      ? 'A voice prayer call for the Intercessors.'
-                      : 'The main prayer room for our worldwide family. When it fills up, PLCC Sanctum opens an overflow room.'}
-                  </p>
-                  <ul className="pr-rules">
-                    <li><Headphones size={22} aria-hidden />{audioOnly || prayerWatch ? 'Audio only (no video)' : 'Audio first (camera optional)'}</li>
-                    <li><MicOff size={22} aria-hidden />Stay muted unless you are praying aloud</li>
-                    {!prayerWatch ? <li><Hand size={22} aria-hidden />Use Raise Hand to request to speak</li> : null}
-                    <li><ShieldCheck size={22} aria-hidden />Please keep all prayers respectful and focused</li>
-                  </ul>
-                </section>
+            <aside className="pr-side" aria-label="Who is here and room information">
+              <div className="pr-tabs" role="tablist">
+                <button type="button" role="tab" aria-selected={sideTab === 'people'} onClick={() => setSideTab('people')} className={`pr-tab ${sideTab === 'people' ? 'is-active' : ''}`}>
+                  <Users size={16} aria-hidden /> Participants{connected ? ` (${peopleCount})` : ''}
+                </button>
+                <button type="button" role="tab" aria-selected={sideTab === 'info'} onClick={() => setSideTab('info')} className={`pr-tab ${sideTab === 'info' ? 'is-active' : ''}`}>
+                  <Info size={16} aria-hidden /> Info
+                </button>
+              </div>
 
-                {connected ? (
-                  <section className="pr-card">
-                    <div className="pr-people-head">
-                      <h3 className="pr-card-title">
-                        <Users className="h-6 w-6" aria-hidden />
-                        Participants ({peopleCount})
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => setPeopleSearchOpen((v) => !v)}
-                        className="pr-search-btn"
-                        aria-label="Search participants"
-                        aria-expanded={peopleSearchOpen}
-                      >
-                        <Search size={20} aria-hidden />
+              {sideTab === 'people' ? (
+                connected ? (
+                  <>
+                    <label className="pr-search">
+                      <Search size={16} aria-hidden className="opacity-60" />
+                      <input value={peopleQuery} onChange={(e) => setPeopleQuery(e.target.value)} placeholder="Search participants…" aria-label="Search participants" />
+                    </label>
+                    {!prayerWatch && raisedEntries.length > 0 ? (
+                      <button type="button" onClick={() => setActiveTab('hands')} className="pr-hands-btn">
+                        <Hand size={15} aria-hidden /> {raisedEntries.length} hand{raisedEntries.length === 1 ? '' : 's'} raised — view
                       </button>
-                    </div>
-                    {peopleSearchOpen ? (
-                      <label className="pr-search">
-                        <Search size={16} aria-hidden className="opacity-60" />
-                        <input
-                          autoFocus
-                          value={peopleQuery}
-                          onChange={(e) => setPeopleQuery(e.target.value)}
-                          placeholder="Find someone"
-                          aria-label="Find someone"
-                        />
-                      </label>
                     ) : null}
                     <ul className="pr-people">
                       {peopleList.map((tile) => (
@@ -2108,28 +2100,44 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                             {tile.name}
                             {tile.isLocal ? ' (you)' : ''}
                           </span>
-                          {tile.handRaised ? <Hand size={18} className="pr-hand" aria-label="Hand raised" /> : null}
+                          {tile.handRaised ? <Hand size={16} className="pr-hand" aria-label="Hand raised" /> : null}
                           {tile.speaking && tile.micOn ? (
                             <span className="pr-role is-speaking">Praying</span>
                           ) : tile.moderator ? (
-                            <span className="pr-role is-mod"><Crown size={13} aria-hidden /> Moderator</span>
-                          ) : (
-                            <span className="pr-role is-member">Participant</span>
-                          )}
-                          {tile.micOn ? <Mic size={20} className="pr-mic-on" aria-label="Microphone on" /> : <MicOff size={20} className="pr-mic-off" aria-label="Muted" />}
+                            <span className="pr-role is-mod"><Crown size={12} aria-hidden /> Mod</span>
+                          ) : null}
+                          {tile.micOn ? <Mic size={17} className="pr-mic-on" aria-label="Microphone on" /> : <MicOff size={17} className="pr-mic-off" aria-label="Muted" />}
                         </li>
                       ))}
-                      {!peopleList.length ? <li className="py-4 text-center text-sm text-[#4a5a52]">No one matches that name.</li> : null}
+                      {!peopleList.length ? <li className="py-4 text-center text-sm text-white/60">No one matches that name.</li> : null}
                     </ul>
-                    {!prayerWatch && raisedEntries.length > 0 ? (
-                      <button type="button" onClick={() => setActiveTab('hands')} className="mt-3 w-full rounded-xl bg-[#d9b45e]/25 px-3 py-2.5 text-sm font-bold text-[#7a5a1c]">
-                        {raisedEntries.length} hand{raisedEntries.length === 1 ? '' : 's'} raised — view
+                  </>
+                ) : (
+                  <p className="pr-side-empty">Join the prayer room to see who is here.</p>
+                )
+              ) : (
+                <div className="pr-info">
+                  <p className="pr-card-text">
+                    {prayerWatch
+                      ? 'A voice prayer call for the Intercessors.'
+                      : 'The main prayer room for our worldwide family. When it fills up, PLCC Sanctum opens an overflow room.'}
+                  </p>
+                  <ul className="pr-rules">
+                    <li><Headphones size={18} aria-hidden />{audioOnly || prayerWatch ? 'Audio only (no video)' : 'Audio first (camera optional)'}</li>
+                    <li><MicOff size={18} aria-hidden />Stay muted unless you are praying aloud</li>
+                    {!prayerWatch ? <li><Hand size={18} aria-hidden />Use Raise Hand to request to speak</li> : null}
+                    <li><ShieldCheck size={18} aria-hidden />Please keep all prayers respectful and focused</li>
+                  </ul>
+                  <div className="pr-info-links">
+                    {nav.filter((n) => !n.active).map(({ key, label, Icon, onClick }) => (
+                      <button key={key} type="button" onClick={onClick} className="pr-tool">
+                        <Icon size={16} aria-hidden /> {label}
                       </button>
-                    ) : null}
-                  </section>
-                ) : null}
-              </aside>
-            </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </aside>
           </div>
         </div>
 
