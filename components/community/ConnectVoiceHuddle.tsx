@@ -62,6 +62,7 @@ import { connectLiveKitOnce, LiveKitQuotaError } from '../../lib/livekitConnect'
 import {
   CAPTION_LANGUAGES,
   CaptionRecognizer,
+  canTranscribeHere,
   HUDDLE_CAPTION_TOPIC,
   decodeCaptionWire,
   encodeCaptionWire,
@@ -1197,7 +1198,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 
   // Caption my own speech while my mic is on and anyone (me included) wants captions.
   const shouldTranscribe =
-    conn === 'connected' && micEnabled && !prayerWatch && (captionsOn || roomWantsCaptions) && speechCaptionsSupported();
+    conn === 'connected' && micEnabled && !prayerWatch && (captionsOn || roomWantsCaptions) && canTranscribeHere();
   useEffect(() => {
     if (!shouldTranscribe) return undefined;
     let lastSent = 0;

@@ -12,7 +12,8 @@ export function huddleMicrophonePublishAllowed(
 ): boolean {
   const sources = permissions?.canPublishSources;
   if (!Array.isArray(sources) || sources.length === 0) return true;
-  return sources.some((source) => String(source).toUpperCase().includes('MICROPHONE'));
+  // LiveKit sends these as numbers on the wire (TrackSource.MICROPHONE = 2); older code used names.
+  return sources.some((source) => source === 2 || String(source).toUpperCase().includes('MICROPHONE'));
 }
 
 export type HuddleTileSnapshot = {

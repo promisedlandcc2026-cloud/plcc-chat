@@ -114,6 +114,22 @@ export function speechCaptionsSupported(): boolean {
   return Boolean(recognitionCtor());
 }
 
+/**
+ * Phones and tablets never transcribe during a call: on Android (and iOS) speech
+ * recognition fights the call for the microphone, so the speaker's voice can go
+ * silent for everyone else. Phones still show captions from people on computers.
+ */
+export function isPhoneOrTablet(ua: string = typeof navigator !== 'undefined' ? navigator.userAgent : '', touchPoints: number = typeof navigator !== 'undefined' ? navigator.maxTouchPoints || 0 : 0): boolean {
+  if (/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|Opera Mini|IEMobile/i.test(ua)) return true;
+  // iPadOS reports itself as a Mac; touch gives it away.
+  return /Macintosh/.test(ua) && touchPoints > 1;
+}
+
+/** Safe to run speech recognition alongside the call on this device. */
+export function canTranscribeHere(): boolean {
+  return speechCaptionsSupported() && !isPhoneOrTablet();
+}
+
 export type CaptionRecognizerError = 'not-supported' | 'language-not-supported' | 'not-allowed' | 'network';
 
 /**
