@@ -2178,7 +2178,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 <button type="button" role="tab" aria-selected={sideTab === 'people'} onClick={() => setSideTab('people')} className={`pr-tab ${sideTab === 'people' ? 'is-active' : ''}`}>
                   <Users size={16} aria-hidden /> People{connected ? ` (${peopleCount})` : ''}
                 </button>
-                <button type="button" role="tab" aria-selected={sideTab === 'bible'} onClick={() => setSideTab('bible')} className={`pr-tab ${sideTab === 'bible' ? 'is-active' : ''}`}>
+                <button type="button" role="tab" aria-selected={sideTab === 'bible'} onClick={openBible} className={`pr-tab ${sideTab === 'bible' ? 'is-active' : ''}`}>
                   <BookOpen size={16} aria-hidden /> Bible
                 </button>
                 <button type="button" role="tab" aria-selected={sideTab === 'info'} onClick={() => setSideTab('info')} className={`pr-tab ${sideTab === 'info' ? 'is-active' : ''}`}>

@@ -313,6 +313,14 @@
   /* width chosen by dragging the handle (Ka Link) */
   .pr-content[style*="--pr-side-w"] { grid-template-columns: minmax(0, 1fr) var(--pr-side-w); }
 }
+/* Phones: the side panel sits below the room, so its content takes its natural height
+   (on computers it fills the panel and scrolls inside it). */
+@media (max-width: 1023px) {
+  .pr-side { flex: none; }
+  .pr-people, .pr-info { flex: none; overflow: visible; }
+  .pr-bible { flex: none; max-height: 75vh; }
+  .pr-bible-sheet-body.pr-bible { flex: 1; max-height: none; }
+}
 /* Drag handle in the gap between the room and the side panel (computers) */
 .pr-side { position: relative; }
 .pr-resize { display: none; }
