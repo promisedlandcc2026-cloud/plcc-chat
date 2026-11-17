@@ -82,7 +82,7 @@ describe('buildVaultCommunityChat URLs', () => {
     assert.ok(dm.includes(`partnerId=${USER_ID}`));
   });
 
-  it('builds huddle status + voice-token + voice-end URLs (no mod)', () => {
+  it('builds Ka Link status + voice-token + voice-end URLs (no mod)', () => {
     const statuses = buildVaultCommunityChatHuddleStatusesUrl(
       'https://vault.example.com/',
       `${CHANNEL_ID},${MESSAGE_ID}`
@@ -256,7 +256,7 @@ describe('sanitize channel + message', () => {
   });
 });
 
-describe('huddle status + token sanitize', () => {
+describe('Ka Link status + token sanitize', () => {
   it('parses huddle-status query and rejects junk', () => {
     assert.deepEqual(parseHuddleStatusQuery({ channelIds: CHANNEL_ID }), {
       ok: true,
@@ -369,8 +369,8 @@ describe('huddle status + token sanitize', () => {
   });
 });
 
-describe('Connect huddle bridge + UI wiring', () => {
-  it('allows huddle resources including end; never forwards mod', () => {
+describe('Connect Ka Link bridge + UI wiring', () => {
+  it('allows Ka Link resources including end; never forwards mod', () => {
     const bridge = readFileSync(join(root, 'api/community-chat.js'), 'utf8');
     const origin = readFileSync(join(root, 'api/_utils/vaultOrigin.js'), 'utf8');
     assert.ok(bridge.includes("'huddle-status'"));
@@ -390,7 +390,7 @@ describe('Connect huddle bridge + UI wiring', () => {
     assert.equal(bridge.includes('LIVEKIT_API_SECRET'), false);
   });
 
-  it('wires New chat, Start huddle, Join, and End on UI', () => {
+  it('wires New chat, Start Ka Link, Join, and End on UI', () => {
     const list = readFileSync(join(root, 'pages/CommunityChat.tsx'), 'utf8');
     const room = readFileSync(join(root, 'pages/CommunityChatRoom.tsx'), 'utf8');
     const overlay = readFileSync(
@@ -408,15 +408,15 @@ describe('Connect huddle bridge + UI wiring', () => {
     const badge = readFileSync(join(root, 'components/huddle/HuddleLiveDot.tsx'), 'utf8');
     assert.ok(badge.includes('bg-emerald-500'));
     assert.equal(list.includes('bg-red-600'), false);
-    assert.ok(room.includes('Join huddle'));
+    assert.ok(room.includes('Join Ka Link'));
     assert.ok(room.includes('bg-emerald-500'));
-    assert.ok(room.includes('Start huddle'));
+    assert.ok(room.includes('Start Ka Link'));
     assert.ok(room.includes('ConnectVoiceHuddle'));
     assert.ok(overlay.includes('livekit-client'));
     assert.ok(overlay.includes('Enable sound'));
     assert.ok(overlay.includes('fetchHuddleToken'));
     assert.ok(overlay.includes('endHuddle'));
-    assert.ok(overlay.includes('End huddle for everyone'));
+    assert.ok(overlay.includes('End Ka Link for everyone'));
     assert.ok(overlay.includes('Hands raised'));
     assert.ok(overlay.includes('HuddlePeoplePanel'));
     assert.ok(overlay.includes('HuddleMobileTabs'));
@@ -470,7 +470,7 @@ describe('directory + dm + huddle-end parsers', () => {
     assert.equal('email' in jane.members[0], false);
   });
 
-  it('maps dm open + huddle end', () => {
+  it('maps dm open + Ka Link end', () => {
     assert.deepEqual(parseOpenDmCommand({ partnerId: USER_ID }), {
       ok: true,
       partnerId: USER_ID,
@@ -499,7 +499,7 @@ describe('directory + dm + huddle-end parsers', () => {
   });
 });
 
-describe('Live Huddle start rule (members join, leaders/moderators start)', () => {
+describe('Live Ka Link start rule (members join, leaders/moderators start)', () => {
   it('passes Vault huddle_start_forbidden through as huddle_not_started on every start path', () => {
     const bridge = readFileSync(join(root, 'api/community-chat.js'), 'utf8');
     assert.ok(bridge.includes("body.code === 'huddle_start_forbidden'"));
@@ -523,7 +523,7 @@ describe('Jordan: members join, leaders/moderators start', () => {
     assert.ok(bridge.includes("canStart: body?.canStart === true"));
     assert.ok(origin.includes('voice-huddle-can-start'));
   });
-  it('room hides Start for members and explains the huddle has not started', () => {
+  it('room hides Start for members and explains the Ka Link has not started', () => {
     const room = readFileSync(join(root, 'pages/CommunityChatRoom.tsx'), 'utf8');
     assert.ok(room.includes('fetchHuddleCanStart'));
     assert.ok(room.includes('mayStart'));

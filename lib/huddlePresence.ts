@@ -1,7 +1,7 @@
 /** Shared Live Huddle presence helpers (community + family). */
 
 /** Shown when Vault (or a huddle host) server-mutes this member. */
-export const HUDDLE_HOST_MUTE_NOTICE = 'A huddle host muted your microphone.';
+export const HUDDLE_HOST_MUTE_NOTICE = 'A Ka Link host muted your microphone.';
 
 /**
  * LiveKit canPublishSources empty/missing = all sources allowed.

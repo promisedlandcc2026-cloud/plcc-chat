@@ -21,7 +21,7 @@ export const HuddlePeoplePanel: React.FC<Props> = ({
   open = true,
   onClose,
   roster,
-  title = 'People in this huddle',
+  title = 'People in this Ka Link',
   variant = 'sheet',
   footer,
 }) => {
@@ -40,7 +40,7 @@ export const HuddlePeoplePanel: React.FC<Props> = ({
             <Users size={14} aria-hidden /> Attendance
           </p>
           <p className="text-xs text-white/50 mt-0.5">
-            {inRoom.length} in huddle
+            {inRoom.length} in Ka Link
             {left.length ? ` · ${left.length} left this session` : ''}
           </p>
         </div>
@@ -53,7 +53,7 @@ export const HuddlePeoplePanel: React.FC<Props> = ({
       >
         <section>
           <p className="text-xs font-black uppercase tracking-widest text-gold mb-2">
-            In huddle
+            In Ka Link
           </p>
           {inRoom.length === 0 ? (
             <p className="text-xs text-white/40 py-2">No one is in the room right now.</p>
@@ -91,7 +91,7 @@ export const HuddlePeoplePanel: React.FC<Props> = ({
         {left.length > 0 ? (
           <section>
             <p className="text-xs font-black uppercase tracking-widest text-white/40 mb-2">
-              Left this huddle
+              Left this Ka Link
             </p>
             <ul className="space-y-2">
               {left.map((entry) => (
@@ -140,7 +140,7 @@ export const HuddlePeoplePanel: React.FC<Props> = ({
             <div className="min-w-0">
               <h3 className="text-sm font-bold truncate">{title}</h3>
               <p className="text-xs text-white/50 font-medium">
-                {inRoom.length} in huddle
+                {inRoom.length} in Ka Link
                 {left.length ? ` · ${left.length} left` : ''}
               </p>
             </div>

@@ -10,7 +10,7 @@ type HuddleLiveDotProps = {
 export const HuddleLiveDot: React.FC<HuddleLiveDotProps> = ({
   size = 'sm',
   className = '',
-  label = 'Live huddle',
+  label = 'Live Ka Link',
 }) => {
   const dim = size === 'md' ? 'w-2.5 h-2.5' : 'w-1.5 h-1.5';
   const labelled = Boolean(label);
@@ -31,7 +31,7 @@ export const HuddleLiveBadge: React.FC<{ count?: number }> = ({ count = 0 }) => 
   return (
     <span
       className="shrink-0 inline-flex items-center gap-1 rounded-md border border-emerald-100 bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-widest px-1.5 py-0.5"
-      aria-label={n > 0 ? `Live huddle, ${n} in room` : 'Live huddle'}
+      aria-label={n > 0 ? `Live Ka Link, ${n} in room` : 'Live Ka Link'}
     >
       <HuddleLiveDot label="" />
       {n > 0 ? `LIVE · ${n}` : 'LIVE'}

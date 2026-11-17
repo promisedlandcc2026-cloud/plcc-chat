@@ -117,7 +117,7 @@ describe('bridge', () => {
     reply.body = { ok: true, provider: 'daily', channelId: CH };
     const read1 = await run('huddle-line', { channelId: CH });
     assert.equal(read1.body.provider, 'daily');
-    reply = { status: 409, body: { ok: false, provider: 'daily', occupied: true, error: 'This huddle is on the backup line.' } };
+    reply = { status: 409, body: { ok: false, provider: 'daily', occupied: true, error: 'This Ka Link is on the backup line.' } };
     const claim = await run('huddle-line', { channelId: CH, provider: 'livekit' });
     assert.equal(claim.statusCode, 409);
     assert.equal(claim.body.provider, 'daily');
@@ -125,7 +125,7 @@ describe('bridge', () => {
     const daily = await run('huddle-daily-token', { channelId: CH });
     assert.equal(daily.statusCode, 200);
     assert.equal(daily.body.url, 'https://awc.daily.co/r');
-    reply = { status: 503, body: { ok: false, error: 'Backup huddle audio is not configured yet.', configured: false } };
+    reply = { status: 503, body: { ok: false, error: 'Backup Ka Link audio is not configured yet.', configured: false } };
     const off = await run('huddle-daily-token', { channelId: CH });
     assert.equal(off.body.code, 'backup_line_unconfigured');
   });
@@ -257,7 +257,7 @@ describe('client', () => {
   });
 });
 
-describe('huddle screen wiring', () => {
+describe('Ka Link screen wiring', () => {
   it('plans the line, uses resilient tokens, detects quota, and renders the backup line', () => {
     const src = read('components/community/ConnectVoiceHuddle.tsx');
     assert.match(src, /planHuddleLine\(channelId\)/);

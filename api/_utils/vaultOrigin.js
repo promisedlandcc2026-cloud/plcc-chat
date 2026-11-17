@@ -124,7 +124,7 @@ export function buildVaultHuddleFailsafeUrl(origin, kind) {
         : kind === 'daily'
           ? VAULT_COMMUNITY_CHAT_DAILY_TOKEN_PATH
           : null;
-  if (!path) throw new Error('unsupported huddle route');
+  if (!path) throw new Error('unsupported Ka Link route');
   return `${base}${path}`;
 }
 

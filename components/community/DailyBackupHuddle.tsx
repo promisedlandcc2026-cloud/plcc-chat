@@ -227,25 +227,25 @@ export const DailyBackupHuddle: React.FC<Props> = ({ creds, title, onClose, embe
       className={`${embedded ? 'relative h-full w-full z-0 overflow-hidden rounded-3xl' : 'fixed inset-0 z-[400]'} flex flex-col bg-[#0f0a0c] text-white`}
       role={embedded ? 'region' : 'dialog'}
       aria-modal={embedded ? undefined : true}
-      aria-label="Live Huddle on the backup line"
+      aria-label="Live Ka Link on the backup line"
     >
       <header className="flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b border-white/10">
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-gold">Live Huddle · backup line</p>
+          <p className="text-xs font-semibold text-gold">Live Ka Link · backup line</p>
           <h2 className="text-base font-bold truncate">{title}</h2>
         </div>
         <button
           type="button"
           onClick={leave}
           className="min-h-[44px] min-w-[44px] rounded-full bg-white/10 flex items-center justify-center"
-          aria-label="Close huddle"
+          aria-label="Close Ka Link"
         >
           <X size={20} aria-hidden />
         </button>
       </header>
 
       <p className="mx-4 mt-3 rounded-2xl bg-white/10 px-4 py-3 text-sm text-white/85 leading-relaxed" role="note">
-        Our main huddle line is busy, so you’re on the church’s backup line. Everyone in this huddle
+        Our main Ka Link line is busy, so you’re on the church’s backup line. Everyone in this Ka Link
         is here with you.
       </p>
 
@@ -274,7 +274,7 @@ export const DailyBackupHuddle: React.FC<Props> = ({ creds, title, onClose, embe
         ) : null}
 
         {people.length ? (
-          <ul className="space-y-2" aria-label="People in this huddle">
+          <ul className="space-y-2" aria-label="People in this Ka Link">
             {people.map((p) => (
               <li
                 key={p.identity}

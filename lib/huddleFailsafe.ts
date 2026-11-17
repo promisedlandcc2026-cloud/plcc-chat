@@ -169,7 +169,7 @@ export async function fetchDailyCredentials(channelId: string): Promise<DailyCre
   if (!res.ok || typeof data.token !== 'string' || typeof data.url !== 'string') {
     throw new CommunityChatError(
       (String(data.code || 'backup_line_unavailable') as CommunityChatError['code']),
-      String(data.message || 'Backup huddle audio is unavailable right now.'),
+      String(data.message || 'Backup Ka Link audio is unavailable right now.'),
       res.status
     );
   }
@@ -181,7 +181,7 @@ async function fetchFallbackToken(channelId: string, fallbackPass: string): Prom
   if (!res.ok || typeof data.token !== 'string' || typeof data.url !== 'string') {
     throw new CommunityChatError(
       (String(data.code || 'vault_unavailable') as CommunityChatError['code']),
-      String(data.message || 'Could not open the huddle while the church database is down.'),
+      String(data.message || 'Could not open the Ka Link while the church database is down.'),
       res.status
     );
   }
@@ -192,7 +192,7 @@ async function fetchFallbackToken(channelId: string, fallbackPass: string): Prom
     expiresIn: typeof data.expiresIn === 'number' ? data.expiresIn : 0,
     canModerate: Boolean(data.canModerate),
     channelId: String(data.channelId || channelId),
-    channelName: String(data.channelName || 'Live Huddle'),
+    channelName: String(data.channelName || 'Live Ka Link'),
     fallback: true,
   };
 }
@@ -243,7 +243,7 @@ export async function fetchHuddleTokenResilient(
     throw new CommunityChatError(
       lastErr.code,
       saved
-        ? 'Could not open the huddle while the church database is down. Please try again in a minute.'
+        ? 'Could not open the Ka Link while the church database is down. Please try again in a minute.'
         : 'The church database is temporarily unavailable. Please try again in a minute.',
       lastErr.status
     );
@@ -266,7 +266,7 @@ export async function planHuddleLine(
   } catch (err) {
     return {
       provider: 'blocked',
-      error: err instanceof Error && err.message ? err.message : 'Backup huddle audio is unavailable right now.',
+      error: err instanceof Error && err.message ? err.message : 'Backup Ka Link audio is unavailable right now.',
     };
   }
 }

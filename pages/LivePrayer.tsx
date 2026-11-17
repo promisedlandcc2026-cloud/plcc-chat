@@ -53,7 +53,7 @@ export const LivePrayer: React.FC = () => {
       ) : !rooms ? (
         <p className="py-10 flex flex-col items-center gap-3 text-gray-600" role="status">
           <Loader2 className="animate-spin text-burgundy" size={32} aria-hidden />
-          Looking for a Live Huddle…
+          Looking for a Live Ka Link…
         </p>
       ) : rooms.length ? (
         <>
@@ -83,7 +83,7 @@ export const LivePrayer: React.FC = () => {
         </>
       ) : (
         <div className="rounded-2xl bg-white border border-gray-200 p-6 text-center">
-          <p className="text-lg font-bold text-[#1A1A1A]">No Live Huddle right now</p>
+          <p className="text-lg font-bold text-[#1A1A1A]">No Live Ka Link right now</p>
           <p className="mt-1.5 text-base text-gray-600">
             When a prayer room goes live, you’ll find it at the top of your chats. Turn on message alerts so you don’t miss it.
           </p>

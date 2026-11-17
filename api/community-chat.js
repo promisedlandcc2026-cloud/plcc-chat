@@ -157,7 +157,7 @@ function connectApiOrigin() {
 
 /** Vault refused to START a huddle (member may join once a leader/moderator starts it). */
 const HUDDLE_NOT_STARTED_MESSAGE =
-  "This huddle hasn't started yet. A leader or room moderator will start it — you can join as soon as it's live.";
+  "This Ka Link hasn't started yet. A leader or room moderator will start it — you can join as soon as it's live.";
 
 function isHuddleStartForbidden(status, body) {
   return status === 403 && body && typeof body === 'object' && body.code === 'huddle_start_forbidden';
@@ -207,7 +207,7 @@ function mapUpstreamError(res, status, forbiddenMessage) {
     return json(res, 503, {
       ok: false,
       code: 'huddle_unavailable',
-      message: 'Live Huddle is not available right now. Please try again later.',
+      message: 'Live Ka Link is not available right now. Please try again later.',
     });
   }
   console.error('[community-chat] upstream status', status);
@@ -285,15 +285,15 @@ async function handleHuddleTokenFallback(req, res) {
   }
   const command = parseHuddleFallbackCommand(parsedBody.body);
   if (!command.ok) {
-    return json(res, 400, { ok: false, code: 'invalid_body', message: 'That huddle request was not valid.' });
+    return json(res, 400, { ok: false, code: 'invalid_body', message: 'That Ka Link request was not valid.' });
   }
   if (!allowHuddleTokenMint(`fallback:${command.fallbackPass}`)) {
-    return json(res, 429, { ok: false, code: 'rate_limited', message: 'Too many huddle join attempts. Please wait a moment and try again.' });
+    return json(res, 429, { ok: false, code: 'rate_limited', message: 'Too many Ka Link join attempts. Please wait a moment and try again.' });
   }
   const allowHttpLocal = process.env.NODE_ENV !== 'production';
   const originResult = parseVaultApiOrigin(process.env.VAULT_API_ORIGIN, { allowHttpLocal });
   if (!originResult.ok) {
-    return json(res, 503, { ok: false, code: 'bridge_unconfigured', message: 'Live Huddle is not available right now.' });
+    return json(res, 503, { ok: false, code: 'bridge_unconfigured', message: 'Live Ka Link is not available right now.' });
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TOKEN_UPSTREAM_TIMEOUT_MS);
@@ -318,19 +318,19 @@ async function handleHuddleTokenFallback(req, res) {
         code: upstream.status === 401 ? 'fallback_expired' : 'vault_unavailable',
         message:
           upstream.status === 401
-            ? 'Saved huddle permission expired. Try again after the church database is back.'
-            : 'Could not open the huddle while the church database is down.',
+            ? 'Saved Ka Link permission expired. Try again after the church database is back.'
+            : 'Could not open the Ka Link while the church database is down.',
       });
     }
     const parsed = parseVaultHuddleTokenResponse(body);
     if (!parsed.ok) {
-      return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Could not open the huddle while the church database is down.' });
+      return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Could not open the Ka Link while the church database is down.' });
     }
     return json(res, 200, { ok: true, ...parsed.token, fallback: true });
   } catch (err) {
     const aborted = err && (err.name === 'AbortError' || err.code === 'ABORT_ERR');
     console.error('[community-chat] huddle fallback', aborted ? 'timeout' : 'network');
-    return json(res, 502, { ok: false, code: 'vault_unavailable', message: 'Could not open the huddle while the church database is down.' });
+    return json(res, 502, { ok: false, code: 'vault_unavailable', message: 'Could not open the Ka Link while the church database is down.' });
   } finally {
     clearTimeout(timer);
   }
@@ -566,7 +566,7 @@ export default async function handler(req, res) {
         return json(res, 405, {
           ok: false,
           code: 'method_not_allowed',
-          message: 'Huddle status only supports GET.',
+          message: 'Ka Link status only supports GET.',
         });
       }
       const { resource: _r, ...rest } = query;
@@ -575,7 +575,7 @@ export default async function handler(req, res) {
         return json(res, 400, {
           ok: false,
           code: 'invalid_query',
-          message: 'That huddle request was not valid. Please try again.',
+          message: 'That Ka Link request was not valid. Please try again.',
         });
       }
       const upstream = await fetch(
@@ -1356,7 +1356,7 @@ export default async function handler(req, res) {
       }
       const command = parseHuddleTokenCommand(parsedBody.body);
       if (!command.ok) {
-        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That huddle request was not valid.' });
+        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That Ka Link request was not valid.' });
       }
       const upstream = await fetch(buildVaultCommunityChatVoiceCanStartUrl(originResult.origin), {
         method: 'POST',
@@ -1381,14 +1381,14 @@ export default async function handler(req, res) {
         return json(res, 405, {
           ok: false,
           code: 'method_not_allowed',
-          message: 'Huddle token only supports POST.',
+          message: 'Ka Link token only supports POST.',
         });
       }
       if (!allowHuddleTokenMint(auth.token)) {
         return json(res, 429, {
           ok: false,
           code: 'rate_limited',
-          message: 'Too many huddle join attempts. Please wait a moment and try again.',
+          message: 'Too many Ka Link join attempts. Please wait a moment and try again.',
         });
       }
       const parsedBody = parseJsonBody(req);
@@ -1404,7 +1404,7 @@ export default async function handler(req, res) {
         return json(res, 400, {
           ok: false,
           code: 'invalid_body',
-          message: 'That huddle request was not valid. Please try again.',
+          message: 'That Ka Link request was not valid. Please try again.',
         });
       }
       const upstream = await fetch(buildVaultCommunityChatVoiceTokenUrl(originResult.origin), {
@@ -1438,7 +1438,7 @@ export default async function handler(req, res) {
         return mapUpstreamError(
           res,
           upstream.status,
-          'You do not have access to this Live Huddle.'
+          'You do not have access to this Live Ka Link.'
         );
       }
       let body;
@@ -1448,7 +1448,7 @@ export default async function handler(req, res) {
         return json(res, 502, {
           ok: false,
           code: 'invalid_upstream',
-          message: 'Live Huddle is temporarily unavailable. Please try again.',
+          message: 'Live Ka Link is temporarily unavailable. Please try again.',
         });
       }
       const parsed = parseVaultHuddleTokenResponse(body);
@@ -1456,7 +1456,7 @@ export default async function handler(req, res) {
         return json(res, 502, {
           ok: false,
           code: 'invalid_upstream',
-          message: 'Live Huddle is temporarily unavailable. Please try again.',
+          message: 'Live Ka Link is temporarily unavailable. Please try again.',
         });
       }
       // Never echo hostId / coHostIds / channelCanModerate / secrets.
@@ -1475,7 +1475,7 @@ export default async function handler(req, res) {
       if (resource === 'huddle-line') {
         const command = parseHuddleLineCommand(parsedBody.body);
         if (!command.ok) {
-          return json(res, 400, { ok: false, code: 'invalid_body', message: 'That huddle request was not valid.' });
+          return json(res, 400, { ok: false, code: 'invalid_body', message: 'That Ka Link request was not valid.' });
         }
         const upstream = await fetch(buildVaultHuddleFailsafeUrl(originResult.origin, 'line'), {
           method: 'POST',
@@ -1507,15 +1507,15 @@ export default async function handler(req, res) {
           ok: line.ok,
           provider: line.provider,
           occupied: line.occupied,
-          ...(line.ok ? {} : { code: line.occupied ? 'huddle_line_busy' : 'huddle_line_unavailable', message: line.error || 'Could not check the huddle line.' }),
+          ...(line.ok ? {} : { code: line.occupied ? 'huddle_line_busy' : 'huddle_line_unavailable', message: line.error || 'Could not check the Ka Link line.' }),
         });
       }
       if (!allowHuddleTokenMint(auth.token)) {
-        return json(res, 429, { ok: false, code: 'rate_limited', message: 'Too many huddle join attempts. Please wait a moment and try again.' });
+        return json(res, 429, { ok: false, code: 'rate_limited', message: 'Too many Ka Link join attempts. Please wait a moment and try again.' });
       }
       const command = parseHuddleTokenCommand(parsedBody.body);
       if (!command.ok) {
-        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That huddle request was not valid.' });
+        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That Ka Link request was not valid.' });
       }
       const upstream = await fetch(buildVaultHuddleFailsafeUrl(originResult.origin, 'daily'), {
         method: 'POST',
@@ -1541,12 +1541,12 @@ export default async function handler(req, res) {
         return json(res, upstream.status === 409 ? 409 : upstream.status === 503 ? 503 : 502, {
           ok: false,
           code: upstream.status === 503 ? 'backup_line_unconfigured' : 'backup_line_unavailable',
-          message: vaultMessage || 'Backup huddle audio is unavailable right now.',
+          message: vaultMessage || 'Backup Ka Link audio is unavailable right now.',
         });
       }
       const parsed = parseVaultDailyTokenResponse(body);
       if (!parsed.ok) {
-        return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Backup huddle audio is unavailable right now.' });
+        return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Backup Ka Link audio is unavailable right now.' });
       }
       return json(res, 200, { ok: true, ...parsed.daily });
     }
@@ -1557,7 +1557,7 @@ export default async function handler(req, res) {
         return json(res, 405, {
           ok: false,
           code: 'method_not_allowed',
-          message: 'Huddle end only supports POST.',
+          message: 'Ka Link end only supports POST.',
         });
       }
       const parsedBody = parseJsonBody(req);
@@ -1573,7 +1573,7 @@ export default async function handler(req, res) {
         return json(res, 400, {
           ok: false,
           code: 'invalid_body',
-          message: 'That huddle request was not valid. Please try again.',
+          message: 'That Ka Link request was not valid. Please try again.',
         });
       }
       const upstream = await fetch(buildVaultCommunityChatVoiceEndUrl(originResult.origin), {
@@ -1591,7 +1591,7 @@ export default async function handler(req, res) {
         return mapUpstreamError(
           res,
           upstream.status,
-          'Only moderators can end the Live Huddle for everyone.'
+          'Only moderators can end the Live Ka Link for everyone.'
         );
       }
       let body;
@@ -1601,7 +1601,7 @@ export default async function handler(req, res) {
         return json(res, 502, {
           ok: false,
           code: 'invalid_upstream',
-          message: 'Live Huddle is temporarily unavailable. Please try again.',
+          message: 'Live Ka Link is temporarily unavailable. Please try again.',
         });
       }
       const parsed = parseVaultHuddleEndResponse(body);
@@ -1609,7 +1609,7 @@ export default async function handler(req, res) {
         return json(res, 502, {
           ok: false,
           code: 'invalid_upstream',
-          message: 'Live Huddle is temporarily unavailable. Please try again.',
+          message: 'Live Ka Link is temporarily unavailable. Please try again.',
         });
       }
       return json(res, 200, {

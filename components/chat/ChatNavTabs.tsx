@@ -48,7 +48,7 @@ export const ChatNavTabs: React.FC<{
             id={`chat-tab-${tab.id}`}
             aria-selected={selected}
             aria-controls={`chat-panel-${tab.id}`}
-            aria-label={tab.id === 'prayer' ? 'Prayer Gathering' : tab.id === 'huddles' ? 'Live Huddles' : tab.label}
+            aria-label={tab.id === 'prayer' ? 'Prayer Gathering' : tab.id === 'huddles' ? 'Live Ka Links' : tab.label}
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(tab.id)}
             onKeyDown={(e) => {
@@ -81,7 +81,7 @@ export const ChatNavTabs: React.FC<{
                   selected ? 'bg-gold text-burgundy' : tab.id === 'huddles' ? 'bg-emerald-600 text-white' : 'bg-burgundy text-white'
                 }`}
                 aria-label={
-                  tab.id === 'huddles' ? `${tab.count} live huddle${tab.count === 1 ? '' : 's'}` : `${tab.count} unread`
+                  tab.id === 'huddles' ? `${tab.count} live Ka Link${tab.count === 1 ? '' : 's'}` : `${tab.count} unread`
                 }
               >
                 {tab.count > 99 ? '99+' : tab.count}

@@ -39,14 +39,14 @@ export const HuddleChatPanel: React.FC<Props> = ({
       <div className="px-4 pt-1 pb-2 border-b border-white/10 shrink-0">
         <p className="text-xs font-black uppercase tracking-widest text-gold">Chat</p>
         <p className="text-xs text-white/50 mt-0.5">
-          Live huddle only — messages disappear when you leave.
+          Live Ka Link only — messages disappear when you leave.
         </p>
       </div>
 
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
         {messages.length === 0 ? (
           <p className="text-sm text-white/40 text-center py-8">
-            No messages yet. Say hello to the huddle.
+            No messages yet. Say hello to the Ka Link.
           </p>
         ) : (
           messages.map((m) => (
@@ -83,7 +83,7 @@ export const HuddleChatPanel: React.FC<Props> = ({
           value={draft}
           maxLength={HUDDLE_CHAT_MAX_LENGTH}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Message the huddle…"
+          placeholder="Message the Ka Link…"
           className="flex-1 min-h-[44px] max-h-24 resize-none rounded-xl bg-white/10 border border-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-gold/40"
         />
         <button

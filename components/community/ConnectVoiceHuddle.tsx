@@ -166,10 +166,10 @@ function huddleDisconnectIsFinal(reason?: DisconnectReason): boolean {
 
 function huddleDisconnectMessage(reason?: DisconnectReason): string {
   if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
-    return 'You joined this huddle somewhere else (another tab, app or device). Tap Join to bring it back here.';
+    return 'You joined this Ka Link somewhere else (another tab, app or device). Tap Join to bring it back here.';
   }
-  if (reason === DisconnectReason.PARTICIPANT_REMOVED) return 'You were removed from the huddle.';
-  return 'The huddle has ended.';
+  if (reason === DisconnectReason.PARTICIPANT_REMOVED) return 'You were removed from the Ka Link.';
+  return 'The Ka Link has ended.';
 }
 
 type ConnState = 'prejoin' | 'connecting' | 'reconnecting' | 'connected' | 'error';
@@ -352,7 +352,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [chatMessages, setChatMessages] = useState<HuddleChatMessage[]>([]);
   const [chatUnread, setChatUnread] = useState(0);
   const [chatSending, setChatSending] = useState(false);
-  const [title, setTitle] = useState(channelName || 'Live Huddle');
+  const [title, setTitle] = useState(channelName || 'Live Ka Link');
   const [canModerate, setCanModerate] = useState(false);
   const [ending, setEnding] = useState(false);
   const [shareDone, setShareDone] = useState<string | null>(null);
@@ -384,8 +384,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     // One link for both apps: the Vault's share page shows the WhatsApp card and opens
     // the Vault for signed-in staff, Tribes for everyone else — same live call.
     const url = `${VAULT_PUBLIC_ORIGIN}/api/share-huddle?channel=${encodeURIComponent(channelId)}`;
-    const name = title || channelName || 'Live Huddle';
-    const text = `Join the "${name}" Live Huddle. Sign in to Tribes or PLCC Canaan, then tap the huddle link. It opens right into the prayer call:`;
+    const name = title || channelName || 'Live Ka Link';
+    const text = `Join the "${name}" Live Ka Link. Sign in to Tribes or PLCC Canaan, then tap the link. It opens right into the prayer call:`;
     const flash = (msg: string) => {
       setShareDone(msg);
       window.setTimeout(() => setShareDone(null), 2000);
@@ -402,7 +402,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       await navigator.clipboard.writeText(`${text} ${url}`);
       flash('Copied');
     } catch {
-      window.prompt('Copy this link to share the huddle:', url);
+      window.prompt('Copy this link to share the Ka Link:', url);
     }
   }, [channelId, channelName, title]);
 
@@ -778,10 +778,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       if (!mountedRef.current) return;
       setNotice(
         tokenPayload.fallback
-          ? 'The church database is having trouble, so you joined with the permission saved from your last huddle. Everything in the call works as usual.'
+          ? 'The church database is having trouble, so you joined with the permission saved from your last Ka Link. Everything in the call works as usual.'
           : null
       );
-      setTitle(tokenPayload.channelName || channelName || 'Live Huddle');
+      setTitle(tokenPayload.channelName || channelName || 'Live Ka Link');
       setCanModerate(Boolean(tokenPayload.canModerate));
 
       const room = new Room({ adaptiveStream: true, dynacast: true });
@@ -953,7 +953,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           }
           if (reconnectAttemptsRef.current >= MAX_HUDDLE_RECONNECTS) {
             lostConnectionRef.current = true;
-              setError('Connection lost. Tap to rejoin the huddle.');
+              setError('Connection lost. Tap to rejoin the Ka Link.');
             setConn('error');
             return;
           }
@@ -1018,7 +1018,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           if (mountedRef.current) setDailyCreds(creds);
         } catch (err) {
           if (!mountedRef.current) return;
-          setError(err instanceof Error && err.message ? err.message : 'Backup huddle audio is unavailable right now.');
+          setError(err instanceof Error && err.message ? err.message : 'Backup Ka Link audio is unavailable right now.');
           setConn('error');
         }
       });
@@ -1037,7 +1037,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           setError(
             dailyErr instanceof Error && dailyErr.message
               ? dailyErr.message
-              : 'Backup huddle audio is unavailable right now.'
+              : 'Backup Ka Link audio is unavailable right now.'
           );
           setConn('error');
           return;
@@ -1056,7 +1056,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       const message =
         err instanceof CommunityChatError
           ? err.message
-          : 'Could not join the huddle. Please try again.';
+          : 'Could not join the Ka Link. Please try again.';
       setError(message);
       setConn('error');
     } finally {
@@ -1117,7 +1117,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const endForEveryone = useCallback(async () => {
     if (!canModerate || ending) return;
     const ok = window.confirm(
-      'End this Live Huddle for everyone? All participants will be disconnected.'
+      'End this Live Ka Link for everyone? All participants will be disconnected.'
     );
     if (!ok) return;
     setEnding(true);
@@ -1140,7 +1140,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       const message =
         err instanceof CommunityChatError
           ? err.message
-          : 'Could not end the huddle. Please try again.';
+          : 'Could not end the Ka Link. Please try again.';
       setError(message);
     } finally {
       setEnding(false);
@@ -1270,7 +1270,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     if (!room || !canModerateRef.current) return;
     setScreenError(null);
     if (!screenShareSupported()) {
-      setScreenError('Phones can’t share their screen from a browser. Join this huddle on a computer (Chrome, Edge, Firefox or Safari) to share.');
+      setScreenError('Phones can’t share their screen from a browser. Join this Ka Link on a computer (Chrome, Edge, Firefox or Safari) to share.');
       return;
     }
     const sharingNow = room.localParticipant.isScreenShareEnabled;
@@ -1299,7 +1299,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         const msg = String((e as Error)?.message || '');
         setScreenError(
           /permission|insufficient|not allowed/i.test(msg)
-            ? 'Only moderators and up can share their screen in a huddle.'
+            ? 'Only moderators and up can share their screen in a Ka Link.'
             : 'Could not share your screen. Please try again.'
         );
       }
@@ -1434,7 +1434,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         setLastReactionSentAt(Date.now());
         setReactionPickerOpen(false);
       } catch {
-        setReactionError("Couldn't send reaction. You're still in the huddle.");
+        setReactionError("Couldn't send reaction. You're still in the Ka Link.");
       } finally {
         setReactionBusy(false);
       }
@@ -1468,7 +1468,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         setChatMessages((prev) => appendHuddleChatMessage(prev, localMsg));
       }
     } catch {
-      setError('Could not send huddle chat message.');
+      setError('Could not send Ka Link chat message.');
     } finally {
       setChatSending(false);
     }
@@ -1558,7 +1558,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         : 'You will join muted';
 
     return (
-      <div className={`${shellClass} pr-shell overflow-hidden`} role="dialog" aria-modal aria-label="Live Huddle">
+      <div className={`${shellClass} pr-shell overflow-hidden`} role="dialog" aria-modal aria-label="Live Ka Link">
         {connected && activeReactions.length > 0 ? (
           <div
             className="pointer-events-none absolute right-3 bottom-24 z-40 flex max-w-[min(14rem,46%)] flex-col-reverse items-end gap-1.5"
@@ -1596,7 +1596,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   type="button"
                   onClick={() => setActiveTab('attendance')}
                   className="pr-icon-btn"
-                  aria-label={`Attendance, ${inCount} in huddle`}
+                  aria-label={`Attendance, ${inCount} in Ka Link`}
                 >
                   <Users size={22} aria-hidden />
                   <span className="tabular-nums">{peopleCount}</span>
@@ -1605,7 +1605,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               <button type="button" onClick={() => setSheet('guidelines')} className="pr-icon-btn pr-desktop-only" aria-label="Guidelines">
                 <CircleHelp size={24} aria-hidden />
               </button>
-              <button type="button" onClick={() => void leave()} className="pr-icon-btn is-solid" aria-label="Close huddle">
+              <button type="button" onClick={() => void leave()} className="pr-icon-btn is-solid" aria-label="Close Ka Link">
                 <X size={22} aria-hidden />
               </button>
             </div>
@@ -1686,7 +1686,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   <div className="flex flex-col items-center justify-center gap-3 py-20 text-[#3a4640]">
                     <Loader2 className="animate-spin" size={30} aria-hidden />
                     <p className="text-base font-semibold">
-                      {conn === 'reconnecting' ? 'Reconnecting…' : mode === 'start' ? 'Starting huddle…' : 'Joining huddle…'}
+                      {conn === 'reconnecting' ? 'Reconnecting…' : mode === 'start' ? 'Starting Ka Link…' : 'Joining Ka Link…'}
                     </p>
                   </div>
                 ) : roomFull ? (
@@ -1759,7 +1759,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                               ? 'Audio Only • Raise your hand to pray aloud'
                               : 'Audio first • Raise your hand to pray aloud'
                           : mode === 'start'
-                            ? 'Start a Live Huddle for this room. Everyone in it can join from their phone or computer.'
+                            ? 'Start a Live Ka Link for this room. Everyone in it can join from their phone or computer.'
                             : `Leaving does not end the prayer for others${canModerate ? ' unless you end it for everyone' : ''}.`}
                       </p>
                     </div>
@@ -1801,7 +1801,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                           </button>
                         ) : null}
                         <button type="button" onClick={() => void join()} className="min-h-[56px] w-full rounded-2xl bg-[#0f3d2c] text-lg font-bold text-white shadow-lg">
-                          {mode === 'start' ? 'Start huddle' : 'Join prayer room'}
+                          {mode === 'start' ? 'Start Ka Link' : 'Join prayer room'}
                         </button>
                         <button type="button" onClick={() => void leave()} className="min-h-[44px] w-full text-sm font-semibold text-[#3a4640]">
                           Not now
@@ -1912,7 +1912,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                                 }}
                                 disabled={reactionBusy}
                                 className={`pr-tool is-icon ${reactionPickerOpen ? 'is-on' : ''}`}
-                                aria-label="Open huddle reactions"
+                                aria-label="Open Ka Link reactions"
                                 aria-expanded={reactionPickerOpen}
                                 aria-haspopup="menu"
                                 title="Reactions"
@@ -1923,7 +1923,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                               {reactionPickerOpen ? (
                                 <div
                                   role="menu"
-                                  aria-label="Huddle reactions"
+                                  aria-label="Ka Link reactions"
                                   className="absolute bottom-[calc(100%+0.5rem)] left-1/2 z-50 w-52 -translate-x-1/2 rounded-2xl border border-[#eadfca] bg-white p-2 shadow-xl"
                                 >
                                   <p className="px-2 pb-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#7a5a1c]">Reactions</p>
@@ -2036,13 +2036,13 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                           </section>
                         ) : null}
 
-                        <button type="button" onClick={() => void leave()} className="pr-leave" aria-label="Leave huddle">
+                        <button type="button" onClick={() => void leave()} className="pr-leave" aria-label="Leave Ka Link">
                           <LogOut className="h-5 w-5 lg:h-6 lg:w-6" aria-hidden />
                           Leave Room
                         </button>
                         {canModerate ? (
                           <button type="button" onClick={() => void endForEveryone()} disabled={ending} className="pr-end -mt-2 min-h-[40px] disabled:opacity-50">
-                            {ending ? 'Ending…' : 'End huddle for everyone'}
+                            {ending ? 'Ending…' : 'End Ka Link for everyone'}
                           </button>
                         ) : null}
                       </>
@@ -2151,7 +2151,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       className={`${shellClass} flex flex-col bg-[#0f0a0c] text-white`}
       role={embedded ? 'region' : 'dialog'}
       aria-modal={embedded ? undefined : true}
-      aria-label="Live Huddle"
+      aria-label="Live Ka Link"
     >
       {conn === 'connected' && activeReactions.length > 0 ? (
         <div
@@ -2175,7 +2175,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       <header className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 sm:pb-3 border-b border-white/10">
         <div className="min-w-0">
           <p className="hidden sm:block text-xs font-black uppercase tracking-widest text-gold">
-            Live Huddle
+            Live Ka Link
           </p>
           <h2 className="text-sm sm:text-base font-bold truncate">{title}</h2>
         </div>
@@ -2185,7 +2185,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               type="button"
               onClick={() => setActiveTab('attendance')}
               className="min-h-[44px] px-3 rounded-full bg-white/10 flex items-center justify-center gap-1.5"
-              aria-label={`Attendance, ${inCount} in huddle`}
+              aria-label={`Attendance, ${inCount} in Ka Link`}
             >
               <Users size={18} aria-hidden />
               <span className="text-xs font-bold tabular-nums">{inCount || tiles.length}</span>
@@ -2195,7 +2195,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             type="button"
             onClick={() => void leave()}
             className="min-h-[44px] min-w-[44px] rounded-full bg-white/10 flex items-center justify-center"
-            aria-label="Close huddle"
+            aria-label="Close Ka Link"
           >
             <X size={20} aria-hidden />
           </button>
@@ -2236,13 +2236,13 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           <div className="max-w-md mx-auto space-y-4 sm:space-y-5 pt-4 sm:pt-8">
             <p className="text-sm text-white/70 text-center leading-relaxed">
               {mode === 'start'
-                ? 'Start a Live Huddle for this channel. Everyone in the channel can join from their phone or computer.'
+                ? 'Start a Live Ka Link for this channel. Everyone in the channel can join from their phone or computer.'
                 : prayerWatch
                   ? 'Join the prayer call. Voice only.'
                   : 'Join the live room. Mute, camera, and raise hand are available.'}
               <span className="hidden sm:inline">
                 {' '}
-                Leaving here does not end the huddle for others
+                Leaving here does not end the Ka Link for others
                 {canModerate ? ' unless you end it for everyone.' : '.'}
               </span>
             </p>
@@ -2280,7 +2280,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               onClick={() => void join()}
               className="w-full min-h-[48px] sm:min-h-[52px] rounded-2xl bg-burgundy text-white font-bold text-base"
             >
-              {mode === 'start' ? 'Start huddle' : 'Join huddle'}
+              {mode === 'start' ? 'Start Ka Link' : 'Join Ka Link'}
             </button>
             <button
               type="button"
@@ -2299,8 +2299,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               {conn === 'reconnecting'
                 ? 'Reconnecting…'
                 : mode === 'start'
-                  ? 'Starting huddle…'
-                  : 'Joining huddle…'}
+                  ? 'Starting Ka Link…'
+                  : 'Joining Ka Link…'}
             </p>
           </div>
         ) : null}
@@ -2541,7 +2541,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   className={`min-h-[44px] min-w-[44px] sm:min-h-[52px] sm:min-w-[52px] rounded-2xl flex items-center justify-center disabled:opacity-60 ${
                     reactionPickerOpen ? 'bg-gold text-burgundy' : 'bg-white/10 text-white'
                   }`}
-                  aria-label="Open huddle reactions"
+                  aria-label="Open Ka Link reactions"
                   aria-expanded={reactionPickerOpen}
                   aria-haspopup="menu"
                   data-huddle-reaction-control="true"
@@ -2551,7 +2551,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 {reactionPickerOpen ? (
                   <div
                     role="menu"
-                    aria-label="Huddle reactions"
+                    aria-label="Ka Link reactions"
                     className="absolute bottom-[calc(100%+0.5rem)] left-1/2 z-50 w-52 -translate-x-1/2 rounded-2xl border border-white/15 bg-[#0c110f] p-2 shadow-xl"
                   >
                     <p className="px-2 pb-1.5 text-xs font-black uppercase tracking-[0.2em] text-gold">
@@ -2603,7 +2603,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               type="button"
               onClick={() => void leave()}
               className="min-h-[44px] min-w-[44px] sm:min-h-[52px] sm:min-w-[52px] rounded-2xl bg-red-600 flex items-center justify-center"
-              aria-label="Leave huddle"
+              aria-label="Leave Ka Link"
             >
               <PhoneOff size={22} />
             </button>
@@ -2615,7 +2615,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               disabled={ending}
               className="w-full min-h-[40px] sm:min-h-[44px] text-xs sm:text-sm font-bold text-red-300/90 disabled:opacity-50"
             >
-              {ending ? 'Ending…' : 'End huddle for everyone'}
+              {ending ? 'Ending…' : 'End Ka Link for everyone'}
             </button>
           ) : null}
         </footer>

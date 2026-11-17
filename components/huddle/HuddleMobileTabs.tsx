@@ -46,7 +46,7 @@ export const HuddleMobileTabs: React.FC<Props> = ({
   return (
     <nav
       className={`grid ${cols} gap-1 px-1 py-1 rounded-2xl bg-white/5 border border-white/10`}
-      aria-label="Huddle panels"
+      aria-label="Ka Link panels"
       data-testid="huddle-mobile-tabs"
     >
       {shown.map(({ id, label, Icon }) => {

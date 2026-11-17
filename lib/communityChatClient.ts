@@ -32,7 +32,7 @@ async function getAccessToken(): Promise<string | null> {
 
 /** Shown when a member opens a huddle nobody has started (only leaders / room moderators can start). */
 export const HUDDLE_NOT_STARTED_MESSAGE =
-  "This huddle hasn't started yet. A leader or room moderator will start it — you can join as soon as it's live.";
+  "This Ka Link hasn't started yet. A leader or room moderator will start it — you can join as soon as it's live.";
 
 function mapStatus(
   status: number,
@@ -66,7 +66,7 @@ function mapStatus(
     if (bodyCode === 'huddle_unavailable') {
       return {
         code: 'huddle_unavailable',
-        message: 'Live Huddle is not available right now. Please try again later.',
+        message: 'Live Ka Link is not available right now. Please try again later.',
       };
     }
     return {
@@ -629,7 +629,7 @@ export async function fetchHuddleToken(
   ) {
     throw new CommunityChatError(
       'vault_unavailable',
-      'Live Huddle is temporarily unavailable. Please try again.',
+      'Live Ka Link is temporarily unavailable. Please try again.',
       502
     );
   }

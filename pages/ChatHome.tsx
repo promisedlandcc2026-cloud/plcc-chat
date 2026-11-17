@@ -66,7 +66,7 @@ export const ChatHome: React.FC = () => {
             <MessageCircle size={48} className="text-burgundy/40 mb-4" aria-hidden />
             <p className="text-lg font-bold text-[#1A1A1A]">PLCC Ka Link</p>
             <p className="text-sm mt-1 max-w-sm">
-              Pick a room or a person on the left to start chatting. Live Huddles open right here.
+              Pick a room or a person on the left to start chatting. Live Ka Links open right here.
             </p>
           </div>
         )}

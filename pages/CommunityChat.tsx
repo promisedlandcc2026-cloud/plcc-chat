@@ -392,7 +392,7 @@ export const CommunityChatPage: React.FC = () => {
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
               {visibilityLabel(opts?.isDm ? 'dm' : channel.visibility)}
               {live && huddle?.participantCount
-                ? ` · ${huddle.participantCount} in huddle`
+                ? ` · ${huddle.participantCount} in Ka Link`
                 : ''}
               {!live && !opts?.isDm && channel.description
                 ? ` · ${channel.description}`
@@ -460,7 +460,7 @@ export const CommunityChatPage: React.FC = () => {
       <MemberPageHeader
         title="Chat"
         backTo={null}
-        subtitle={`${identity?.name ? `Signed in as ${identity.name}. ` : ''}Prayer gatherings, ministry rooms, messages and Live Huddles — each in its own tab.`}
+        subtitle={`${identity?.name ? `Signed in as ${identity.name}. ` : ''}Prayer gatherings, ministry rooms, messages and Live Ka Links — each in its own tab.`}
       />
 
       <ChatAlertsCard />
@@ -702,12 +702,12 @@ export const CommunityChatPage: React.FC = () => {
           {activeTab === 'huddles' ? (
             <section role="tabpanel" id="chat-panel-huddles" aria-labelledby="chat-tab-huddles" className="space-y-3">
               <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 px-1 flex items-center gap-2">
-                <Radio size={14} className="text-emerald-600" aria-hidden /> Live Huddles now
+                <Radio size={14} className="text-emerald-600" aria-hidden /> Live Ka Links now
               </h2>
               {liveRows.length === 0 ? (
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500 space-y-2">
-                  <p>No Live Huddles right now.</p>
-                  <p>When a prayer gathering or ministry room goes live, it shows up here so you can join in one tap. To start one, open any room and tap Start huddle.</p>
+                  <p>No Live Ka Links right now.</p>
+                  <p>When a prayer gathering or ministry room goes live, it shows up here so you can join in one tap. To start one, open any room and tap Start Ka Link.</p>
                 </div>
               ) : (
                 <ul className="space-y-2">
@@ -727,7 +727,7 @@ export const CommunityChatPage: React.FC = () => {
                             <HuddleLiveBadge count={row.count} />
                           </div>
                           <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                            {row.count > 0 ? `${row.count} in huddle · Tap to join` : 'Tap to join'}
+                            {row.count > 0 ? `${row.count} in Ka Link · Tap to join` : 'Tap to join'}
                           </p>
                         </div>
                         <span className="shrink-0 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-wider px-3 py-2">
