@@ -38,6 +38,7 @@ import {
   VideoOff,
   Volume2,
   X,
+  MoreHorizontal,
 } from 'lucide-react';
 import {
   LocalAudioTrack,
@@ -398,6 +399,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [recordBusy, setRecordBusy] = useState(false);
   const [recordingsOpen, setRecordingsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   /** #12 song library: what plays next, and the picker sheet. */
   const musicStartUrlRef = useRef<string | null>(null);
   const musicQueueRef = useRef<Array<{ id: string; title: string; url: string }>>([]);
@@ -2471,74 +2473,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                         </button>
                       </div>
 
-                      <div className="pr-tools">
-                        <button type="button" onClick={openBible} className={`pr-tool ${sideTab === 'bible' ? 'is-on' : ''}`} title="Read the Bible">
-                          <BookOpen size={17} aria-hidden /> <span>Bible</span>
-                        </button>
+                      <div className="pr-tools" role="toolbar" aria-label="Ka Link tools">
                         {!prayerWatch ? (
-                          <button type="button" onClick={() => setSheet('prayer')} className="pr-tool" title="Send a prayer request">
-                            <HandHeart size={17} aria-hidden /> <span>Prayer Request</span>
-                          </button>
-                        ) : null}
-                        {connected && canModerate ? (
-                          <button
-                            type="button"
-                            onClick={() => void toggleRecording()}
-                            disabled={recordBusy}
-                            className={`pr-tool ${isRecording ? 'is-recording' : ''}`}
-                            aria-pressed={isRecording}
-                            data-testid="huddle-record-toggle"
-                          >
-                            {recordBusy ? <Loader2 size={17} className="animate-spin" aria-hidden /> : <CircleDot size={17} aria-hidden />}
-                            <span>{isRecording ? 'Stop recording' : 'Record'}</span>
-                          </button>
-                        ) : null}
-                        <button type="button" onClick={() => setRecordingsOpen(true)} className="pr-tool" title="Past recordings">
-                          <Disc size={17} aria-hidden /> <span>Recordings</span>
-                        </button>
-                        {!prayerWatch ? (
-                          <button type="button" onClick={() => setActiveTab('chat')} className="pr-tool relative" title="Room chat">
-                            <MessageCircle size={17} aria-hidden /> <span>Chat</span>
-                            {chatUnread > 0 ? <span className="pr-badge">{chatUnread}</span> : null}
-                          </button>
-                        ) : null}
-                        {!audioOnly ? (
-                          <button
-                            type="button"
-                            onClick={() => void toggleCam()}
-                            disabled={listenOnly}
-                            className={`pr-tool is-icon ${camEnabled ? 'is-on' : ''}`}
-                            aria-label={camEnabled ? 'Turn camera off' : 'Turn camera on'}
-                            title={camEnabled ? 'Camera off' : 'Camera on'}
-                          >
-                            {camEnabled ? <Video size={18} /> : <VideoOff size={18} />}
-                          </button>
-                        ) : null}
-                        {!prayerWatch ? (
-                          <button
-                            type="button"
-                            onClick={() => setCaptionsOn((v) => !v)}
-                            className={`pr-tool is-icon ${captionsOn ? 'is-on' : ''}`}
-                            aria-label={captionsOn ? 'Turn live captions off' : 'Turn live captions on'}
-                            aria-pressed={captionsOn}
-                            title="Live captions"
-                            data-testid="huddle-captions-toggle"
-                          >
-                            {captionsOn ? <CaptionsOff size={18} aria-hidden /> : <Captions size={18} aria-hidden />}
-                          </button>
-                        ) : null}
-                        {canModerate && !audioOnly && !prayerWatch && screenShareSupported() ? (
-                          <button
-                            type="button"
-                            onClick={() => void toggleScreenShare()}
-                            disabled={screenBusy || Boolean(sharer && !sharer.isLocal)}
-                            title={sharer && !sharer.isLocal ? `${sharer.name} is sharing` : 'Share screen'}
-                            className={`pr-tool is-icon ${sharer?.isLocal ? 'is-on' : ''}`}
-                            aria-label={sharer?.isLocal ? 'Stop sharing your screen' : 'Share your screen'}
-                            aria-pressed={Boolean(sharer?.isLocal)}
-                            data-testid="huddle-screen-share-toggle"
-                          >
-                            {screenBusy ? <Loader2 size={18} className="animate-spin" aria-hidden /> : sharer?.isLocal ? <MonitorOff size={18} aria-hidden /> : <Monitor size={18} aria-hidden />}
+                          <button type="button" onClick={() => setActiveTab('chat')} className="pr-tool is-icon relative" aria-label="Room chat" title="Chat">
+                            <MessageCircle size={18} aria-hidden />
+                            {chatUnread > 0 ? <span className="pr-badge pr-badge-dot">{chatUnread}</span> : null}
                           </button>
                         ) : null}
                         {!prayerWatch ? (
@@ -2586,31 +2525,130 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                             ) : null}
                           </div>
                         ) : null}
-                        {canPlayHuddleMusic ? (
+                        {!prayerWatch ? (
                           <button
                             type="button"
-                            onClick={openMusicSheet}
-                            disabled={musicBusy || (musicActive && !musicPlaying)}
-                            className={`pr-tool ${musicPlaying || musicActive ? 'is-on' : ''}`}
-                            aria-label={musicActive && !musicPlaying ? 'Music is already playing' : 'Music'}
-                            aria-pressed={musicPlaying}
-                            data-huddle-music-control="true"
+                            onClick={() => setCaptionsOn((v) => !v)}
+                            className={`pr-tool is-icon ${captionsOn ? 'is-on' : ''}`}
+                            aria-label={captionsOn ? 'Turn live captions off' : 'Turn live captions on'}
+                            aria-pressed={captionsOn}
+                            title="Live captions"
+                            data-testid="huddle-captions-toggle"
                           >
-                            {musicBusy ? <Loader2 size={17} className="animate-spin" aria-hidden /> : <Music size={17} aria-hidden />}
-                            <span>{musicPlaying ? (nowPlaying?.title ? `♪ ${nowPlaying.title.length > 18 ? `${nowPlaying.title.slice(0, 17)}…` : nowPlaying.title}` : 'Music on') : musicActive ? 'Music playing' : 'Music'}</span>
+                            {captionsOn ? <CaptionsOff size={18} aria-hidden /> : <Captions size={18} aria-hidden />}
                           </button>
                         ) : null}
-                        {!prayerWatch ? (
-                          <button type="button" onClick={() => void shareHuddle()} className="pr-tool is-icon" aria-label={shareDone || 'Share'} title={shareDone || 'Share'}>
-                            <Share2 size={18} aria-hidden />
+                        {!audioOnly ? (
+                          <button
+                            type="button"
+                            onClick={() => void toggleCam()}
+                            disabled={listenOnly}
+                            className={`pr-tool is-icon ${camEnabled ? 'is-on' : ''}`}
+                            aria-label={camEnabled ? 'Turn camera off' : 'Turn camera on'}
+                            title={camEnabled ? 'Camera off' : 'Camera on'}
+                          >
+                            {camEnabled ? <Video size={18} /> : <VideoOff size={18} />}
                           </button>
                         ) : null}
-                        {canModerate ? (
-                          <button type="button" onClick={() => void endForEveryone()} disabled={ending} className="pr-tool is-end">
-                            <PhoneOff size={17} aria-hidden /> <span>{ending ? 'Ending…' : 'End for everyone'}</span>
+                        {isRecording && canModerate ? (
+                          <button type="button" onClick={() => void toggleRecording()} disabled={recordBusy} className="pr-tool is-recording" aria-label="Stop recording" data-testid="huddle-recording-chip">
+                            <CircleDot size={16} aria-hidden /> <span>REC · Stop</span>
                           </button>
                         ) : null}
+                        {musicPlaying && canPlayHuddleMusic ? (
+                          <button type="button" onClick={openMusicSheet} className="pr-tool is-on" aria-label="Music playing: open music">
+                            <Music size={16} aria-hidden /> <span>{nowPlaying?.title ? (nowPlaying.title.length > 14 ? `${nowPlaying.title.slice(0, 13)}…` : nowPlaying.title) : 'Music on'}</span>
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setMoreOpen(true)}
+                          className={`pr-tool is-icon ${moreOpen ? 'is-on' : ''}`}
+                          aria-label="More tools"
+                          aria-haspopup="dialog"
+                          aria-expanded={moreOpen}
+                          title="More"
+                          data-testid="huddle-more-tools"
+                        >
+                          <MoreHorizontal size={18} aria-hidden />
+                        </button>
                       </div>
+                      {moreOpen ? (
+                        <div className="pr-sheet-backdrop" onClick={() => setMoreOpen(false)} role="presentation">
+                          <div className="pr-sheet pr-more" role="dialog" aria-modal="true" aria-label="More tools" onClick={(e) => e.stopPropagation()}>
+                            <div className="pr-more-head">
+                              <p>More</p>
+                              <button type="button" onClick={() => setMoreOpen(false)} className="pr-more-close" aria-label="Close">
+                                <X size={18} aria-hidden />
+                              </button>
+                            </div>
+                            <div className="pr-more-grid">
+                              {!prayerWatch ? (
+                                <button type="button" className="pr-more-item pr-phone-only" onClick={() => { setMoreOpen(false); setSheet('prayer'); }}>
+                                  <HandHeart size={20} aria-hidden /> <span>Prayer Request</span>
+                                </button>
+                              ) : null}
+                              <button type="button" className="pr-more-item" onClick={() => { setMoreOpen(false); setRecordingsOpen(true); }}>
+                                <Disc size={20} aria-hidden /> <span>Recordings</span>
+                              </button>
+                              {!prayerWatch ? (
+                                <button type="button" className="pr-more-item" onClick={() => void shareHuddle()}>
+                                  <Share2 size={20} aria-hidden /> <span>{shareDone || 'Share link'}</span>
+                                </button>
+                              ) : null}
+                            </div>
+                            {canModerate ? (
+                              <>
+                                <p className="pr-more-label">Host tools</p>
+                                <div className="pr-more-grid">
+                                  {connected && canModerate ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setMoreOpen(false); void toggleRecording(); }}
+                                      disabled={recordBusy}
+                                      className={`pr-more-item ${isRecording ? 'is-recording' : ''}`}
+                                      aria-pressed={isRecording}
+                                      data-testid="huddle-record-toggle"
+                                    >
+                                      {recordBusy ? <Loader2 size={20} className="animate-spin" aria-hidden /> : <CircleDot size={20} aria-hidden />}
+                                      <span>{isRecording ? 'Stop recording' : 'Record'}</span>
+                                    </button>
+                                  ) : null}
+                                  {!audioOnly && !prayerWatch && screenShareSupported() ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setMoreOpen(false); void toggleScreenShare(); }}
+                                      disabled={screenBusy || Boolean(sharer && !sharer.isLocal)}
+                                      className={`pr-more-item ${sharer?.isLocal ? 'is-on' : ''}`}
+                                      aria-pressed={Boolean(sharer?.isLocal)}
+                                      data-testid="huddle-screen-share-toggle"
+                                    >
+                                      {sharer?.isLocal ? <MonitorOff size={20} aria-hidden /> : <Monitor size={20} aria-hidden />}
+                                      <span>{sharer && !sharer.isLocal ? `${sharer.name} is sharing` : sharer?.isLocal ? 'Stop sharing' : 'Share screen'}</span>
+                                    </button>
+                                  ) : null}
+                                  {canPlayHuddleMusic ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setMoreOpen(false); openMusicSheet(); }}
+                                      disabled={musicBusy || (musicActive && !musicPlaying)}
+                                      className={`pr-more-item ${musicPlaying || musicActive ? 'is-on' : ''}`}
+                                      aria-pressed={musicPlaying}
+                                      data-huddle-music-control="true"
+                                    >
+                                      <Music size={20} aria-hidden />
+                                      <span>{musicPlaying ? 'Music on' : musicActive ? 'Music playing' : 'Music'}</span>
+                                    </button>
+                                  ) : null}
+                                  <button type="button" onClick={() => { setMoreOpen(false); void endForEveryone(); }} disabled={ending} className="pr-more-item is-end">
+                                    <PhoneOff size={20} aria-hidden /> <span>{ending ? 'Ending…' : 'End for everyone'}</span>
+                                  </button>
+                                </div>
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
                     </>
                   ) : null}
                 </>
