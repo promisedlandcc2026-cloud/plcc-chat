@@ -667,6 +667,17 @@ export const MemberSignIn: React.FC = () => {
               Go to PLCC Canaan
             </a>
           </p>
+          <p className="text-[11px] text-center text-gray-400">
+            By continuing you agree to the{' '}
+            <a href="https://plcc-opal.vercel.app/#/terms" target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a href="https://plcc-opal.vercel.app/#/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+              Privacy Policy
+            </a>
+            .
+          </p>
         </form>
       )}
 
