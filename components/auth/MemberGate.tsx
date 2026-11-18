@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { reportSignInFailureOnce } from '../../lib/signInFailureReport';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { rememberReturnTo, returnToFromLocation } from '../../lib/authReturnPath';
@@ -111,6 +112,29 @@ export const MemberGate: React.FC<MemberGateProps> = ({
     identityErrorCode,
   } = useAuth();
   const location = useLocation();
+
+  // Phase 4 (#17): signed in but stuck (not approved / no member profile / check failed) —
+  // tell the church so they can see who can't get in and why.
+  const gateUserId = user?.id ? String(user.id) : null;
+  useEffect(() => {
+    if (requireAccess !== 'approved_member' || !isAuthenticated || identityLoading || !gateUserId) return;
+    if (gateUserId === confirmedApprovedUserId) return;
+    const reason =
+      memberAccessState === 'pending'
+        ? 'member_pending'
+        : memberAccessState === 'identity_missing'
+          ? 'member_not_found'
+          : memberAccessState === 'identity_unavailable'
+            ? 'member_check_failed'
+            : null;
+    if (!reason) return;
+    reportSignInFailureOnce({
+      method: 'session',
+      identifier: String(user?.phone || user?.email || gateUserId),
+      reason,
+      detail: identityErrorCode || undefined,
+    });
+  }, [requireAccess, isAuthenticated, identityLoading, gateUserId, memberAccessState, identityErrorCode, user?.phone, user?.email]);
 
   if (isLoading) {
     return (

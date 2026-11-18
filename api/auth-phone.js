@@ -1,8 +1,24 @@
 import {
   buildVaultAuthPhoneCodeUrl,
   buildVaultAuthPhoneUrl,
+  buildVaultSignInFailuresUrl,
   parseVaultApiOrigin,
 } from './_utils/vaultOrigin.js';
+
+/* Phase 4 (#17): reasons the app may report (the church server logs password failures itself). */
+const REPORTABLE_REASONS = new Set([
+  'invalid_phone',
+  'server_unreachable',
+  'email_code_not_sent',
+  'email_code_wrong',
+  'member_pending',
+  'member_not_found',
+  'member_check_failed',
+]);
+
+function shortUserAgent(req) {
+  return String(req.headers?.['user-agent'] || '').replace(/[\u0000-\u001f]/g, ' ').slice(0, 160);
+}
 
 const UPSTREAM_TIMEOUT_MS = 12000;
 const MAX_BODY_BYTES = 4096;
@@ -111,6 +127,34 @@ export default async function handler(req, res) {
   const action = String(body.action || '')
     .trim()
     .toLowerCase();
+  if (action === 'report-failure') {
+    const reason = String(body.reason || '');
+    const method = ['phone', 'email', 'session'].includes(String(body.method)) ? String(body.method) : null;
+    if (!REPORTABLE_REASONS.has(reason) || !method) {
+      return json(res, 400, { ok: false, code: 'invalid_body', message: 'That request was not valid.' });
+    }
+    try {
+      const upstream = await fetch(buildVaultSignInFailuresUrl(originResult.origin), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'report',
+          app: 'ka-link',
+          method,
+          reason,
+          identifier: String(body.identifier || '').slice(0, 120),
+          detail: typeof body.detail === 'string' ? body.detail.slice(0, 200) : undefined,
+          at: typeof body.at === 'number' ? body.at : undefined,
+          userAgent: shortUserAgent(req),
+        }),
+        redirect: 'error',
+      });
+      return json(res, upstream.ok ? 200 : upstream.status === 429 ? 429 : 502, { ok: upstream.ok });
+    } catch {
+      return json(res, 502, { ok: false });
+    }
+  }
+
   const isCode = action === 'code-request' || action === 'code-verify';
   const isLink = ['link-request', 'link-verify', 'link-status', 'unlink'].includes(action);
   const authHeader = String(req.headers?.authorization || '');
@@ -150,6 +194,8 @@ export default async function handler(req, res) {
         action,
         phone: body.phone,
         password: body.password,
+        client_app: 'ka-link',
+        client_ua: shortUserAgent(req),
         ...(action === 'signup'
           ? {
               first_name: body.first_name,

@@ -15,6 +15,15 @@ import {
   rememberReturnTo,
   sanitizeReturnTo,
 } from '../lib/authReturnPath';
+import {
+  DEFAULT_PHONE_COUNTRY,
+  findPhoneCountry,
+  PHONE_COUNTRIES,
+  readRememberedPhone,
+  rememberPhone,
+  toE164WithCountry,
+} from '../lib/phoneCountry';
+import { reportSignInFailure } from '../lib/signInFailureReport';
 import { AWCLogo } from '../components/ui/AWCLogo';
 import { Button } from '../components/ui/Button';
 
@@ -63,6 +72,15 @@ export const MemberSignIn: React.FC = () => {
   const [codePurpose, setCodePurpose] = useState<'signin' | 'signup'>('signin');
   const [codeNotice, setCodeNotice] = useState('');
   const phoneCodeId = useId();
+  // Phase 4 (#4, #15): mobile number first — one screen (number + password), Uganda by default.
+  const remembered = typeof window !== 'undefined' ? readRememberedPhone() : null;
+  const [useEmail, setUseEmail] = useState(false);
+  const [countryCode, setCountryCode] = useState(remembered?.country || DEFAULT_PHONE_COUNTRY.code);
+  const [phoneInput, setPhoneInput] = useState(remembered?.phone || '');
+  const [showOptionalEmail, setShowOptionalEmail] = useState(false);
+  const country = findPhoneCountry(countryCode);
+  const countryId = useId();
+  const phoneInputId = useId();
 
   const intent =
     (location.state as { intent?: string } | null)?.intent === 'join' ? 'join' : 'signin';
@@ -86,10 +104,64 @@ export const MemberSignIn: React.FC = () => {
     if (error) errorRef.current?.focus();
   }, [error]);
 
+  /** Mobile number + password on one screen: sign in or create the account straight away. */
+  const handlePhoneFirst = async () => {
+    const e164 = toE164WithCountry(phoneInput, country);
+    if (!e164) {
+      setError(`Enter your mobile number, e.g. ${country.example}.`);
+      void reportSignInFailure({ method: 'phone', identifier: phoneInput, reason: 'invalid_phone' });
+      return;
+    }
+    setIdentifier(e164);
+    if (isJoin && (!firstName.trim() || !lastName.trim())) {
+      setError('Enter your first and last name.');
+      return;
+    }
+    if (password.length < 6) {
+      setError(isJoin ? 'Choose a password of at least 6 characters.' : 'Enter your password (at least 6 characters).');
+      return;
+    }
+    if (isJoin && optionalEmail.trim() && !isValidEmail(optionalEmail)) {
+      setError('Please enter a valid email address, or leave it blank.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (isJoin) {
+        await signUpWithPhonePassword({
+          phone: e164,
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: optionalEmail.trim() || undefined,
+        });
+      } else {
+        await signInWithPhone(e164, password);
+      }
+      rememberPhone(country.code, phoneInput.trim());
+      setStage('success');
+      leave();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to sign in with that phone number.';
+      setError(message);
+      // The church server logs wrong passwords itself; report what it can't see.
+      if (/not available|try again later|network|fetch|failed/i.test(message)) {
+        void reportSignInFailure({ method: 'phone', identifier: e164, reason: 'server_unreachable', detail: message });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleIdentifierContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     setError('');
+
+    if (!useEmail) {
+      await handlePhoneFirst();
+      return;
+    }
 
     const raw = identifier.trim();
     if (!raw) {
@@ -122,7 +194,9 @@ export const MemberSignIn: React.FC = () => {
       setStage('otp');
       setOtp('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to send a sign-in code.');
+      const message = err instanceof Error ? err.message : 'Unable to send a sign-in code.';
+      setError(message);
+      void reportSignInFailure({ method: 'email', identifier: raw, reason: 'email_code_not_sent', detail: message });
     } finally {
       setSubmitting(false);
     }
@@ -138,7 +212,9 @@ export const MemberSignIn: React.FC = () => {
       setStage('success');
       leave();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to verify that code.');
+      const message = err instanceof Error ? err.message : 'Unable to verify that code.';
+      setError(message);
+      void reportSignInFailure({ method: 'email', identifier, reason: 'email_code_wrong', detail: message });
     } finally {
       setSubmitting(false);
     }
@@ -193,6 +269,28 @@ export const MemberSignIn: React.FC = () => {
       leave();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create your account.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /** Same as startPhoneCode, for a number not yet in state (phone-first screen). */
+  const startPhoneCodeFor = async (e164: string, purpose: 'signin' | 'signup') => {
+    if (submitting) return;
+    setError('');
+    if (purpose === 'signup' && (!firstName.trim() || !lastName.trim())) {
+      setError('Enter your first and last name.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const message = await requestPhoneCode(e164, purpose);
+      setCodePurpose(purpose);
+      setCodeNotice(message);
+      setPhoneCode('');
+      setStage('phone_code');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to send a code.');
     } finally {
       setSubmitting(false);
     }
@@ -273,8 +371,10 @@ export const MemberSignIn: React.FC = () => {
         </h1>
         <p className="text-sm text-gray-500 mt-2 max-w-sm leading-relaxed">
           {isJoin
-            ? 'First and last name are required. Then use your email or mobile number.'
-            : 'Sign in with the email or mobile number on your PLCC account.'}
+            ? 'Your name, mobile number and a password. That’s it.'
+            : useEmail
+              ? 'Sign in with the email on your PLCC account.'
+              : 'Sign in with your mobile number and password.'}
         </p>
         {!isJoin ? (
           <Link
@@ -368,12 +468,106 @@ export const MemberSignIn: React.FC = () => {
               </div>
             </div>
           )}
+          {!useEmail ? (
+            <>
+              <div className="space-y-2">
+                <label htmlFor={phoneInputId} className={LABEL_CLASS}>
+                  Mobile number
+                </label>
+                <div className="flex gap-2">
+                  <label htmlFor={countryId} className="sr-only">
+                    Country
+                  </label>
+                  <select
+                    id={countryId}
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    disabled={submitting || !isConfigured}
+                    className={inputClass({ className: 'w-[7.5rem] shrink-0 px-2' })}
+                    data-signin-country
+                  >
+                    {PHONE_COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} +{c.dial} {c.code}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="relative flex-1 min-w-0">
+                    <Phone
+                      size={18}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                      aria-hidden
+                    />
+                    <input
+                      id={phoneInputId}
+                      type="tel"
+                      name="tel"
+                      autoComplete="tel-national"
+                      inputMode="tel"
+                      required
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      disabled={submitting || !isConfigured}
+                      className={inputClass({ className: 'pl-10 pr-3' })}
+                      placeholder={country.example}
+                      data-signin-phone
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor={passwordId} className={LABEL_CLASS}>
+                  {isJoin ? 'Choose a password' : 'Password'}
+                </label>
+                <input
+                  id={passwordId}
+                  type="password"
+                  name="password"
+                  autoComplete={isJoin ? 'new-password' : 'current-password'}
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={submitting || !isConfigured}
+                  className={inputClass()}
+                  placeholder={isJoin ? 'At least 6 characters' : 'Your password'}
+                />
+              </div>
+              {isJoin ? (
+                showOptionalEmail ? (
+                  <div className="space-y-2">
+                    <label htmlFor={optionalEmailId} className={LABEL_CLASS}>
+                      Email (optional)
+                    </label>
+                    <input
+                      id={optionalEmailId}
+                      type="email"
+                      autoComplete="email"
+                      value={optionalEmail}
+                      onChange={(e) => setOptionalEmail(e.target.value)}
+                      disabled={submitting}
+                      className={inputClass({ size: 'sm' })}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowOptionalEmail(true)}
+                    className="text-xs font-semibold text-gray-500 min-h-[36px]"
+                  >
+                    + Add an email (optional)
+                  </button>
+                )
+              ) : null}
+            </>
+          ) : (
           <div className="space-y-2">
             <label
               htmlFor={identifierId}
               className={LABEL_CLASS}
             >
-              Email or mobile number
+              Email
             </label>
             <div className="relative">
               {usingPhone ? (
@@ -400,11 +594,11 @@ export const MemberSignIn: React.FC = () => {
                 onChange={(e) => setIdentifier(e.target.value)}
                 disabled={submitting || !isConfigured}
                 className={inputClass({ className: 'pl-10 pr-4' })}
-                placeholder="you@example.com or (555) 123-4567"
+                placeholder="you@example.com"
               />
             </div>
           </div>
-
+          )}
           <Button
             type="submit"
             fullWidth
@@ -417,17 +611,52 @@ export const MemberSignIn: React.FC = () => {
             data-signin-continue
           >
             {submitting ? (
-              <span role="status">Continuing…</span>
+              <span role="status">{useEmail ? 'Continuing…' : isJoin ? 'Creating account…' : 'Signing in…'}</span>
+            ) : useEmail ? (
+              'Continue'
             ) : isJoin ? (
-              'Continue'
+              'Create account'
             ) : (
-              'Continue'
+              'Sign In'
             )}
           </Button>
 
+          {!useEmail && SMS_SIGNIN_ENABLED ? (
+            <button
+              type="button"
+              className="w-full min-h-[44px] text-sm font-bold text-burgundy disabled:opacity-50"
+              disabled={submitting || !phoneInput.trim()}
+              onClick={() => {
+                const e164 = toE164WithCountry(phoneInput, country);
+                if (!e164) {
+                  setError(`Enter your mobile number, e.g. ${country.example}.`);
+                  return;
+                }
+                setIdentifier(e164);
+                void startPhoneCodeFor(e164, isJoin ? 'signup' : 'signin');
+              }}
+              data-signin-text-code
+            >
+              {isJoin ? 'No password? Text me a code' : 'Forgot password? Text me a code'}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="w-full min-h-[44px] text-xs font-semibold text-gray-500"
+            onClick={() => {
+              setError('');
+              setUseEmail((v) => !v);
+              setIdentifier('');
+            }}
+            data-signin-toggle-email
+          >
+            {useEmail ? 'Use my mobile number instead' : 'Use email instead'}
+          </button>
+
           <p className="text-xs text-gray-500 leading-relaxed text-center px-2">
-            Email: we send you a one-time code. Phone: use your account password. Same account
-            as Tribes and PLCC Canaan.
+            {useEmail
+              ? 'We email you a one-time code. Same account as Tribes and PLCC Canaan.'
+              : 'Same account as Tribes and PLCC Canaan. Your number is remembered on this phone.'}
           </p>
           <p className="text-sm text-center">
             <a href="https://plcc-connect.vercel.app/" className="font-bold text-burgundy underline">
@@ -591,12 +820,12 @@ export const MemberSignIn: React.FC = () => {
             className="w-full min-h-[44px] text-sm font-bold text-burgundy disabled:opacity-50"
             disabled={submitting}
             onClick={() => {
-              setStage(codePurpose === 'signup' ? 'phone_signup' : 'phone_password');
+              setStage('identifier');
               setPhoneCode('');
               setError('');
             }}
           >
-            {codePurpose === 'signup' ? 'Back' : 'Use my password instead'}
+            Back
           </button>
         </form>
       )}

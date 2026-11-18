@@ -15,16 +15,8 @@ export function isPhoneNumber(value: string): boolean {
   return /^[+\d]/.test(v) && v.replace(/\D/g, '').length >= 7;
 }
 
-/** Normalise phone to E.164. US 10-digit numbers become +1… */
-export function normalisePhone(value: string): string {
-  const trimmed = String(value || '').trim();
-  const digits = trimmed.replace(/\D/g, '');
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-  if (trimmed.startsWith('+') && digits.length >= 10) return `+${digits}`;
-  if (digits.length >= 10) return `+${digits}`;
-  return trimmed.startsWith('+') ? `+${digits}` : `+1${digits}`;
-}
+export { normalisePhone } from './phoneCountry';
+import { normalisePhone } from './phoneCountry';
 
 function toFriendlyPhoneAuthError(status: number, message: string): Error {
   const raw = message || 'Request failed';

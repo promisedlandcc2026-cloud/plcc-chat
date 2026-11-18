@@ -150,6 +150,12 @@ export function buildVaultUsersPatchUrl(origin) {
  * @param {string} origin
  * @returns {string}
  */
+/** Phase 4: Ka Link → Canaan sign-in failure reports (#17). */
+export function buildVaultSignInFailuresUrl(origin) {
+  const base = String(origin || '').replace(/\/+$/, '');
+  return `${base}/api/vault?resource=sign-in-failures`;
+}
+
 export function buildVaultAuthPhoneUrl(origin) {
   const base = String(origin || '').replace(/\/+$/, '');
   return `${base}${VAULT_AUTH_PHONE_PATH}`;

@@ -1,4 +1,5 @@
-import React, { lazy } from 'react';
+import React, { lazy, useEffect } from 'react';
+import { flushSignInFailureReports } from './lib/signInFailureReport';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { HuddleLiveProvider } from './context/HuddleLiveContext';
@@ -106,7 +107,19 @@ const AppShell: React.FC = () => (
   </div>
 );
 
-const App: React.FC = () => (
+/** Send sign-in problem reports that were saved while the phone was offline (#17). */
+function useFlushSignInReports() {
+  useEffect(() => {
+    void flushSignInFailureReports();
+    const onOnline = () => void flushSignInFailureReports();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, []);
+}
+
+const App: React.FC = () => {
+  useFlushSignInReports();
+  return (
   <BrowserRouter>
     <AuthProvider>
       <HuddleLiveProvider>
@@ -117,6 +130,7 @@ const App: React.FC = () => (
       </HuddleLiveProvider>
     </AuthProvider>
   </BrowserRouter>
-);
+  );
+};
 
 export default App;
