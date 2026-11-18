@@ -2016,8 +2016,6 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             className={`pr-content ${sideTab === 'bible' ? 'is-reading' : ''}`}
             style={sideWidth ? ({ '--pr-side-w': `${Math.min(sideWidth, sideMax())}px` } as React.CSSProperties) : undefined}
           >
-            {/* Phase 4 (#9): on phones the people list sits beside the room, not below it. */}
-            <div className="pr-room-row">
             <main className="pr-room">
               <div className="pr-titlebar">
                 <span className="pr-room-icon"><Headphones aria-hidden /></span>
@@ -2032,6 +2030,39 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   </span>
                 ) : null}
               </div>
+              {/* Phase 4 (#9): on phones everyone in the room shows right under the title — no scrolling. */}
+              {connected ? (
+                <aside className="pr-rail" aria-label={`People in the room, ${peopleCount}`} data-testid="huddle-people-rail">
+                  <ul className="pr-rail-list">
+                    {peopleList.map((tile) => {
+                      const pos = handPosition.get(tile.identity);
+                      return (
+                        <li key={tile.identity}>
+                          <button
+                            type="button"
+                            className="pr-rail-person"
+                            onClick={() => {
+                              if (canModerate && !tile.isLocal) {
+                                setModError(null);
+                                setModTargetId(tile.identity);
+                              } else {
+                                setActiveTab('attendance');
+                              }
+                            }}
+                            aria-label={`${tile.name}${tile.isLocal ? ' (you)' : ''}${tile.moderator ? ', moderator' : ''}${pos ? `, hand raised number ${pos}` : ''}${tile.micOn ? ', mic on' : ', muted'}`}
+                          >
+                            <span className={`pr-avatar ${tile.speaking && tile.micOn ? 'is-speaking' : ''} ${tile.moderator ? 'is-mod' : ''}`}>
+                              {initials(tile.name)}
+                              {pos ? <span className="pr-rail-hand" aria-hidden>{pos}</span> : !tile.micOn ? <span className="pr-rail-muted" aria-hidden /> : null}
+                            </span>
+                            <span className="pr-rail-name">{tile.isLocal ? 'You' : tile.name.split(/\s+/)[0]}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </aside>
+              ) : null}
 
               {needSoundTap ? (
                 <button type="button" onClick={() => void enableSound()} className="pr-sound">
@@ -2434,48 +2465,6 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 </>
               )}
             </main>
-            {connected ? (
-              <aside className="pr-rail" aria-label={`People in the room, ${peopleCount}`} data-testid="huddle-people-rail">
-                <button
-                  type="button"
-                  className="pr-rail-head"
-                  onClick={() => setActiveTab('attendance')}
-                  aria-label={`See everyone (${peopleCount})`}
-                >
-                  <Users size={16} aria-hidden />
-                  <span>{peopleCount}</span>
-                </button>
-                <ul className="pr-rail-list">
-                  {peopleList.map((tile) => {
-                    const pos = handPosition.get(tile.identity);
-                    return (
-                      <li key={tile.identity}>
-                        <button
-                          type="button"
-                          className="pr-rail-person"
-                          onClick={() => {
-                            if (canModerate && !tile.isLocal) {
-                              setModError(null);
-                              setModTargetId(tile.identity);
-                            } else {
-                              setActiveTab('attendance');
-                            }
-                          }}
-                          aria-label={`${tile.name}${tile.isLocal ? ' (you)' : ''}${tile.moderator ? ', moderator' : ''}${pos ? `, hand raised number ${pos}` : ''}${tile.micOn ? ', mic on' : ', muted'}`}
-                        >
-                          <span className={`pr-avatar ${tile.speaking && tile.micOn ? 'is-speaking' : ''} ${tile.moderator ? 'is-mod' : ''}`}>
-                            {initials(tile.name)}
-                            {pos ? <span className="pr-rail-hand" aria-hidden>{pos}</span> : !tile.micOn ? <span className="pr-rail-muted" aria-hidden /> : null}
-                          </span>
-                          <span className="pr-rail-name">{tile.isLocal ? 'You' : tile.name.split(/\s+/)[0]}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </aside>
-            ) : null}
-            </div>
 
             <aside className="pr-side" aria-label="Who is here and room information">
               <div

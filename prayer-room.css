@@ -420,31 +420,25 @@
 .pr-ready-alert { display: flex; align-items: center; gap: 0.6rem; margin: 0.4rem 0; padding: 0.7rem 0.9rem; border-radius: 1rem; background: linear-gradient(180deg, #1f8a4c, #11633a); color: #fff; font-size: 0.9rem; animation: pr-drop .25s ease-out; }
 .pr-ready-ok { min-height: 36px; padding: 0 0.9rem; border-radius: 9999px; background: rgba(255,255,255,.18); font-weight: 800; font-size: 0.8rem; }
 
-/* Ka Link Phase 4 (#9): phones show the people beside the room, in a slim rail. */
-.pr-room-row { display: flex; gap: 0.45rem; align-items: stretch; min-width: 0; }
-.pr-room-row > .pr-room { flex: 1; min-width: 0; }
-.pr-rail {
-  display: flex; flex-direction: column; gap: 0.4rem; flex-shrink: 0; width: 4.1rem;
-  max-height: calc(100dvh - 58px - env(safe-area-inset-top) - 1.2rem); position: sticky; top: 0.6rem;
-  padding: 0.4rem 0.25rem; border-radius: 1.1rem; background: rgba(4, 25, 15, 0.6); border: 1px solid var(--pr-line);
+/* Ka Link Phase 4 (#9): on phones, a clean row of faces under the room title (no scrolling). */
+.pr-rail { flex-shrink: 0; margin: 0 -0.15rem; }
+.pr-rail-list {
+  display: flex; gap: 0.6rem; overflow-x: auto; padding: 0.3rem 0.15rem 0.2rem;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
 }
-.pr-rail-head {
-  display: flex; align-items: center; justify-content: center; gap: 0.25rem; min-height: 36px; border-radius: 9999px;
-  background: linear-gradient(180deg, var(--pr-gold-light), var(--pr-gold)); color: #1d2414; font-size: 0.78rem; font-weight: 900;
-}
-.pr-rail-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; scrollbar-width: none; }
 .pr-rail-list::-webkit-scrollbar { display: none; }
-.pr-rail-person { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; width: 100%; padding: 0.15rem 0; }
-.pr-rail-person .pr-avatar { position: relative; width: 38px; height: 38px; }
+.pr-rail-list > li { flex-shrink: 0; scroll-snap-align: start; }
+.pr-rail-person { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; width: 3.25rem; }
+.pr-rail-person .pr-avatar { position: relative; width: 40px; height: 40px; font-size: 0.78rem; }
 .pr-avatar.is-mod { box-shadow: 0 0 0 2px var(--pr-gold); }
-.pr-rail-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.62rem; font-weight: 700; color: var(--pr-muted); }
+.pr-rail-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.68rem; font-weight: 700; color: var(--pr-muted); }
 .pr-rail-hand {
-  position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 3px; border-radius: 9999px;
-  background: var(--pr-gold, #d9b45e); color: #1d2414; font-size: 0.6rem; font-weight: 900; line-height: 17px; text-align: center;
+  position: absolute; top: -4px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9999px;
+  background: var(--pr-gold, #d9b45e); color: #1d2414; font-size: 0.62rem; font-weight: 900; line-height: 18px; text-align: center;
+  box-shadow: 0 0 0 2px #0b2a1e;
 }
-.pr-rail-muted { position: absolute; bottom: -1px; right: -1px; width: 11px; height: 11px; border-radius: 9999px; background: #c4352d; border: 2px solid #0b2a1e; }
+.pr-rail-muted { position: absolute; bottom: 0; right: -1px; width: 12px; height: 12px; border-radius: 9999px; background: #c4352d; box-shadow: 0 0 0 2px #0b2a1e; }
 @media (min-width: 1024px) {
   /* Computers already show People in the side panel. */
-  .pr-room-row { display: contents; }
   .pr-rail { display: none; }
 }
