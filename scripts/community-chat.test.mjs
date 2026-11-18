@@ -411,7 +411,9 @@ describe('Connect Ka Link bridge + UI wiring', () => {
     assert.ok(room.includes('Join Ka Link'));
     assert.ok(room.includes('bg-emerald-500'));
     assert.ok(room.includes('Start Ka Link'));
-    assert.ok(room.includes('ConnectVoiceHuddle'));
+    // The call now lives in the app-level Ka Link provider (Back button no longer hangs up).
+    assert.ok(room.includes('openKaLink'));
+    assert.ok(readFileSync(join(root, 'context/ActiveKaLinkContext.tsx'), 'utf8').includes('ConnectVoiceHuddle'));
     assert.ok(overlay.includes('livekit-client'));
     assert.ok(overlay.includes('Enable sound'));
     assert.ok(overlay.includes('fetchHuddleToken'));

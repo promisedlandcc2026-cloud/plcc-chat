@@ -42,7 +42,7 @@ import { Portal } from '../components/chat/Portal';
 import { CardPickerSheet } from '../components/chat/CardPickerSheet';
 import { PollComposerSheet } from '../components/chat/PollComposerSheet';
 import { dmDisplayName } from '../lib/dmRecents';
-import { ConnectVoiceHuddle } from '../components/community/ConnectVoiceHuddle';
+import { useActiveKaLink } from '../context/ActiveKaLinkContext';
 import { Button } from '../components/ui/Button';
 import { parseHuddleIntent } from '../lib/liveHuddles';
 import { fetchIntercessorsAccess } from '../lib/intercessorsClient';
@@ -103,8 +103,9 @@ export const CommunityChatRoomPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [huddleLive, setHuddleLive] = useState(false);
   const [huddleCount, setHuddleCount] = useState(0);
-  const [huddleOpen, setHuddleOpen] = useState(false);
-  const [huddleMode, setHuddleMode] = useState<'join' | 'start'>('join');
+  /** The call itself lives in the app-level Ka Link provider so Back/navigation never hangs up. */
+  const { active: activeKaLink, openKaLink } = useActiveKaLink();
+  const huddleOpen = activeKaLink?.channelId === channelId;
   const bottomRef = useRef<HTMLDivElement>(null);
   const validChannel = UUID_RE.test(channelId);
   /** Arrived from Home "Live Huddles": show a one-tap card (the tap is what lets the mic start). */
@@ -767,9 +768,15 @@ export const CommunityChatRoomPage: React.FC = () => {
 
   const currentPin = pins.length ? pins[Math.min(pinIndex, pins.length - 1)] : null;
 
+  // Call ended (left, or ended for everyone): refresh this room's LIVE status.
+  const wasHuddleOpenRef = useRef(huddleOpen);
+  useEffect(() => {
+    if (wasHuddleOpenRef.current && !huddleOpen) void loadHuddle();
+    wasHuddleOpenRef.current = huddleOpen;
+  }, [huddleOpen, loadHuddle]);
+
   const openHuddle = (mode: 'join' | 'start') => {
-    setHuddleMode(mode);
-    setHuddleOpen(true);
+    openKaLink({ channelId, channelName: roomTitle, audioOnly: isPrayerWatchRoom, mode });
     setHuddleIntent(null);
   };
 
@@ -1377,18 +1384,6 @@ export const CommunityChatRoomPage: React.FC = () => {
         />
       ) : null}
 
-      {huddleOpen ? (
-        <ConnectVoiceHuddle
-          channelId={channelId}
-          channelName={roomTitle}
-          audioOnly={isPrayerWatchRoom}
-          mode={huddleMode}
-          onClose={() => {
-            setHuddleOpen(false);
-            void loadHuddle();
-          }}
-        />
-      ) : null}
     </main>
   );
 };

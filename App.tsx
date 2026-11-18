@@ -2,6 +2,7 @@ import React, { lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { HuddleLiveProvider } from './context/HuddleLiveContext';
+import { ActiveKaLinkProvider } from './context/ActiveKaLinkContext';
 import { MemberGate } from './components/auth/MemberGate';
 import { LazyRoute } from './components/routing/LazyRoute';
 
@@ -109,7 +110,10 @@ const App: React.FC = () => (
   <BrowserRouter>
     <AuthProvider>
       <HuddleLiveProvider>
-        <AppShell />
+        {/* Holds the live call above the routes, so Back / page changes never hang up. */}
+        <ActiveKaLinkProvider>
+          <AppShell />
+        </ActiveKaLinkProvider>
       </HuddleLiveProvider>
     </AuthProvider>
   </BrowserRouter>

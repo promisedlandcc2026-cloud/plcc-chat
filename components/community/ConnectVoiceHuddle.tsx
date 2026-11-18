@@ -64,6 +64,7 @@ import {
   type DailyCredentials,
 } from '../../lib/huddleFailsafe';
 import { connectLiveKitOnce, LiveKitQuotaError } from '../../lib/livekitConnect';
+import { KA_LINK_RECONNECT_DELAYS_MS, kaLinkReconnectDelay } from '../../lib/kaLinkSession';
 import {
   CAPTION_LANGUAGES,
   CaptionRecognizer,
@@ -180,7 +181,8 @@ function huddleDisconnectMessage(reason?: DisconnectReason): string {
 
 type ConnState = 'prejoin' | 'connecting' | 'reconnecting' | 'connected' | 'error';
 
-const MAX_HUDDLE_RECONNECTS = 3;
+/** Automatic rejoin attempts after an unexpected drop (waits grow — see lib/kaLinkSession). */
+const MAX_HUDDLE_RECONNECTS = KA_LINK_RECONNECT_DELAYS_MS.length;
 
 type Tile = {
   identity: string;
@@ -206,6 +208,12 @@ type Props = {
   audioOnly?: boolean;
   /** Prayer Watch: a simple prayer call — no Hand or Attendance (chat stays). */
   prayerWatch?: boolean;
+  /**
+   * Controlled minimize (set by the app-level Ka Link provider so the phone's
+   * Back button minimizes the call instead of hanging up). Optional.
+   */
+  minimized?: boolean;
+  onMinimizedChange?: (minimized: boolean) => void;
 };
 
 const SIDE_WIDTH_KEY = 'plcc_prayer_room_side_width_v1';
@@ -328,6 +336,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   embedded = false,
   audioOnly = false,
   prayerWatch = false,
+  minimized: minimizedProp,
+  onMinimizedChange,
 }) => {
   const shellClass = embedded ? 'relative h-full w-full z-0 overflow-hidden rounded-3xl' : 'fixed inset-0 z-[400]';
   const [conn, setConn] = useState<ConnState>('prejoin');
@@ -361,7 +371,15 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [roster, setRoster] = useState<HuddleRosterEntry[]>([]);
   const [activeTab, setActiveTab] = useState<HuddleMobileTabId | null>(null);
   /** Prayer room shrunk to a small floating bar so the chat underneath can be used. */
-  const [minimized, setMinimized] = useState(false);
+  const [minimizedLocal, setMinimizedLocal] = useState(false);
+  const minimized = minimizedProp ?? minimizedLocal;
+  const setMinimized = useCallback(
+    (next: boolean) => {
+      if (onMinimizedChange) onMinimizedChange(next);
+      else setMinimizedLocal(next);
+    },
+    [onMinimizedChange]
+  );
   /** Side panel tab in the prayer room: who is here, or the room's information. */
   const [sideTab, setSideTab] = useState<'people' | 'bible' | 'info'>('people');
   /** Phones: the Bible opens as a tall sheet over the prayer room. */
@@ -756,6 +774,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   }, [disconnectRoom]);
 
   const enableSound = useCallback(async () => {
+    try {
+      await roomRef.current?.startAudio();
+    } catch {
+      /* the element loop below reports */
+    }
     let unlocked = true;
     for (const el of audioElsRef.current.values()) {
       try {
@@ -958,6 +981,19 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         .on(RoomEvent.TrackPublished, onChange)
         .on(RoomEvent.TrackUnpublished, onChange)
+        // LiveKit's own quick resume (network blip): show it, don't hang up.
+        .on(RoomEvent.Reconnecting, () => {
+          if (mountedRef.current && !connectingRef.current) setConn('reconnecting');
+        })
+        .on(RoomEvent.Reconnected, () => {
+          if (!mountedRef.current) return;
+          setConn('connected');
+          void resumeAudioRef.current();
+        })
+        // Phone blocked sound (autoplay rules, or audio paused by the system).
+        .on(RoomEvent.AudioPlaybackStatusChanged, () => {
+          if (mountedRef.current && !room.canPlaybackAudio) setNeedSoundTap(true);
+        })
         .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
           if (!mountedRef.current) return;
           if (connectingRef.current) return;
@@ -978,18 +1014,26 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             setConn('error');
             return;
           }
-          if (reconnectAttemptsRef.current >= MAX_HUDDLE_RECONNECTS) {
+          // Phone has no network (weak data, or a phone call took the line):
+          // wait for it to come back — the 'online' / return listener rejoins.
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
             lostConnectionRef.current = true;
-              setError('Connection lost. Tap to rejoin the Ka Link.');
+            setConn('reconnecting');
+            return;
+          }
+          const delay = kaLinkReconnectDelay(reconnectAttemptsRef.current);
+          if (delay === null) {
+            lostConnectionRef.current = true;
+            setError('Connection lost. Tap to rejoin the Ka Link.');
             setConn('error');
             return;
           }
           reconnectAttemptsRef.current += 1;
           setConn('reconnecting');
           window.setTimeout(() => {
-            if (!mountedRef.current || leaveIntentionalRef.current) return;
+            if (!mountedRef.current || leaveIntentionalRef.current || roomRef.current) return;
             void joinRef.current();
-          }, 600);
+          }, delay);
         });
 
       connectingRef.current = true;
@@ -1125,6 +1169,81 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       window.removeEventListener('online', onBack);
     };
   }, []);
+
+  /**
+   * Bring sound and mic back after the phone interrupted the call (incoming
+   * phone call, app switch, Bluetooth change). Phones pause our audio elements
+   * and can end the mic track; the call itself is still connected.
+   */
+  const resumeAudio = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room || !mountedRef.current) return;
+    let blocked = false;
+    try {
+      await room.startAudio();
+    } catch {
+      blocked = true;
+    }
+    for (const el of audioElsRef.current.values()) {
+      if (!el.paused) continue;
+      try {
+        await el.play();
+      } catch {
+        blocked = true;
+      }
+    }
+    if (blocked || !room.canPlaybackAudio) setNeedSoundTap(true);
+    else setNeedSoundTap(false);
+
+    // Mic: only repair it if the member had it on — never unmute someone.
+    if (!micEnabledRef.current) return;
+    const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+    const track = pub?.track as LocalAudioTrack | undefined;
+    const media = track?.mediaStreamTrack;
+    if (!track || !media) return;
+    if (media.readyState === 'ended' || media.muted) {
+      try {
+        await track.restartTrack();
+      } catch {
+        selfMuteIntentRef.current = true;
+        try {
+          await room.localParticipant.setMicrophoneEnabled(false);
+        } catch {
+          /* ignore */
+        } finally {
+          selfMuteIntentRef.current = false;
+        }
+        setMicEnabled(false);
+        micEnabledRef.current = false;
+        setNotice('Your microphone was interrupted. Tap Unmute to speak again.');
+      }
+    }
+  }, []);
+  const resumeAudioRef = useRef(resumeAudio);
+  resumeAudioRef.current = resumeAudio;
+
+  useEffect(() => {
+    const onReturn = () => {
+      if (document.visibilityState !== 'visible') return;
+      void resumeAudioRef.current();
+    };
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('pageshow', onReturn);
+    window.addEventListener('focus', onReturn);
+    const devices = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
+    devices?.addEventListener?.('devicechange', onReturn);
+    return () => {
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('pageshow', onReturn);
+      window.removeEventListener('focus', onReturn);
+      devices?.removeEventListener?.('devicechange', onReturn);
+    };
+  }, []);
+
+  // Back pressed before joining: nothing to keep, so just close.
+  useEffect(() => {
+    if (minimized && conn === 'prejoin') onClose();
+  }, [conn, minimized, onClose]);
 
   const leave = useCallback(async () => {
     leaveIntentionalRef.current = true;

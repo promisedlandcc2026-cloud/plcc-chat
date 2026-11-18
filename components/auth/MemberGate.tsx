@@ -80,6 +80,19 @@ function describeBlock(state: MemberAccessState): { title: string; body: string;
 }
 
 /**
+ * The member this tab already confirmed as approved. After an interruption
+ * (phone call, app switch, weak data) the app re-checks member access; while
+ * that re-check runs — or if it fails because the network is still waking up —
+ * we keep showing the page instead of swapping it for a "Verifying…" or error
+ * screen that kicked people out of the chat. Only a different user, a real
+ * sign-out, or a definite "not approved" answer closes the page.
+ */
+let confirmedApprovedUserId: string | null = null;
+
+/** Re-check failures that mean "network/server hiccup", not "access removed". */
+const TRANSIENT_IDENTITY_ERRORS = new Set(['network', 'vault_unavailable', 'rate_limited', 'malformed_response', 'invalid_upstream']);
+
+/**
  * Protects member-only routes. Do not wrap public visitor pages.
  * A valid session ≠ Vault-approved Community access.
  */
@@ -94,6 +107,8 @@ export const MemberGate: React.FC<MemberGateProps> = ({
     memberAccessState,
     identityLoading,
     refreshIdentity,
+    user,
+    identityErrorCode,
   } = useAuth();
   const location = useLocation();
 
@@ -124,6 +139,18 @@ export const MemberGate: React.FC<MemberGateProps> = ({
   }
 
   if (requireAccess === 'authenticated') {
+    return <>{children}</>;
+  }
+
+  const userId = user?.id ? String(user.id) : null;
+  if (memberAccessState === 'approved_member' && userId) confirmedApprovedUserId = userId;
+  const recheckingKnownMember =
+    Boolean(userId) &&
+    userId === confirmedApprovedUserId &&
+    (identityLoading ||
+      memberAccessState === 'authenticated_unverified' ||
+      (memberAccessState === 'identity_unavailable' && TRANSIENT_IDENTITY_ERRORS.has(identityErrorCode || '')));
+  if (recheckingKnownMember) {
     return <>{children}</>;
   }
 
