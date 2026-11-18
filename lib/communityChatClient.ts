@@ -988,3 +988,22 @@ export async function getHuddleRecordingUrl(channelId: string, recordingId: stri
 export async function deleteHuddleRecording(channelId: string, recordingId: string): Promise<void> {
   await recordingCall({ channelId, action: 'delete', recordingId });
 }
+
+
+/* ---------------- #12 Ka Link song library ---------------- */
+
+export type KaLinkSong = { id: string; title: string; artist: string | null; durationSeconds: number | null; url: string | null };
+
+/** Songs with play links (links only for moderators of this room). */
+export async function listKaLinkSongs(channelId: string): Promise<KaLinkSong[]> {
+  const res = await authedFetch('/api/community-chat?resource=huddle-songs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'list', channelId }),
+  });
+  const b = (await res.json().catch(() => ({}))) as any;
+  if (!res.ok || b?.ok !== true) {
+    throw new CommunityChatError('vault_unavailable', b?.message || 'Could not load the music library.', res.status);
+  }
+  return Array.isArray(b.songs) ? b.songs : [];
+}

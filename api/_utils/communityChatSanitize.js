@@ -1346,3 +1346,29 @@ export function sanitizeRecordingList(raw) {
     }];
   });
 }
+
+
+/* #12 Ka Link song library (Nov 2026). Only the list (with play links) goes through Ka Link. */
+export function parseHuddleSongsCommand(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  if (Object.keys(raw).some((k) => !['channelId', 'action'].includes(k))) return null;
+  const channelId = String(raw.channelId || '').trim();
+  if (String(raw.action || 'list') !== 'list' || !UUID_RE.test(channelId)) return null;
+  return { action: 'list', channelId };
+}
+
+export function sanitizeSongList(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 300).flatMap((s) => {
+    if (!s || typeof s !== 'object' || !UUID_RE.test(String(s.id || ''))) return [];
+    const url = String(s.url || '');
+    const okUrl = /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/sign\/[^\s"'<>]+$/i.test(url) && url.length < 2000;
+    return [{
+      id: String(s.id),
+      title: typeof s.title === 'string' ? s.title.slice(0, 120) : 'Untitled song',
+      artist: typeof s.artist === 'string' ? s.artist.slice(0, 120) : null,
+      durationSeconds: Number(s.durationSeconds) > 0 ? Math.round(Number(s.durationSeconds)) : null,
+      url: okUrl ? url : null,
+    }];
+  });
+}

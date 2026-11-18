@@ -53,7 +53,15 @@ import {
   DisconnectReason,
 } from 'livekit-client';
 import { CommunityChatError } from '../../lib/communityChatTypes';
-import { endHuddle, moderateHuddle, setHuddleRecording, type HuddleModerateAction } from '../../lib/communityChatClient';
+import {
+  endHuddle,
+  listKaLinkSongs,
+  moderateHuddle,
+  setHuddleRecording,
+  type HuddleModerateAction,
+  type KaLinkSong,
+} from '../../lib/communityChatClient';
+import { DEFAULT_SONG_ID, HuddleMusicSheet } from '../huddle/HuddleMusicSheet';
 import { HuddleRecordingsSheet } from '../huddle/HuddleRecordingsSheet';
 import {
   EMPTY_HUDDLE_STAGE,
@@ -390,6 +398,15 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [recordBusy, setRecordBusy] = useState(false);
   const [recordingsOpen, setRecordingsOpen] = useState(false);
+  /** #12 song library: what plays next, and the picker sheet. */
+  const musicStartUrlRef = useRef<string | null>(null);
+  const musicQueueRef = useRef<Array<{ id: string; title: string; url: string }>>([]);
+  const musicIndexRef = useRef(0);
+  const [nowPlaying, setNowPlaying] = useState<{ id: string; title: string } | null>(null);
+  const [musicSheetOpen, setMusicSheetOpen] = useState(false);
+  const [songs, setSongs] = useState<KaLinkSong[] | null>(null);
+  const [songsLoading, setSongsLoading] = useState(false);
+  const [songsError, setSongsError] = useState<string | null>(null);
   const hostMuteNoticeRef = useRef<string | null>(null);
   hostMuteNoticeRef.current = hostMuteNotice;
   const [micEnabled, setMicEnabled] = useState(false);
@@ -689,6 +706,20 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 
   const canPlayHuddleMusic = canControlHuddleMusic(canModerate) && !prayerWatch;
 
+  /** Next song in the queue (after a song ends, or the Next button). Same room track, new source. */
+  const advanceMusic = useCallback(() => {
+    const el = musicAudioRef.current;
+    const queue = musicQueueRef.current;
+    if (!el || queue.length < 2) return;
+    musicIndexRef.current = (musicIndexRef.current + 1) % queue.length;
+    const next = queue[musicIndexRef.current];
+    el.src = next.url;
+    void el.play().catch(() => setMusicError('Could not play the next song.'));
+    setNowPlaying({ id: next.id, title: next.title });
+  }, []);
+  const advanceMusicRef = useRef(advanceMusic);
+  advanceMusicRef.current = advanceMusic;
+
   const toggleHuddleMusic = useCallback(async () => {
     if (!canControlHuddleMusic(canModerateRef.current)) return;
     const room = roomRef.current;
@@ -704,8 +735,13 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       if (roomHasHuddleMusic(collectRoomPublications(room))) {
         throw new Error('Music is already playing.');
       }
-      const audioEl = new Audio(HUDDLE_MUSIC_ASSET_PATH);
-      audioEl.loop = true;
+      const audioEl = new Audio();
+      // Library songs come from Supabase Storage: needed so Web Audio can read them.
+      audioEl.crossOrigin = 'anonymous';
+      audioEl.src = musicStartUrlRef.current || HUDDLE_MUSIC_ASSET_PATH;
+      musicStartUrlRef.current = null;
+      audioEl.loop = musicQueueRef.current.length <= 1;
+      audioEl.addEventListener('ended', () => advanceMusicRef.current());
       audioEl.volume = musicVolume;
       audioEl.preload = 'auto';
       audioEl.setAttribute('playsinline', '');
@@ -800,6 +836,72 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       setMusicBusy(false);
     }
   }, [musicPlaying, musicVolume, stopHuddleMusic]);
+
+  // Music stopped (by Stop, leaving, or the track ending): clear the queue display.
+  useEffect(() => {
+    if (!musicPlaying) {
+      musicQueueRef.current = [];
+      setNowPlaying(null);
+    }
+  }, [musicPlaying]);
+
+  const openMusicSheet = useCallback(() => {
+    setMusicSheetOpen(true);
+    setSongsError(null);
+    setSongsLoading(true);
+    // Fresh play links each time (they last a few hours).
+    listKaLinkSongs(channelId)
+      .then((list) => setSongs(list))
+      .catch((e) => {
+        setSongs([]);
+        setSongsError(e instanceof Error ? e.message : 'Could not load the music library.');
+      })
+      .finally(() => setSongsLoading(false));
+  }, [channelId]);
+
+  /** Play one song, or a queue starting at `start`. Tapped by the moderator, so audio may start. */
+  const playQueue = useCallback(
+    (queue: Array<{ id: string; title: string; url: string }>, start = 0) => {
+      if (!queue.length) return;
+      musicQueueRef.current = queue;
+      musicIndexRef.current = start;
+      const first = queue[start];
+      setNowPlaying({ id: first.id, title: first.title });
+      const el = musicAudioRef.current;
+      if (musicPlaying && el) {
+        el.loop = queue.length <= 1;
+        el.src = first.url;
+        void el.play().catch(() => setMusicError('Could not play that song.'));
+        return;
+      }
+      musicStartUrlRef.current = first.url;
+      void toggleHuddleMusic();
+    },
+    [musicPlaying, toggleHuddleMusic]
+  );
+
+  const playSong = useCallback(
+    (songId: string) => {
+      if (songId === DEFAULT_SONG_ID) {
+        playQueue([{ id: DEFAULT_SONG_ID, title: 'Waiting music', url: HUDDLE_MUSIC_ASSET_PATH }]);
+        return;
+      }
+      const s = (songs || []).find((x) => x.id === songId);
+      if (s?.url) playQueue([{ id: s.id, title: s.title, url: s.url }]);
+    },
+    [playQueue, songs]
+  );
+
+  const playAllSongs = useCallback(() => {
+    const queue = (songs || []).filter((s) => s.url).map((s) => ({ id: s.id, title: s.title, url: s.url as string }));
+    playQueue(queue, 0);
+  }, [playQueue, songs]);
+
+  const stopMusicFromSheet = useCallback(async () => {
+    if (musicPlaying) await toggleHuddleMusic();
+    musicQueueRef.current = [];
+    setNowPlaying(null);
+  }, [musicPlaying, toggleHuddleMusic]);
 
   const setHuddleMusicVolume = useCallback((next: number) => {
     const level = clampHuddleMusicVolume(next);
@@ -2487,15 +2589,15 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                         {canPlayHuddleMusic ? (
                           <button
                             type="button"
-                            onClick={() => void toggleHuddleMusic()}
+                            onClick={openMusicSheet}
                             disabled={musicBusy || (musicActive && !musicPlaying)}
                             className={`pr-tool ${musicPlaying || musicActive ? 'is-on' : ''}`}
-                            aria-label={musicActive && !musicPlaying ? 'Music is already playing' : huddleMusicButtonLabel(musicPlaying)}
+                            aria-label={musicActive && !musicPlaying ? 'Music is already playing' : 'Music'}
                             aria-pressed={musicPlaying}
                             data-huddle-music-control="true"
                           >
                             {musicBusy ? <Loader2 size={17} className="animate-spin" aria-hidden /> : <Music size={17} aria-hidden />}
-                            <span>{huddleMusicButtonLabel(musicPlaying, musicActive)}</span>
+                            <span>{musicPlaying ? (nowPlaying?.title ? `♪ ${nowPlaying.title.length > 18 ? `${nowPlaying.title.slice(0, 17)}…` : nowPlaying.title}` : 'Music on') : musicActive ? 'Music playing' : 'Music'}</span>
                           </button>
                         ) : null}
                         {!prayerWatch ? (
@@ -2642,6 +2744,25 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         </div>
 
         {sheet === 'prayer' ? <PrayerRequestSheet onClose={() => setSheet(null)} roomName={title} /> : null}
+        {musicSheetOpen && canPlayHuddleMusic ? (
+          <HuddleMusicSheet
+            songs={songs}
+            loading={songsLoading}
+            error={songsError || musicError}
+            playing={musicPlaying}
+            busy={musicBusy}
+            nowPlayingId={nowPlaying?.id || (musicPlaying ? DEFAULT_SONG_ID : null)}
+            nowPlayingTitle={nowPlaying?.title || null}
+            queueLength={musicQueueRef.current.length}
+            volume={musicVolume}
+            onPlay={playSong}
+            onPlayAll={playAllSongs}
+            onNext={advanceMusic}
+            onStop={() => void stopMusicFromSheet()}
+            onVolume={setHuddleMusicVolume}
+            onClose={() => setMusicSheetOpen(false)}
+          />
+        ) : null}
         {recordingsOpen ? (
           <HuddleRecordingsSheet channelId={channelId} roomName={title} canDelete={canModerate} onClose={() => setRecordingsOpen(false)} />
         ) : null}

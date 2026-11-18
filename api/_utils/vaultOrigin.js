@@ -333,6 +333,7 @@ const CHAT_SUBS = new Set([
   'voice-hand-lower',
   'voice-huddle-stage',
   'voice-recording',
+  'ka-link-songs',
   'reactions',
   'polls',
   'poll-create',
