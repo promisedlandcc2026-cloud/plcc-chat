@@ -160,6 +160,7 @@ import {
 } from '../../lib/huddleReaction';
 import { useScreenWakeLock } from '../../lib/useScreenWakeLock';
 import { HuddleChatPanel } from '../huddle/HuddleChatPanel';
+import { TranslateButton, TranslationPanel, useHuddleTranslation } from '../huddle/HuddleTranslation';
 import { HuddleHandsPanel } from '../huddle/HuddleHandsPanel';
 import {
   HuddleMobileTabs,
@@ -525,6 +526,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   /** Dropped while the phone slept or the member switched apps — rejoin when they're back. */
   const lostConnectionRef = useRef(false);
   const canModerateRef = useRef(false);
+  const translation = useHuddleTranslation(roomRef.current, conn === 'connected');
   const activeTabRef = useRef<HuddleMobileTabId | null>(null);
   const micEnabledRef = useRef(false);
   const selfMuteIntentRef = useRef(false);
@@ -2358,6 +2360,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 
                   {connected ? (
                     <>
+                      <TranslationPanel t={translation} />
                       {captionsOn && !prayerWatch ? (
                         <section aria-label="Live captions" className="pr-captions" data-testid="huddle-captions">
                           <div className="mb-1 flex items-center justify-between gap-2">
@@ -2527,6 +2530,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                             {captionsOn ? <CaptionsOff size={18} aria-hidden /> : <Captions size={18} aria-hidden />}
                           </button>
                         ) : null}
+                        <TranslateButton t={translation} variant="room" />
                         {canModerate && !audioOnly && !prayerWatch && screenShareSupported() ? (
                           <button
                             type="button"
@@ -3108,6 +3112,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 : { label: 'Share', Icon: Share2, onClick: () => void shareHuddle(), doneLabel: shareDone }
             }
           />
+          <TranslationPanel t={translation} />
           {captionsOn && !prayerWatch ? (
             <section
               aria-label="Live captions"
@@ -3189,6 +3194,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 {captionsOn ? <CaptionsOff size={22} aria-hidden /> : <Captions size={22} aria-hidden />}
               </button>
             ) : null}
+            <TranslateButton t={translation} variant="mobile" />
             {canModerate && !audioOnly && !prayerWatch && screenShareSupported() ? (
               <button
                 type="button"
