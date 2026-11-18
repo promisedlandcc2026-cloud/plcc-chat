@@ -208,7 +208,19 @@ type Tile = {
   raisedAt: number | null;
   /** Bible reader this session (may unmute while mics are locked). */
   reader: boolean;
+  /** Ka Link team role from the server-signed token (Phase 3). */
+  team: 'admin' | 'leader' | null;
 };
+
+/** Phase 3 (#18): a Ka Link team leader (e.g. Pr. Grace) tells the moderators they are ready. */
+const HUDDLE_READY_TOPIC = 'plcc-ready';
+const READY_RESEND_MS = 30_000;
+type ReadyAlert = { identity: string; name: string; at: number };
+
+function participantTeam(p: Participant): 'admin' | 'leader' | null {
+  const t = p.attributes?.['plcc.team'];
+  return t === 'admin' || t === 'leader' ? t : null;
+}
 
 type Props = {
   channelId: string;
@@ -368,6 +380,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [modTargetId, setModTargetId] = useState<string | null>(null);
   const [modBusy, setModBusy] = useState(false);
   const [modError, setModError] = useState<string | null>(null);
+  /** Phase 3: "I'm ready" alerts moderators see, and when this leader last sent one. */
+  const [readyAlerts, setReadyAlerts] = useState<ReadyAlert[]>([]);
+  const [readySentAt, setReadySentAt] = useState<number | null>(null);
   const hostMuteNoticeRef = useRef<string | null>(null);
   hostMuteNoticeRef.current = hostMuteNotice;
   const [micEnabled, setMicEnabled] = useState(false);
@@ -619,6 +634,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         moderator: p.attributes?.['plcc.role'] === 'moderator' || (isLocal && canModerateRef.current),
         raisedAt: parseHandRaisedAt(p.metadata),
         reader: stageRef.current.readerIds.includes(p.identity),
+        team: participantTeam(p),
       });
     };
 
@@ -934,6 +950,18 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         .on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
           if (!mountedRef.current || !participant) return;
+          if (topic === HUDDLE_READY_TOPIC) {
+            // Only moderators see it, and only from a real team member (role is in the signed token).
+            if (!canModerateRef.current || !participantTeam(participant)) return;
+            const alert: ReadyAlert = { identity: participant.identity, name: displayName(participant), at: Date.now() };
+            setReadyAlerts((prev) => [...prev.filter((a) => a.identity !== alert.identity), alert].slice(-5));
+            try {
+              navigator.vibrate?.([120, 80, 120]);
+            } catch {
+              /* not supported */
+            }
+            return;
+          }
           if (topic === HUDDLE_CAPTION_TOPIC) {
             const wire = decodeCaptionWire(payload);
             if (!wire) return;
@@ -1707,6 +1735,26 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     },
     [channelId]
   );
+  const sendReady = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return;
+    try {
+      await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ v: 1, t: 'ready' })), {
+        reliable: true,
+        topic: HUDDLE_READY_TOPIC,
+      });
+      setReadySentAt(Date.now());
+      setNotice('The moderators were told you are ready.');
+    } catch {
+      setError('Could not reach the moderators. Please try again.');
+    }
+  }, []);
+  useEffect(() => {
+    if (!readySentAt) return undefined;
+    const t = window.setTimeout(() => setReadySentAt(null), READY_RESEND_MS);
+    return () => window.clearTimeout(t);
+  }, [readySentAt]);
+
   const letSpeak = useCallback(
     async (identity: string): Promise<boolean> => {
       // Locked: give the mic back. Unlocked: they can already unmute. Either way, lower the hand.
@@ -1989,6 +2037,23 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   Tap to hear the prayer
                 </button>
               ) : null}
+              {canModerate && readyAlerts.length > 0
+                ? readyAlerts.map((a) => (
+                    <div key={a.identity} className="pr-ready-alert" role="alert" data-testid="huddle-ready-alert">
+                      <HandHeart size={18} aria-hidden />
+                      <span className="flex-1 min-w-0">
+                        <strong>{a.name}</strong> is ready
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setReadyAlerts((prev) => prev.filter((x) => x.identity !== a.identity))}
+                        className="pr-ready-ok"
+                      >
+                        OK
+                      </button>
+                    </div>
+                  ))
+                : null}
               {hostMuteNotice ? <p className="pr-notice is-strong" role="status">{hostMuteNotice}</p> : null}
               {screenError ? <p className="pr-notice is-bad" role="alert">{screenError}</p> : null}
               {notice ? <p className="pr-notice" role="status">{notice}</p> : null}
@@ -2192,6 +2257,18 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                       {reactionError ? <p className="text-center text-xs text-[#f1d58a]" role="status">{reactionError}</p> : null}
                       {musicError ? <p className="text-center text-xs text-[#f1d58a]" role="status" data-huddle-music-error="true">{musicError}</p> : null}
 
+                      {connected && localTile?.team === 'leader' ? (
+                        <button
+                          type="button"
+                          onClick={() => void sendReady()}
+                          disabled={Boolean(readySentAt)}
+                          className="pr-ready-btn"
+                          data-testid="huddle-ready-button"
+                        >
+                          <HandHeart size={18} aria-hidden />
+                          {readySentAt ? 'Moderators notified' : 'I’m ready'}
+                        </button>
+                      ) : null}
                       <div className="pr-controls">
                         {!prayerWatch ? (
                           <button type="button" onClick={() => void toggleHand()} aria-pressed={handRaised} className={`pr-ctl is-gold ${handRaised ? 'is-on' : ''}`}>
@@ -2444,6 +2521,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                             <span className="pr-role is-mod"><Crown size={12} aria-hidden /> Mod</span>
                           ) : tile.reader ? (
                             <span className="pr-role is-reader"><BookOpen size={12} aria-hidden /> Reader</span>
+                          ) : tile.team === 'leader' ? (
+                            <span className="pr-role is-reader"><HandHeart size={12} aria-hidden /> Leader</span>
                           ) : null}
                           {tile.micOn ? <Mic size={17} className="pr-mic-on" aria-label="Microphone on" /> : <MicOff size={17} className="pr-mic-off" aria-label="Muted" />}
                         </li>
