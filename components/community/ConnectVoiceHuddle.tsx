@@ -51,7 +51,17 @@ import {
   DisconnectReason,
 } from 'livekit-client';
 import { CommunityChatError } from '../../lib/communityChatTypes';
-import { endHuddle } from '../../lib/communityChatClient';
+import { endHuddle, moderateHuddle, type HuddleModerateAction } from '../../lib/communityChatClient';
+import {
+  EMPTY_HUDDLE_STAGE,
+  HUDDLE_MIC_ALLOWED_NOTICE,
+  HUDDLE_MIC_LOCKED_NOTICE,
+  orderRaisedHands,
+  parseHandRaisedAt,
+  parseHuddleStageView,
+  type HuddleStageView,
+} from '../../lib/huddleStage';
+import { ModeratorRoomBar, PersonActionsSheet } from '../huddle/HuddleModeratorTools';
 import { VAULT_URL } from '../../lib/appLinks';
 import { GuidelinesSheet, PrayerRequestSheet } from './PrayerRoomSheets';
 import { findSanctumOverflow, isRoomFullError, openSanctumOverflow, type SanctumOverflow } from '../../lib/sanctumOverflow';
@@ -194,6 +204,10 @@ type Tile = {
   speaking: boolean;
   /** Room moderator (from the LiveKit token's plcc.role attribute). */
   moderator: boolean;
+  /** When the hand went up (ms), for first-come, first-served order. */
+  raisedAt: number | null;
+  /** Bible reader this session (may unmute while mics are locked). */
+  reader: boolean;
 };
 
 type Props = {
@@ -347,6 +361,15 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   /** Calm status line for fail-safe moments (retrying, saved permission). */
   const [notice, setNotice] = useState<string | null>(null);
   const [hostMuteNotice, setHostMuteNotice] = useState<string | null>(null);
+  /** Phase 2: mic lock + Bible readers for this session (LiveKit room metadata). */
+  const [stage, setStage] = useState<HuddleStageView>(EMPTY_HUDDLE_STAGE);
+  const stageRef = useRef<HuddleStageView>(EMPTY_HUDDLE_STAGE);
+  const handFirstSeenRef = useRef<Map<string, number>>(new Map());
+  const [modTargetId, setModTargetId] = useState<string | null>(null);
+  const [modBusy, setModBusy] = useState(false);
+  const [modError, setModError] = useState<string | null>(null);
+  const hostMuteNoticeRef = useRef<string | null>(null);
+  hostMuteNoticeRef.current = hostMuteNotice;
   const [micEnabled, setMicEnabled] = useState(false);
   const [camEnabled, setCamEnabled] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
@@ -594,6 +617,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         handRaised: parseHandRaised(p.metadata),
         speaking: speakers.has(p.identity),
         moderator: p.attributes?.['plcc.role'] === 'moderator' || (isLocal && canModerateRef.current),
+        raisedAt: parseHandRaisedAt(p.metadata),
+        reader: stageRef.current.readerIds.includes(p.identity),
       });
     };
 
@@ -887,7 +912,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             void room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
             setMicEnabled(false);
             micEnabledRef.current = false;
-            setHostMuteNotice(HUDDLE_HOST_MUTE_NOTICE);
+            setHostMuteNotice(stageRef.current.micLock ? HUDDLE_MIC_LOCKED_NOTICE : HUDDLE_HOST_MUTE_NOTICE);
+          } else {
+            // A moderator gave the mic back (Let speak / Bible reader / mics unlocked).
+            if (hostMuteNoticeRef.current) setNotice(HUDDLE_MIC_ALLOWED_NOTICE);
+            setHostMuteNotice(null);
           }
           onChange();
         })
@@ -981,6 +1010,13 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         .on(RoomEvent.TrackPublished, onChange)
         .on(RoomEvent.TrackUnpublished, onChange)
+        // Phase 2: moderators locked/unlocked mics or changed Bible readers.
+        .on(RoomEvent.RoomMetadataChanged, (metadata: string) => {
+          const next = parseHuddleStageView(metadata);
+          stageRef.current = next;
+          if (mountedRef.current) setStage(next);
+          onChange();
+        })
         // LiveKit's own quick resume (network blip): show it, don't hang up.
         .on(RoomEvent.Reconnecting, () => {
           if (mountedRef.current && !connectingRef.current) setConn('reconnecting');
@@ -1073,6 +1109,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         }
       }
 
+      const joinedStage = parseHuddleStageView(room.metadata);
+      stageRef.current = joinedStage;
+      setStage(joinedStage);
+      if (!huddleMicrophonePublishAllowed(room.localParticipant.permissions) && joinedStage.micLock) {
+        setHostMuteNotice(HUDDLE_MIC_LOCKED_NOTICE);
+      }
       refreshTiles(room);
       reconnectAttemptsRef.current = 0;
       lostConnectionRef.current = false;
@@ -1303,7 +1345,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     if (next && !huddleMicrophonePublishAllowed(room.localParticipant.permissions)) {
       setMicEnabled(false);
       micEnabledRef.current = false;
-      setHostMuteNotice(HUDDLE_HOST_MUTE_NOTICE);
+      setHostMuteNotice(stageRef.current.micLock ? HUDDLE_MIC_LOCKED_NOTICE : HUDDLE_HOST_MUTE_NOTICE);
       return;
     }
     selfMuteIntentRef.current = true;
@@ -1627,16 +1669,51 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     return room.remoteParticipants.get(identity) || null;
   };
 
+  // #6: hands in the order they went up (first come, first served).
+  const raisedOrdered = useMemo(() => orderRaisedHands(tiles, handFirstSeenRef.current), [tiles]);
   const raisedNames = useMemo(
-    () => tiles.filter((t) => t.handRaised).map((t) => (t.isLocal ? `${t.name} (you)` : t.name)),
-    [tiles]
+    () => raisedOrdered.map((t) => (t.isLocal ? `${t.name} (you)` : t.name)),
+    [raisedOrdered]
   );
   const raisedEntries = useMemo(
-    () =>
-      tiles
-        .filter((t) => t.handRaised)
-        .map((t) => ({ identity: t.identity, name: t.name, isLocal: t.isLocal })),
-    [tiles]
+    () => raisedOrdered.map((t) => ({ identity: t.identity, name: t.name, isLocal: t.isLocal })),
+    [raisedOrdered]
+  );
+  const handPosition = useMemo(() => {
+    const m = new Map<string, number>();
+    raisedOrdered.forEach((t, i) => m.set(t.identity, i + 1));
+    return m;
+  }, [raisedOrdered]);
+
+  /** Phase 2 moderator action; refreshes the stage from Canaan's answer. */
+  const moderate = useCallback(
+    async (action: HuddleModerateAction, targetIdentity?: string): Promise<boolean> => {
+      setModBusy(true);
+      setModError(null);
+      try {
+        const result = await moderateHuddle(channelId, action, targetIdentity);
+        const next = { micLock: result.micLock, readerIds: result.readerIds };
+        if (action !== 'mute' && action !== 'unmute' && action !== 'lower-hand') {
+          stageRef.current = next;
+          setStage(next);
+        }
+        return true;
+      } catch (err) {
+        setModError(err instanceof Error && err.message ? err.message : 'That did not work. Please try again.');
+        return false;
+      } finally {
+        setModBusy(false);
+      }
+    },
+    [channelId]
+  );
+  const letSpeak = useCallback(
+    async (identity: string): Promise<boolean> => {
+      // Locked: give the mic back. Unlocked: they can already unmute. Either way, lower the hand.
+      if (stageRef.current.micLock && !(await moderate('allow-mic', identity))) return false;
+      return moderate('lower-hand', identity);
+    },
+    [moderate]
   );
   const inCount = roster.filter((e) => e.status === 'in').length;
 
@@ -1671,6 +1748,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         (a, b) =>
           Number(b.moderator) - Number(a.moderator) ||
           Number(b.handRaised) - Number(a.handRaised) ||
+          (handPosition.get(a.identity) ?? 0) - (handPosition.get(b.identity) ?? 0) ||
           Number(b.speaking) - Number(a.speaking) ||
           a.name.localeCompare(b.name)
       )
@@ -2314,6 +2392,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                       <Search size={16} aria-hidden className="opacity-60" />
                       <input value={peopleQuery} onChange={(e) => setPeopleQuery(e.target.value)} placeholder="Search participants…" aria-label="Search participants" />
                     </label>
+                    {canModerate ? (
+                      <ModeratorRoomBar
+                        micLock={stage.micLock}
+                        handsCount={raisedEntries.length}
+                        busy={modBusy}
+                        onToggleLock={() => void moderate(stage.micLock ? 'mic-unlock' : 'mic-lock')}
+                        onLowerAll={() => void moderate('lower-all-hands')}
+                      />
+                    ) : null}
+                    {canModerate && modError && !modTargetId ? <p className="pr-notice" role="alert">{modError}</p> : null}
                     {!prayerWatch && raisedEntries.length > 0 ? (
                       <button type="button" onClick={() => setActiveTab('hands')} className="pr-hands-btn">
                         <Hand size={15} aria-hidden /> {raisedEntries.length} hand{raisedEntries.length === 1 ? '' : 's'} raised — view
@@ -2322,16 +2410,40 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                     <ul className="pr-people">
                       {peopleList.map((tile) => (
                         <li key={tile.identity} className="pr-person">
-                          <span className={`pr-avatar ${tile.speaking && tile.micOn ? 'is-speaking' : ''}`}>{initials(tile.name)}</span>
-                          <span className="pr-person-name">
-                            {tile.name}
-                            {tile.isLocal ? ' (you)' : ''}
-                          </span>
-                          {tile.handRaised ? <Hand size={16} className="pr-hand" aria-label="Hand raised" /> : null}
+                          {canModerate && !tile.isLocal ? (
+                            <button
+                              type="button"
+                              className="pr-person-btn"
+                              onClick={() => {
+                                setModError(null);
+                                setModTargetId(tile.identity);
+                              }}
+                              aria-label={`Moderator options for ${tile.name}`}
+                            >
+                              <span className={`pr-avatar ${tile.speaking && tile.micOn ? 'is-speaking' : ''}`}>{initials(tile.name)}</span>
+                              <span className="pr-person-name">{tile.name}</span>
+                            </button>
+                          ) : (
+                            <>
+                              <span className={`pr-avatar ${tile.speaking && tile.micOn ? 'is-speaking' : ''}`}>{initials(tile.name)}</span>
+                              <span className="pr-person-name">
+                                {tile.name}
+                                {tile.isLocal ? ' (you)' : ''}
+                              </span>
+                            </>
+                          )}
+                          {tile.handRaised ? (
+                            <span className="pr-hand inline-flex items-center gap-0.5 text-xs font-black" aria-label={`Hand raised, number ${handPosition.get(tile.identity) ?? ''}`}>
+                              <Hand size={16} aria-hidden />
+                              {handPosition.get(tile.identity) ?? ''}
+                            </span>
+                          ) : null}
                           {tile.speaking && tile.micOn ? (
                             <span className="pr-role is-speaking">Praying</span>
                           ) : tile.moderator ? (
                             <span className="pr-role is-mod"><Crown size={12} aria-hidden /> Mod</span>
+                          ) : tile.reader ? (
+                            <span className="pr-role is-reader"><BookOpen size={12} aria-hidden /> Reader</span>
                           ) : null}
                           {tile.micOn ? <Mic size={17} className="pr-mic-on" aria-label="Microphone on" /> : <MicOff size={17} className="pr-mic-off" aria-label="Muted" />}
                         </li>
@@ -2386,11 +2498,47 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 
         <HuddleTabSheet tab={activeTab} onClose={() => setActiveTab(null)}>
           {activeTab === 'hands' && !prayerWatch ? (
-            <HuddleHandsPanel raised={raisedEntries} handRaised={handRaised} onToggleHand={() => void toggleHand()} />
+            <HuddleHandsPanel
+              raised={raisedEntries}
+              handRaised={handRaised}
+              onToggleHand={() => void toggleHand()}
+              canModerate={canModerate}
+              busy={modBusy}
+              onLetSpeak={(id) => void letSpeak(id)}
+              onLowerHand={(id) => void moderate('lower-hand', id)}
+              onLowerAll={() => void moderate('lower-all-hands')}
+            />
           ) : null}
           {activeTab === 'chat' ? <HuddleChatPanel messages={chatMessages} onSend={sendChat} sending={chatSending} /> : null}
           {activeTab === 'attendance' && !prayerWatch ? <HuddlePeoplePanel variant="embedded" roster={roster} title="Attendance" /> : null}
         </HuddleTabSheet>
+
+        {modTargetId && canModerate
+          ? (() => {
+              const t = tiles.find((x) => x.identity === modTargetId);
+              if (!t) return null;
+              return (
+                <PersonActionsSheet
+                  target={{
+                    identity: t.identity,
+                    name: t.name,
+                    micOn: t.micOn,
+                    handRaised: t.handRaised,
+                    moderator: t.moderator,
+                    reader: t.reader,
+                  }}
+                  micLock={stage.micLock}
+                  busy={modBusy}
+                  error={modError}
+                  onClose={() => setModTargetId(null)}
+                  onAction={async (action) => {
+                    const done = action === 'allow-mic' ? await letSpeak(t.identity) : await moderate(action, t.identity);
+                    if (done) setModTargetId(null);
+                  }}
+                />
+              );
+            })()
+          : null}
       </div>
     );
   }

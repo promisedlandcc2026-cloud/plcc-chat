@@ -44,6 +44,9 @@ function mapStatus(
   if (status === 409 && bodyCode === 'huddle_room_full') {
     return { code: 'huddle_room_full', message: 'This prayer room is full.' };
   }
+  if (status === 403 && bodyCode === 'huddle_blocked') {
+    return { code: 'huddle_blocked', message: 'A moderator removed you from this Ka Link.' };
+  }
   if (status === 403 && bodyCode === 'huddle_not_started') {
     return { code: 'huddle_not_started', message: HUDDLE_NOT_STARTED_MESSAGE };
   }
@@ -893,4 +896,46 @@ export async function submitPrayerRequest(input: {
   shareWith: PrayerRequestShare;
 }): Promise<{ status: 'Published' | 'Vetting' | 'Confidential'; shareWith: PrayerRequestShare }> {
   return postJson('prayer-request', input, 'Could not send your prayer request.');
+}
+
+
+/* ---------------- Phase 2: Ka Link moderator tools ---------------- */
+
+export type HuddleModerateAction =
+  | 'mute'
+  | 'unmute'
+  | 'lower-hand'
+  | 'lower-all-hands'
+  | 'mic-lock'
+  | 'mic-unlock'
+  | 'allow-mic'
+  | 'revoke-mic'
+  | 'reader-add'
+  | 'reader-remove'
+  | 'remove'
+  | 'block';
+
+/** Moderator action in a live Ka Link. Canaan checks the caller is a moderator. */
+export async function moderateHuddle(
+  channelId: string,
+  action: HuddleModerateAction,
+  targetIdentity?: string
+): Promise<{ micLock: boolean; readerIds: string[] }> {
+  const res = await authedFetch('/api/community-chat?resource=huddle-moderate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(targetIdentity ? { channelId, action, targetIdentity } : { channelId, action }),
+  });
+  const b = (await res.json().catch(() => ({}))) as any;
+  if (!res.ok || b?.ok !== true) {
+    throw new CommunityChatError(
+      res.status === 403 ? 'forbidden' : 'moderate_failed',
+      typeof b?.message === 'string' && b.message ? b.message : 'That did not work. Please try again.',
+      res.status
+    );
+  }
+  return {
+    micLock: b.micLock === true,
+    readerIds: Array.isArray(b.readerIds) ? b.readerIds.filter((id: unknown) => typeof id === 'string') : [],
+  };
 }

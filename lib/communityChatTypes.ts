@@ -136,6 +136,8 @@ export type CommunityChatErrorCode =
   | 'huddle_line_busy'
   | 'huddle_not_started'
   | 'huddle_room_full'
+  | 'huddle_blocked'
+  | 'moderate_failed'
   | 'upload_failed'
   | 'too_large';
 

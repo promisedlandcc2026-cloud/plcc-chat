@@ -1,5 +1,5 @@
 import React from 'react';
-import { Hand } from 'lucide-react';
+import { Hand, Mic } from 'lucide-react';
 
 export type HuddleHandEntry = {
   identity: string;
@@ -8,15 +8,27 @@ export type HuddleHandEntry = {
 };
 
 type Props = {
+  /** In the order hands went up (first come, first served). */
   raised: HuddleHandEntry[];
   handRaised: boolean;
   onToggleHand: () => void;
+  /** Moderators: let someone speak, lower one hand, or lower all. */
+  canModerate?: boolean;
+  busy?: boolean;
+  onLetSpeak?: (identity: string) => void;
+  onLowerHand?: (identity: string) => void;
+  onLowerAll?: () => void;
 };
 
 export const HuddleHandsPanel: React.FC<Props> = ({
   raised,
   handRaised,
   onToggleHand,
+  canModerate = false,
+  busy = false,
+  onLetSpeak,
+  onLowerHand,
+  onLowerAll,
 }) => {
   return (
     <div className="flex flex-col h-full min-h-0" data-testid="huddle-hands-panel">
@@ -27,8 +39,18 @@ export const HuddleHandsPanel: React.FC<Props> = ({
         <p className="text-xs text-white/50 mt-1">
           {raised.length === 0
             ? 'No hands raised right now.'
-            : `${raised.length} raised — sorted for the host to see clearly.`}
+            : `${raised.length} raised — in the order they went up.`}
         </p>
+        {canModerate && raised.length > 0 && onLowerAll ? (
+          <button
+            type="button"
+            onClick={onLowerAll}
+            disabled={busy}
+            className="mt-2 min-h-[40px] px-4 rounded-xl bg-white/10 text-white text-xs font-bold disabled:opacity-60"
+          >
+            Lower all hands
+          </button>
+        ) : null}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-0">
@@ -52,7 +74,29 @@ export const HuddleHandsPanel: React.FC<Props> = ({
                     {entry.isLocal ? ' (you)' : ''}
                   </p>
                 </div>
-                <Hand size={16} className="text-gold shrink-0" aria-hidden />
+                {canModerate && !entry.isLocal && onLetSpeak ? (
+                  <button
+                    type="button"
+                    onClick={() => onLetSpeak(entry.identity)}
+                    disabled={busy}
+                    className="min-h-[36px] px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center gap-1 disabled:opacity-60"
+                  >
+                    <Mic size={14} aria-hidden /> Let speak
+                  </button>
+                ) : null}
+                {canModerate && !entry.isLocal && onLowerHand ? (
+                  <button
+                    type="button"
+                    onClick={() => onLowerHand(entry.identity)}
+                    disabled={busy}
+                    className="min-h-[36px] px-3 rounded-xl bg-white/10 text-white text-xs font-bold disabled:opacity-60"
+                    aria-label={`Lower ${entry.name}'s hand`}
+                  >
+                    Lower
+                  </button>
+                ) : (
+                  <Hand size={16} className="text-gold shrink-0" aria-hidden />
+                )}
               </li>
             ))}
           </ol>

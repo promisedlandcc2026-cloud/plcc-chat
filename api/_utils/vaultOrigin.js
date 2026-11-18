@@ -323,6 +323,9 @@ export function buildVaultCommunityChatHuddleStatusesUrl(origin, channelIdsCsv) 
  */
 /** Any Vault chat sub-resource from a fixed allowlist (never caller-chosen strings). */
 const CHAT_SUBS = new Set([
+  'voice-participant-mute',
+  'voice-hand-lower',
+  'voice-huddle-stage',
   'reactions',
   'polls',
   'poll-create',

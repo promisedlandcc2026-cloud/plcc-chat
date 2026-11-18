@@ -405,3 +405,11 @@
 @media (min-width: 640px) { .pr-desktop-only { display: inline-flex !important; } }
 .pr-phone-only { display: inline-flex; }
 @media (min-width: 1024px) { .pr-phone-only { display: none !important; } }
+
+/* Ka Link Phase 2 moderator tools (Nov 2026). */
+.pr-mod-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.25rem 0 0.6rem; }
+.pr-mod-bar .pr-tool { flex: 1 1 auto; justify-content: center; }
+.pr-tool.is-locked { background: linear-gradient(180deg, var(--pr-gold-light, #f1d58f), var(--pr-gold, #d9b45e)); color: #1d2414; }
+.pr-mod-hint { flex-basis: 100%; font-size: 0.72rem; color: rgba(244,238,221,.72); }
+.pr-role.is-reader { background: rgba(130,170,255,.18); color: #c6d7ff; }
+.pr-person-btn { display: flex; flex: 1; min-width: 0; align-items: center; gap: 0.6rem; text-align: left; }

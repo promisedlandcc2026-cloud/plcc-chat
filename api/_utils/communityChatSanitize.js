@@ -1250,3 +1250,57 @@ export function sanitizeChatRequest(raw) {
     })),
   };
 }
+
+
+/* Phase 2 Ka Link moderator tools (Nov 2026). */
+const HUDDLE_MODERATE_ACTIONS = new Set([
+  'mute',
+  'unmute',
+  'lower-hand',
+  'lower-all-hands',
+  'mic-lock',
+  'mic-unlock',
+  'allow-mic',
+  'revoke-mic',
+  'reader-add',
+  'reader-remove',
+  'remove',
+  'block',
+]);
+const HUDDLE_ROOM_ACTIONS = new Set(['lower-all-hands', 'mic-lock', 'mic-unlock']);
+const LIVEKIT_IDENTITY_RE = /^[A-Za-z0-9._:@-]{1,128}$/;
+
+/**
+ * { channelId, action, targetIdentity? } → which Canaan sub-resource to call and
+ * exactly what to send. Returns null for anything else.
+ */
+export function parseHuddleModerateCommand(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const keys = Object.keys(raw);
+  if (keys.some((k) => !['channelId', 'action', 'targetIdentity'].includes(k))) return null;
+  const channelId = String(raw.channelId || '').trim();
+  const action = String(raw.action || '').trim();
+  if (!UUID_RE.test(channelId) || !HUDDLE_MODERATE_ACTIONS.has(action)) return null;
+  const roomAction = HUDDLE_ROOM_ACTIONS.has(action);
+  const targetIdentity = raw.targetIdentity == null ? '' : String(raw.targetIdentity).trim();
+  if (roomAction) {
+    if (targetIdentity) return null;
+  } else if (!LIVEKIT_IDENTITY_RE.test(targetIdentity)) {
+    return null;
+  }
+  if (action === 'mute' || action === 'unmute') {
+    return {
+      action,
+      subResource: 'voice-participant-mute',
+      forward: { channelId, targetIdentity, muted: action === 'mute' },
+    };
+  }
+  if (action === 'lower-hand') {
+    return { action, subResource: 'voice-hand-lower', forward: { channelId, targetIdentity } };
+  }
+  return {
+    action,
+    subResource: 'voice-huddle-stage',
+    forward: roomAction ? { channelId, action } : { channelId, action, targetIdentity },
+  };
+}
