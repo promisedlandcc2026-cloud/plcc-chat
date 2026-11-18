@@ -447,3 +447,28 @@
 .pr-rec { display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; padding: 0.22rem 0.6rem; border-radius: 9999px; background: #b3261e; color: #fff; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.06em; }
 .pr-rec i { width: 8px; height: 8px; border-radius: 9999px; background: #fff; animation: pr-pulse 1.4s ease-in-out infinite; }
 .pr-tool.is-recording { background: #b3261e; border-color: #b3261e; color: #fff; }
+
+/* Call tools: compact bar + "More" sheet (Nov 2026) */
+.pr-tools { justify-content: center; }
+@media (max-width: 639px) {
+  .pr-tools { gap: 0.5rem; justify-content: flex-start; padding: 2px 2px 4px; }
+  .pr-tools .pr-tool { min-height: 44px; }
+  .pr-tools .pr-tool.is-icon { width: 44px; }
+}
+.pr-badge-dot { position: absolute; top: -4px; right: -4px; margin: 0; }
+.pr-more { max-width: 26rem; }
+.pr-more-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+.pr-more-head p { font-size: 1.05rem; font-weight: 800; }
+.pr-more-close { width: 40px; height: 40px; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; background: rgba(22,37,31,.06); }
+.pr-more-label { margin: 1rem 0 0.5rem; font-size: 0.7rem; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: #7a5a1c; }
+.pr-more-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.pr-more-item {
+  display: flex; align-items: center; gap: 0.6rem; min-height: 52px; padding: 0 0.9rem; border-radius: 1rem;
+  background: #f6f1e6; color: #16251f; font-size: 0.88rem; font-weight: 700; text-align: left; border: 1px solid #eadfca;
+}
+.pr-more-item:disabled { opacity: .45; }
+.pr-more-item.is-on { background: linear-gradient(180deg, var(--pr-gold-light, #f1d58f), var(--pr-gold, #d9b45e)); border-color: var(--pr-gold, #d9b45e); }
+.pr-more-item.is-recording { background: #b3261e; border-color: #b3261e; color: #fff; }
+.pr-more-item.is-end { color: #b3261e; border-color: rgba(179,38,30,.35); background: #fff4f2; }
+.pr-more-item.pr-phone-only { display: flex; }
+@media (min-width: 1024px) { .pr-more-item.pr-phone-only { display: none; } }

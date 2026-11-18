@@ -91,3 +91,21 @@ describe('wake endpoint', () => {
     assert.doesNotMatch(wakeApi, /private_key|GOOGLE_APPLICATION_CREDENTIALS/);
   });
 });
+
+describe('tidy call tools (Nov 2026)', () => {
+  const toolbar = huddle.slice(huddle.indexOf('<div className="pr-tools" role="toolbar"'), huddle.indexOf('{moreOpen ? ('));
+  it('bar keeps only everyday tools + More; Bible/Prayer Request live in the side panel', () => {
+    assert.doesNotMatch(toolbar, /openBible|setSheet\('prayer'\)|End for everyone|setRecordingsOpen/);
+    assert.match(toolbar, /data-testid="huddle-more-tools"/);
+    assert.match(toolbar, /<TranslateButton/);
+  });
+  it('host tools are in More, only for moderators; REC stays visible while recording', () => {
+    assert.match(huddle, /\{canModerate \? \([\s\S]*Host tools[\s\S]*End for everyone/);
+    assert.match(toolbar, /isRecording && canModerate \?[\s\S]*huddle-recording-chip/);
+  });
+  it('phones get 44px targets and Prayer Request in More', () => {
+    const css = read('prayer-room.css');
+    assert.match(css, /\.pr-tools \.pr-tool\.is-icon \{ width: 44px; \}/);
+    assert.match(huddle, /pr-more-item pr-phone-only/);
+  });
+});
