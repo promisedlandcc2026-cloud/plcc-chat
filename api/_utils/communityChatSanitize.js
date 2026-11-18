@@ -1304,3 +1304,45 @@ export function parseHuddleModerateCommand(raw) {
     forward: roomAction ? { channelId, action } : { channelId, action, targetIdentity },
   };
 }
+
+
+/* #14 Ka Link recordings (Nov 2026). */
+const RECORDING_ACTIONS = new Set(['start', 'stop', 'list', 'play', 'delete']);
+
+/** { channelId, action, recordingId? } → exactly what to send to Canaan, or null. */
+export function parseHuddleRecordingCommand(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  if (Object.keys(raw).some((k) => !['channelId', 'action', 'recordingId'].includes(k))) return null;
+  const channelId = String(raw.channelId || '').trim();
+  const action = String(raw.action || '').trim();
+  if (!UUID_RE.test(channelId) || !RECORDING_ACTIONS.has(action)) return null;
+  const needsId = action === 'play' || action === 'delete';
+  const recordingId = raw.recordingId == null ? '' : String(raw.recordingId).trim();
+  if (needsId ? !UUID_RE.test(recordingId) : recordingId) return null;
+  return needsId ? { channelId, action, recordingId } : { channelId, action };
+}
+
+/** Only https Supabase Storage links may be handed to the app for playback. */
+export function sanitizeRecordingUrl(raw) {
+  const url = String(raw || '');
+  return /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/sign\/[^\s"'<>]+$/i.test(url) && url.length < 2000 ? url : null;
+}
+
+export function sanitizeRecordingList(raw) {
+  if (!Array.isArray(raw)) return [];
+  const iso = (v) => (typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? v : null);
+  return raw.slice(0, 50).flatMap((r) => {
+    if (!r || typeof r !== 'object' || !UUID_RE.test(String(r.id || ''))) return [];
+    const status = ['recording', 'processing', 'ready'].includes(r.status) ? r.status : null;
+    if (!status) return [];
+    return [{
+      id: String(r.id),
+      channelName: typeof r.channelName === 'string' ? r.channelName.slice(0, 120) : null,
+      status,
+      startedAt: iso(r.startedAt),
+      endedAt: iso(r.endedAt),
+      durationSeconds: Number.isFinite(Number(r.durationSeconds)) && Number(r.durationSeconds) > 0 ? Math.round(Number(r.durationSeconds)) : null,
+      startedByName: typeof r.startedByName === 'string' ? r.startedByName.slice(0, 80) : null,
+    }];
+  });
+}

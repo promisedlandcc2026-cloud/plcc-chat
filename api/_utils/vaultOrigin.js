@@ -332,6 +332,7 @@ const CHAT_SUBS = new Set([
   'voice-participant-mute',
   'voice-hand-lower',
   'voice-huddle-stage',
+  'voice-recording',
   'reactions',
   'polls',
   'poll-create',

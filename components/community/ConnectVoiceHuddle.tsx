@@ -8,6 +8,8 @@ import {
   RefreshCw,
   Captions,
   CircleHelp,
+  CircleDot,
+  Disc,
   Crown,
   HandHeart,
   Headphones,
@@ -51,7 +53,8 @@ import {
   DisconnectReason,
 } from 'livekit-client';
 import { CommunityChatError } from '../../lib/communityChatTypes';
-import { endHuddle, moderateHuddle, type HuddleModerateAction } from '../../lib/communityChatClient';
+import { endHuddle, moderateHuddle, setHuddleRecording, type HuddleModerateAction } from '../../lib/communityChatClient';
+import { HuddleRecordingsSheet } from '../huddle/HuddleRecordingsSheet';
 import {
   EMPTY_HUDDLE_STAGE,
   HUDDLE_MIC_ALLOWED_NOTICE,
@@ -383,6 +386,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   /** Phase 3: "I'm ready" alerts moderators see, and when this leader last sent one. */
   const [readyAlerts, setReadyAlerts] = useState<ReadyAlert[]>([]);
   const [readySentAt, setReadySentAt] = useState<number | null>(null);
+  /** #14: LiveKit tells every client when the room is being recorded. */
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordBusy, setRecordBusy] = useState(false);
+  const [recordingsOpen, setRecordingsOpen] = useState(false);
   const hostMuteNoticeRef = useRef<string | null>(null);
   hostMuteNoticeRef.current = hostMuteNotice;
   const [micEnabled, setMicEnabled] = useState(false);
@@ -1038,6 +1045,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         .on(RoomEvent.TrackPublished, onChange)
         .on(RoomEvent.TrackUnpublished, onChange)
+        // #14: recording started/stopped (shown to everyone).
+        .on(RoomEvent.RecordingStatusChanged, (recording: boolean) => {
+          if (!mountedRef.current) return;
+          setIsRecording(recording);
+          if (recording) setNotice('This prayer is being recorded.');
+        })
         // Phase 2: moderators locked/unlocked mics or changed Bible readers.
         .on(RoomEvent.RoomMetadataChanged, (metadata: string) => {
           const next = parseHuddleStageView(metadata);
@@ -1137,6 +1150,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         }
       }
 
+      setIsRecording(Boolean(room.isRecording));
       const joinedStage = parseHuddleStageView(room.metadata);
       stageRef.current = joinedStage;
       setStage(joinedStage);
@@ -1735,6 +1749,19 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     },
     [channelId]
   );
+  const toggleRecording = useCallback(async () => {
+    setRecordBusy(true);
+    try {
+      const on = await setHuddleRecording(channelId, !isRecording);
+      setIsRecording(on);
+      setNotice(on ? 'Recording started. Everyone sees the REC sign.' : 'Recording stopped. It will be ready in a few minutes under Recordings.');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Could not change the recording.');
+    } finally {
+      setRecordBusy(false);
+    }
+  }, [channelId, isRecording]);
+
   const sendReady = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
@@ -2023,7 +2050,13 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   <p className="pr-room-title">{title}</p>
                   <p className="pr-room-sub">{prayerWatch ? 'Prayer call • Voice only' : 'Audio Prayer Room • Main Room'}</p>
                 </div>
-                {connected ? <span className="pr-live"><i aria-hidden /> LIVE</span> : null}
+                {connected && isRecording ? (
+                  <span className="pr-rec" role="status" aria-label="This prayer is being recorded">
+                    <i aria-hidden /> REC
+                  </span>
+                ) : connected ? (
+                  <span className="pr-live"><i aria-hidden /> LIVE</span>
+                ) : null}
                 {connected ? (
                   <span className="pr-count" aria-label={`${peopleCount} in the room`}>
                     <Users aria-hidden /> {peopleCount}
@@ -2345,6 +2378,22 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                             <HandHeart size={17} aria-hidden /> <span>Prayer Request</span>
                           </button>
                         ) : null}
+                        {connected && canModerate ? (
+                          <button
+                            type="button"
+                            onClick={() => void toggleRecording()}
+                            disabled={recordBusy}
+                            className={`pr-tool ${isRecording ? 'is-recording' : ''}`}
+                            aria-pressed={isRecording}
+                            data-testid="huddle-record-toggle"
+                          >
+                            {recordBusy ? <Loader2 size={17} className="animate-spin" aria-hidden /> : <CircleDot size={17} aria-hidden />}
+                            <span>{isRecording ? 'Stop recording' : 'Record'}</span>
+                          </button>
+                        ) : null}
+                        <button type="button" onClick={() => setRecordingsOpen(true)} className="pr-tool" title="Past recordings">
+                          <Disc size={17} aria-hidden /> <span>Recordings</span>
+                        </button>
                         {!prayerWatch ? (
                           <button type="button" onClick={() => setActiveTab('chat')} className="pr-tool relative" title="Room chat">
                             <MessageCircle size={17} aria-hidden /> <span>Chat</span>
@@ -2593,6 +2642,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         </div>
 
         {sheet === 'prayer' ? <PrayerRequestSheet onClose={() => setSheet(null)} roomName={title} /> : null}
+        {recordingsOpen ? (
+          <HuddleRecordingsSheet channelId={channelId} roomName={title} canDelete={canModerate} onClose={() => setRecordingsOpen(false)} />
+        ) : null}
         {sheet === 'guidelines' ? <GuidelinesSheet onClose={() => setSheet(null)} /> : null}
 
         {bibleSheetOpen ? (

@@ -442,3 +442,8 @@
   /* Computers already show People in the side panel. */
   .pr-rail { display: none; }
 }
+
+/* #14 recording: REC badge (everyone) and the moderator Record button */
+.pr-rec { display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; padding: 0.22rem 0.6rem; border-radius: 9999px; background: #b3261e; color: #fff; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.06em; }
+.pr-rec i { width: 8px; height: 8px; border-radius: 9999px; background: #fff; animation: pr-pulse 1.4s ease-in-out infinite; }
+.pr-tool.is-recording { background: #b3261e; border-color: #b3261e; color: #fff; }

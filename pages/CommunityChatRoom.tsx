@@ -43,6 +43,8 @@ import { CardPickerSheet } from '../components/chat/CardPickerSheet';
 import { PollComposerSheet } from '../components/chat/PollComposerSheet';
 import { dmDisplayName } from '../lib/dmRecents';
 import { useActiveKaLink } from '../context/ActiveKaLinkContext';
+import { HuddleRecordingsSheet } from '../components/huddle/HuddleRecordingsSheet';
+import { listHuddleRecordings } from '../lib/communityChatClient';
 import { Button } from '../components/ui/Button';
 import { parseHuddleIntent } from '../lib/liveHuddles';
 import { fetchIntercessorsAccess } from '../lib/intercessorsClient';
@@ -106,6 +108,9 @@ export const CommunityChatRoomPage: React.FC = () => {
   /** The call itself lives in the app-level Ka Link provider so Back/navigation never hangs up. */
   const { active: activeKaLink, openKaLink } = useActiveKaLink();
   const huddleOpen = activeKaLink?.channelId === channelId;
+  /** #14: this room's past Ka Link recordings (chip shows only when there are some). */
+  const [recordingCount, setRecordingCount] = useState(0);
+  const [recordingsOpen, setRecordingsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const validChannel = UUID_RE.test(channelId);
   /** Arrived from Home "Live Huddles": show a one-tap card (the tap is what lets the mic start). */
@@ -768,6 +773,19 @@ export const CommunityChatRoomPage: React.FC = () => {
 
   const currentPin = pins.length ? pins[Math.min(pinIndex, pins.length - 1)] : null;
 
+  useEffect(() => {
+    if (isDm || !validChannel) return;
+    let cancelled = false;
+    listHuddleRecordings(channelId)
+      .then((r) => {
+        if (!cancelled) setRecordingCount(r.recordings.length);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [channelId, isDm, validChannel, huddleOpen]);
+
   // Call ended (left, or ended for everyone): refresh this room's LIVE status.
   const wasHuddleOpenRef = useRef(huddleOpen);
   useEffect(() => {
@@ -1041,6 +1059,23 @@ export const CommunityChatRoomPage: React.FC = () => {
             </span>
           </button>
         </div>
+      ) : null}
+
+      {recordingCount > 0 && !isDm ? (
+        <div className="mb-3 -mt-1">
+          <button
+            type="button"
+            onClick={() => setRecordingsOpen(true)}
+            className="inline-flex items-center gap-2 min-h-[36px] px-3 rounded-full bg-white border border-black/10 text-xs font-bold text-burgundy shadow-sm"
+            data-testid="room-recordings-chip"
+          >
+            <span className="w-2 h-2 rounded-full bg-burgundy" aria-hidden />
+            Recordings ({recordingCount})
+          </button>
+        </div>
+      ) : null}
+      {recordingsOpen ? (
+        <HuddleRecordingsSheet channelId={channelId} roomName={roomTitle} canDelete={false} onClose={() => setRecordingsOpen(false)} />
       ) : null}
 
       <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar pb-4">

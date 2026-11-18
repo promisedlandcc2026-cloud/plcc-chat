@@ -939,3 +939,52 @@ export async function moderateHuddle(
     readerIds: Array.isArray(b.readerIds) ? b.readerIds.filter((id: unknown) => typeof id === 'string') : [],
   };
 }
+
+
+/* ---------------- #14 Ka Link recordings ---------------- */
+
+export type KaLinkRecording = {
+  id: string;
+  channelName: string | null;
+  status: 'recording' | 'processing' | 'ready';
+  startedAt: string | null;
+  endedAt: string | null;
+  durationSeconds: number | null;
+  startedByName: string | null;
+};
+
+async function recordingCall(body: Record<string, unknown>): Promise<any> {
+  const res = await authedFetch('/api/community-chat?resource=huddle-recording', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const b = (await res.json().catch(() => ({}))) as any;
+  if (!res.ok || b?.ok !== true) {
+    throw new CommunityChatError(
+      res.status === 403 ? 'forbidden' : 'moderate_failed',
+      typeof b?.message === 'string' && b.message ? b.message : 'That did not work. Please try again.',
+      res.status
+    );
+  }
+  return b;
+}
+
+export async function setHuddleRecording(channelId: string, on: boolean): Promise<boolean> {
+  const b = await recordingCall({ channelId, action: on ? 'start' : 'stop' });
+  return b.recording === true;
+}
+
+export async function listHuddleRecordings(channelId: string): Promise<{ configured: boolean; recordings: KaLinkRecording[] }> {
+  const b = await recordingCall({ channelId, action: 'list' });
+  return { configured: b.configured === true, recordings: Array.isArray(b.recordings) ? b.recordings : [] };
+}
+
+export async function getHuddleRecordingUrl(channelId: string, recordingId: string): Promise<string> {
+  const b = await recordingCall({ channelId, action: 'play', recordingId });
+  return String(b.url);
+}
+
+export async function deleteHuddleRecording(channelId: string, recordingId: string): Promise<void> {
+  await recordingCall({ channelId, action: 'delete', recordingId });
+}

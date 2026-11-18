@@ -46,6 +46,9 @@ import {
   sanitizeDmList,
   sanitizeArchives,
   parseHuddleModerateCommand,
+  parseHuddleRecordingCommand,
+  sanitizeRecordingList,
+  sanitizeRecordingUrl,
 } from './_utils/communityChatSanitize.js';
 import {
   buildVaultCommunityChatChannelsUrl,
@@ -96,6 +99,7 @@ const ALLOWED_RESOURCES = new Set([
   'huddle-daily-token',
   'huddle-can-start',
   'huddle-moderate',
+  'huddle-recording',
   'attachment-upload-url',
   'attachment-confirm',
   'message-delete',
@@ -1166,6 +1170,50 @@ export default async function handler(req, res) {
       const parsed = parseVaultReadReceipts(await upstream.json().catch(() => null));
       if (!parsed.ok) return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Could not load read receipts.' });
       return json(res, 200, { ok: true, readers: parsed.readers });
+    }
+
+    if (resource === 'huddle-recording') {
+      // #14 recordings. Canaan checks room access (list/play) and moderator rights (start/stop/delete).
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
+      }
+      const parsedBody = parseJsonBody(req);
+      const command = parseHuddleRecordingCommand(parsedBody.ok ? parsedBody.body : null);
+      if (!command) {
+        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That request was not valid.' });
+      }
+      const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'voice-recording'), {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${auth.token}`,
+        },
+        body: JSON.stringify(command),
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      const body = await upstream.json().catch(() => null);
+      if (!upstream.ok) {
+        if ([400, 403, 404, 502, 503].includes(upstream.status) && typeof body?.error === 'string') {
+          return json(res, upstream.status, {
+            ok: false,
+            code: body?.setupNeeded ? 'not_set_up' : upstream.status === 403 ? 'forbidden' : 'recording_failed',
+            message: body.error.replace(/[\u0000-\u001f]/g, ' ').slice(0, 200),
+          });
+        }
+        return mapUpstreamError(res, upstream.status, 'Only Ka Link moderators can do that.');
+      }
+      if (command.action === 'list') {
+        return json(res, 200, { ok: true, configured: body?.configured === true, recordings: sanitizeRecordingList(body?.recordings) });
+      }
+      if (command.action === 'play') {
+        const url = sanitizeRecordingUrl(body?.url);
+        if (!url) return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'The recording link was not valid.' });
+        return json(res, 200, { ok: true, url });
+      }
+      return json(res, 200, { ok: true, recording: body?.recording === true });
     }
 
     if (resource === 'huddle-moderate') {
