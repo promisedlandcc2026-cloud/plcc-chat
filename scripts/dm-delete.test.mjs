@@ -34,10 +34,42 @@ describe('DM delete', () => {
 describe('DM swipe hint', () => {
   it('peeks once and shows a dismissible tip', () => {
     const page = read('pages/CommunityChat.tsx');
-    assert.match(page, /swipe a chat left to delete it/);
+    assert.match(page, /swipe a chat left to archive or delete it/);
     assert.match(page, /Got it/);
     assert.match(page, /peek=\{touch && peekPending/);
     const swipe = read('components/chat/SwipeToDelete.tsx');
     assert.match(swipe, /prefers-reduced-motion/);
+  });
+});
+
+import { parseDmBlockCommand, parseDmReportCommand, sanitizeDmList } from '../api/_utils/communityChatSanitize.js';
+const CID = '11111111-1111-4111-8111-111111111111';
+const PID = '22222222-2222-4222-8222-222222222222';
+
+describe('DM block + report', () => {
+  it('block takes only channelId + boolean', () => {
+    assert.deepEqual(parseDmBlockCommand({ channelId: CID, blocked: true }), { channelId: CID, blocked: true });
+    assert.equal(parseDmBlockCommand({ channelId: CID, blocked: 'yes' }), null);
+    assert.equal(parseDmBlockCommand({ channelId: CID, blocked: true, userId: PID }), null);
+  });
+  it('report needs a known reason and a short note', () => {
+    assert.deepEqual(parseDmReportCommand({ channelId: CID, reason: 'money', note: ' sent 50k ', block: true }), {
+      channelId: CID, reason: 'money', note: 'sent 50k', block: true,
+    });
+    assert.equal(parseDmReportCommand({ channelId: CID, reason: 'nope' }), null);
+    assert.equal(parseDmReportCommand({ channelId: CID, reason: 'spam', note: 'x'.repeat(501) }), null);
+  });
+  it('dm list carries the blocked flag', () => {
+    const [row] = sanitizeDmList({ conversations: [{ channelId: CID, partnerId: PID, partnerName: 'Joy', blocked: true }] });
+    assert.equal(row.blocked, true);
+  });
+  it('UI: swipe tray archives, menu blocks and reports', () => {
+    const page = read('pages/CommunityChat.tsx');
+    assert.match(page, /onArchive=\{\(\) => archiveFromSwipe/);
+    assert.match(page, /Report to church leaders/);
+    assert.match(page, /Block and report/);
+    assert.match(page, / · Blocked/);
+    assert.match(read('components/chat/SwipeToDelete.tsx'), /bg-slate-500/);
+    assert.match(read('api/community-chat.js'), /denied\?\.code === 'blocked'/);
   });
 });

@@ -214,12 +214,15 @@ export async function sendChatMessage(
   });
   if (!res.ok) {
     const mapped = mapStatus(res.status);
-    throw new CommunityChatError(
-      mapped.code,
-      mapped.message,
-      res.status,
-      res.status === 401
-    );
+    // A blocked DM (or an announcements room) says why, instead of "no access".
+    let message = mapped.message;
+    if (res.status === 403) {
+      const denied = (await res.json().catch(() => null)) as { code?: string; message?: string } | null;
+      if ((denied?.code === 'blocked' || denied?.code === 'announce_only') && typeof denied.message === 'string') {
+        message = denied.message;
+      }
+    }
+    throw new CommunityChatError(mapped.code, message, res.status, res.status === 401);
   }
   const body = (await res.json()) as {
     ok?: boolean;
@@ -327,6 +330,8 @@ export type ChatDmConversation = {
   partnerName: string;
   lastMessageAt: string | null;
   lastMessage: string | null;
+  /** You blocked this person. */
+  blocked?: boolean;
 };
 
 /** Your direct conversations, from the Vault (same on every device). null if unavailable. */
@@ -356,6 +361,18 @@ export async function setChatArchived(channelId: string, archived: boolean): Pro
 /** "Delete chat" for a direct message — only for you; it comes back if someone writes again. */
 export async function deleteDmChat(channelId: string): Promise<void> {
   await postJson('dm-delete', { channelId }, 'Could not delete this chat.');
+}
+
+/** Block (or unblock) the other person in a direct message. */
+export async function setDmBlocked(channelId: string, blocked: boolean): Promise<void> {
+  await postJson('dm-block', { channelId, blocked }, blocked ? 'Could not block this person.' : 'Could not unblock this person.');
+}
+
+export type DmReportReason = 'spam' | 'money' | 'impersonation' | 'harassment' | 'inappropriate' | 'other';
+
+/** Report a private conversation to church leaders (recent messages are attached by the server). */
+export async function reportDm(channelId: string, reason: DmReportReason, note: string, block: boolean): Promise<void> {
+  await postJson('dm-report', { channelId, reason, note: note.trim().slice(0, 500), block }, 'Could not send that report.');
 }
 
 export async function fetchGroupMembers(channelId: string): Promise<ChatPerson[]> {

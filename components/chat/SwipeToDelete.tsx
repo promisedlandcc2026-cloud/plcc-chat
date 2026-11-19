@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 
-/** Width of the red Delete button revealed behind the row. */
-const ACTION_WIDTH = 88;
-/** Drag past this to snap open (otherwise it springs back). */
-const OPEN_THRESHOLD = 44;
+/** Width of each button revealed behind the row. */
+const BUTTON_WIDTH = 80;
 /** Movement before we decide if it's a sideways swipe or a scroll. */
 const LOCK_DISTANCE = 8;
 
@@ -12,6 +10,9 @@ type Props = {
   /** Shown to screen readers on the Delete button. */
   label: string;
   onDelete: () => void;
+  /** Adds a gray Archive (or Unarchive) button beside Delete. */
+  onArchive?: () => void;
+  archived?: boolean;
   /** Only one row should be open at a time. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -25,7 +26,19 @@ type Props = {
  * Swipe a row left to reveal a red Delete button (like Messages / WhatsApp).
  * Vertical scrolling still works; a tap on an open row just closes it.
  */
-export const SwipeToDelete: React.FC<Props> = ({ label, onDelete, open, onOpenChange, peek, onPeekDone, children }) => {
+export const SwipeToDelete: React.FC<Props> = ({
+  label,
+  onDelete,
+  onArchive,
+  archived,
+  open,
+  onOpenChange,
+  peek,
+  onPeekDone,
+  children,
+}) => {
+  const ACTION_WIDTH = BUTTON_WIDTH * (onArchive ? 2 : 1);
+  const OPEN_THRESHOLD = ACTION_WIDTH / 2;
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const g = useRef<{ x: number; y: number; base: number; axis: 'x' | 'y' | null; moved: boolean }>({
@@ -51,7 +64,7 @@ export const SwipeToDelete: React.FC<Props> = ({ label, onDelete, open, onOpenCh
     }
     const t1 = window.setTimeout(() => {
       setPeeking(true);
-      setDx(-ACTION_WIDTH * 0.75);
+      setDx(-Math.min(ACTION_WIDTH * 0.75, 120));
     }, 700);
     const t2 = window.setTimeout(() => setDx(0), 1700);
     const t3 = window.setTimeout(() => {
@@ -118,6 +131,21 @@ export const SwipeToDelete: React.FC<Props> = ({ label, onDelete, open, onOpenCh
         style={{ width: ACTION_WIDTH, opacity: reveal }}
         aria-hidden={!open}
       >
+        {onArchive ? (
+          <button
+            type="button"
+            tabIndex={open ? 0 : -1}
+            onClick={() => {
+              onOpenChange(false);
+              onArchive();
+            }}
+            className="flex-1 flex flex-col items-center justify-center gap-1 bg-slate-500 text-white text-xs font-bold active:bg-slate-600"
+            aria-label={`${archived ? 'Unarchive' : 'Archive'} chat with ${label}`}
+          >
+            {archived ? <ArchiveRestore size={18} aria-hidden /> : <Archive size={18} aria-hidden />}
+            {archived ? 'Unarchive' : 'Archive'}
+          </button>
+        ) : null}
         <button
           type="button"
           tabIndex={open ? 0 : -1}
