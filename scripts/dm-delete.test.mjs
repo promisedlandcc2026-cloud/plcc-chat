@@ -67,7 +67,7 @@ describe('DM block + report', () => {
     const page = read('pages/CommunityChat.tsx');
     assert.match(page, /onArchive=\{\(\) => archiveFromSwipe/);
     assert.match(page, /Report to church leaders/);
-    assert.match(page, /Block and report/);
+    assert.match(read('components/chat/DmSafetySheets.tsx'), /Block and report/);
     assert.match(page, / · Blocked/);
     assert.match(read('components/chat/SwipeToDelete.tsx'), /bg-slate-500/);
     assert.match(read('api/community-chat.js'), /denied\?\.code === 'blocked'/);
