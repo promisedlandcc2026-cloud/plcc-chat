@@ -4,6 +4,7 @@ import {
   Archive,
   ArchiveRestore,
   ChevronDown,
+  ChevronsLeft,
   Church,
   HandHeart,
   Lock,
@@ -40,6 +41,13 @@ import {
 import { HuddleLiveBadge } from '../components/huddle/HuddleLiveDot';
 import { dmDisplayName, forgetDmRecent, listDmRecents, rememberDmRecent, replaceDmRecents } from '../lib/dmRecents';
 import { SwipeToDelete } from '../components/chat/SwipeToDelete';
+import {
+  dismissSwipeTip,
+  hasDismissedSwipeTip,
+  hasSeenSwipePeek,
+  isTouchDevice,
+  markSwipePeekSeen,
+} from '../lib/dmSwipeHint';
 import { Button } from '../components/ui/Button';
 import { MemberPageHeader } from '../components/member/MemberPageHeader';
 import { ChatAlertsCard } from '../components/chat/ChatAlertsCard';
@@ -115,6 +123,14 @@ export const CommunityChatPage: React.FC = () => {
   const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  /** First-time hints that chats can be swiped left to delete. */
+  const [touch] = useState(isTouchDevice);
+  const [peekPending, setPeekPending] = useState(() => !hasSeenSwipePeek());
+  const [showSwipeTip, setShowSwipeTip] = useState(() => !hasDismissedSwipeTip());
+  const hideSwipeTip = () => {
+    dismissSwipeTip();
+    setShowSwipeTip(false);
+  };
   const longPress = React.useRef<{ timer: number | null; fired: boolean }>({ timer: null, fired: false });
   const location = useLocation();
   /** Search messages across every room you're in. */
@@ -445,7 +461,15 @@ export const CommunityChatPage: React.FC = () => {
           <SwipeToDelete
             label={title}
             open={swipeOpenId === channel.id}
-            onOpenChange={(o) => setSwipeOpenId(o ? channel.id : swipeOpenId === channel.id ? null : swipeOpenId)}
+            onOpenChange={(o) => {
+              setSwipeOpenId(o ? channel.id : swipeOpenId === channel.id ? null : swipeOpenId);
+              if (o && showSwipeTip) hideSwipeTip(); // they found it
+            }}
+            peek={touch && peekPending && activeTab === 'messages' && activeDms[0]?.channelId === channel.id}
+            onPeekDone={() => {
+              markSwipePeekSeen();
+              setPeekPending(false);
+            }}
             onDelete={() => setConfirmDelete({ id: channel.id, title })}
           >
             {row}
@@ -727,6 +751,26 @@ export const CommunityChatPage: React.FC = () => {
                   No private messages yet. Tap New message to write to a member.
                 </div>
               ) : (
+                <>
+                {showSwipeTip ? (
+                  <div className="mb-2 flex items-center gap-3 rounded-2xl bg-burgundy/5 border border-burgundy/10 pl-4 pr-1 py-1">
+                    <span className="text-burgundy shrink-0 inline-flex" aria-hidden>
+                      <ChevronsLeft size={18} className="animate-pulse" />
+                    </span>
+                    <p className="flex-1 text-xs text-gray-600 leading-snug">
+                      {touch
+                        ? 'Tip: swipe a chat left to delete it, or press and hold for more options.'
+                        : 'Tip: right-click a chat to delete or archive it.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={hideSwipeTip}
+                      className="shrink-0 min-h-[40px] px-3 rounded-xl text-xs font-bold text-burgundy active:bg-burgundy/10"
+                    >
+                      Got it
+                    </button>
+                  </div>
+                ) : null}
                 <ul className="space-y-2">
                   {activeDms.map((dm) =>
                     renderChannelRow(
@@ -743,6 +787,7 @@ export const CommunityChatPage: React.FC = () => {
                     )
                   )}
                 </ul>
+                </>
               )}
             </section>
           ) : null}

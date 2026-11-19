@@ -15,6 +15,9 @@ type Props = {
   /** Only one row should be open at a time. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Briefly slide open and back to show members the row can be swiped. */
+  peek?: boolean;
+  onPeekDone?: () => void;
   children: React.ReactNode;
 };
 
@@ -22,7 +25,7 @@ type Props = {
  * Swipe a row left to reveal a red Delete button (like Messages / WhatsApp).
  * Vertical scrolling still works; a tap on an open row just closes it.
  */
-export const SwipeToDelete: React.FC<Props> = ({ label, onDelete, open, onOpenChange, children }) => {
+export const SwipeToDelete: React.FC<Props> = ({ label, onDelete, open, onOpenChange, peek, onPeekDone, children }) => {
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const g = useRef<{ x: number; y: number; base: number; axis: 'x' | 'y' | null; moved: boolean }>({
@@ -36,6 +39,32 @@ export const SwipeToDelete: React.FC<Props> = ({ label, onDelete, open, onOpenCh
   useEffect(() => {
     if (!dragging) setDx(open ? -ACTION_WIDTH : 0);
   }, [open, dragging]);
+
+  // The hint: a gentle slide to show the red Delete, then back.
+  const [peeking, setPeeking] = useState(false);
+  useEffect(() => {
+    if (!peek) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      onPeekDone?.();
+      return;
+    }
+    const t1 = window.setTimeout(() => {
+      setPeeking(true);
+      setDx(-ACTION_WIDTH * 0.75);
+    }, 700);
+    const t2 = window.setTimeout(() => setDx(0), 1700);
+    const t3 = window.setTimeout(() => {
+      setPeeking(false);
+      onPeekDone?.();
+    }, 2100);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peek]);
 
   const onTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0];
@@ -111,7 +140,7 @@ export const SwipeToDelete: React.FC<Props> = ({ label, onDelete, open, onOpenCh
         onClickCapture={onClickCapture}
         style={{
           transform: `translate3d(${dx}px,0,0)`,
-          transition: dragging ? 'none' : 'transform 220ms cubic-bezier(.2,.8,.2,1)',
+          transition: dragging ? 'none' : peeking ? 'transform 420ms cubic-bezier(.3,.7,.2,1)' : 'transform 220ms cubic-bezier(.2,.8,.2,1)',
           touchAction: 'pan-y',
         }}
         className="relative"

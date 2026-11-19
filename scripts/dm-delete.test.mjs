@@ -30,3 +30,14 @@ describe('DM delete', () => {
     assert.match(swipe, /touchAction: 'pan-y'/);
   });
 });
+
+describe('DM swipe hint', () => {
+  it('peeks once and shows a dismissible tip', () => {
+    const page = read('pages/CommunityChat.tsx');
+    assert.match(page, /swipe a chat left to delete it/);
+    assert.match(page, /Got it/);
+    assert.match(page, /peek=\{touch && peekPending/);
+    const swipe = read('components/chat/SwipeToDelete.tsx');
+    assert.match(swipe, /prefers-reduced-motion/);
+  });
+});
