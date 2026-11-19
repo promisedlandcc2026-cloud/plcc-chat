@@ -1,3 +1,4 @@
+import { AppCrashBoundary } from '../components/routing/AppCrashBoundary.jsx';
 import React, { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Radio, X } from 'lucide-react';
@@ -60,7 +61,8 @@ function writeStoredSession(session: KaLinkSession | null) {
 }
 
 export const ActiveKaLinkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const userLabel = user ? String(user.phone || user.email || user.id || '') : null;
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -151,6 +153,7 @@ export const ActiveKaLinkProvider: React.FC<{ children: React.ReactNode }> = ({ 
     <ActiveKaLinkContext.Provider value={value}>
       {children}
       {active && isAuthenticated ? (
+        <AppCrashBoundary key={`crash-${active.key}`} area="call" identifier={userLabel} onCloseCall={closeKaLink}>
         <Suspense fallback={null}>
         <ConnectVoiceHuddle
           key={active.key}
@@ -163,6 +166,7 @@ export const ActiveKaLinkProvider: React.FC<{ children: React.ReactNode }> = ({ 
           onClose={closeKaLink}
         />
         </Suspense>
+        </AppCrashBoundary>
       ) : null}
       {!active && rejoinOffer && isAuthenticated ? (
         <div className="pr-mini" role="region" aria-label="Rejoin Ka Link">

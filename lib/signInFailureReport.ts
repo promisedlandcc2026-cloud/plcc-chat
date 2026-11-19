@@ -15,7 +15,9 @@ export type SignInFailureReason =
   | 'email_code_wrong'
   | 'member_pending'
   | 'member_not_found'
-  | 'member_check_failed';
+  | 'member_check_failed'
+  /** The app crashed on this phone (detail = error message, page and app area). */
+  | 'app_crash';
 
 type Report = {
   method: 'phone' | 'email' | 'session';

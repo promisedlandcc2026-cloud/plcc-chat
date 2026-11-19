@@ -1,7 +1,8 @@
 import React, { lazy, useEffect } from 'react';
 import { flushSignInFailureReports } from './lib/signInFailureReport';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AppCrashBoundary } from './components/routing/AppCrashBoundary.jsx';
 import { HuddleLiveProvider } from './context/HuddleLiveContext';
 import { ActiveKaLinkProvider } from './context/ActiveKaLinkContext';
 import { MemberGate } from './components/auth/MemberGate';
@@ -119,17 +120,26 @@ function useFlushSignInReports() {
   }, []);
 }
 
+/** Never a blank screen: any crash outside the page-level boundaries shows Reload / Start fresh. */
+const CrashGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  const who = user ? String(user.phone || user.email || user.id || '') : null;
+  return <AppCrashBoundary identifier={who}>{children}</AppCrashBoundary>;
+};
+
 const App: React.FC = () => {
   useFlushSignInReports();
   return (
   <BrowserRouter>
     <AuthProvider>
-      <HuddleLiveProvider>
-        {/* Holds the live call above the routes, so Back / page changes never hang up. */}
-        <ActiveKaLinkProvider>
-          <AppShell />
-        </ActiveKaLinkProvider>
-      </HuddleLiveProvider>
+      <CrashGuard>
+        <HuddleLiveProvider>
+          {/* Holds the live call above the routes, so Back / page changes never hang up. */}
+          <ActiveKaLinkProvider>
+            <AppShell />
+          </ActiveKaLinkProvider>
+        </HuddleLiveProvider>
+      </CrashGuard>
     </AuthProvider>
   </BrowserRouter>
   );
