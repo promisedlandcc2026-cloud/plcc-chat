@@ -73,3 +73,16 @@ describe('DM block + report', () => {
     assert.match(read('api/community-chat.js'), /denied\?\.code === 'blocked'/);
   });
 });
+
+describe('DM safety inside the chat', () => {
+  it('open DM has a ⋯ menu with Block and Report, sharing the list sheets', () => {
+    const room = read('pages/CommunityChatRoom.tsx');
+    assert.match(room, /More options for \$\{roomTitle\}/);
+    assert.match(room, /<DmBlockSheet/);
+    assert.match(room, /<DmReportSheet/);
+    assert.match(room, /You blocked \{roomTitle\}\. They can’t message you\./);
+    const list = read('pages/CommunityChat.tsx');
+    assert.match(list, /<DmBlockSheet/);
+    assert.match(list, /<DmReportSheet/);
+  });
+});

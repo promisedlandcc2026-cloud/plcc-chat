@@ -43,6 +43,7 @@ import {
 import { HuddleLiveBadge } from '../components/huddle/HuddleLiveDot';
 import { dmDisplayName, forgetDmRecent, listDmRecents, rememberDmRecent, replaceDmRecents } from '../lib/dmRecents';
 import { SwipeToDelete } from '../components/chat/SwipeToDelete';
+import { DmBlockSheet, DmReportSheet } from '../components/chat/DmSafetySheets';
 import {
   dismissSwipeTip,
   hasDismissedSwipeTip,
@@ -61,11 +62,9 @@ import {
   deleteDmChat,
   fetchArchivedChatIds,
   fetchDmList,
-  reportDm,
   searchChatMessages,
   setChatArchived,
   setDmBlocked,
-  type DmReportReason,
 } from '../lib/communityChatClient';
 import { Portal } from '../components/chat/Portal';
 import type { ChatSearchHit } from '../lib/communityChatTypes';
@@ -138,11 +137,7 @@ export const CommunityChatPage: React.FC = () => {
   const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
   const [confirmBlock, setConfirmBlock] = useState<{ id: string; title: string } | null>(null);
   const [reportFor, setReportFor] = useState<{ id: string; title: string } | null>(null);
-  const [reportReason, setReportReason] = useState<DmReportReason | null>(null);
-  const [reportNote, setReportNote] = useState('');
-  const [reportAlsoBlock, setReportAlsoBlock] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [sheetError, setSheetError] = useState<string | null>(null);
   /** First-time hints that chats can be swiped left to delete. */
   const [touch] = useState(isTouchDevice);
   const [peekPending, setPeekPending] = useState(() => !hasSeenSwipePeek());
@@ -412,7 +407,6 @@ export const CommunityChatPage: React.FC = () => {
   const changeBlock = async (id: string, title: string, on: boolean) => {
     if (busy) return;
     setBusy(true);
-    setSheetError(null);
     try {
       await setDmBlocked(id, on);
       markBlocked(id, on);
@@ -420,8 +414,7 @@ export const CommunityChatPage: React.FC = () => {
       setRowMenu(null);
       flash(on ? `${title} is blocked. They can’t message you.` : `${title} is unblocked.`);
     } catch (err) {
-      setSheetError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-      if (!on) flash(err instanceof Error ? err.message : 'Could not unblock.', 6000);
+      flash(err instanceof Error ? err.message : 'Something went wrong. Please try again.', 6000);
     } finally {
       setBusy(false);
     }
@@ -430,32 +423,7 @@ export const CommunityChatPage: React.FC = () => {
   const openReport = (target: { id: string; title: string }) => {
     setRowMenu(null);
     setConfirmBlock(null);
-    setReportReason(null);
-    setReportNote('');
-    setReportAlsoBlock(!blockedIds.has(target.id));
-    setSheetError(null);
     setReportFor(target);
-  };
-
-  const sendReport = async () => {
-    if (!reportFor || !reportReason || busy) return;
-    setBusy(true);
-    setSheetError(null);
-    try {
-      await reportDm(reportFor.id, reportReason, reportNote, reportAlsoBlock);
-      if (reportAlsoBlock) markBlocked(reportFor.id, true);
-      flash(
-        reportAlsoBlock
-          ? `Report sent to church leaders, and ${reportFor.title} is blocked. Thank you.`
-          : 'Report sent to church leaders. Thank you.',
-        6000
-      );
-      setReportFor(null);
-    } catch (err) {
-      setSheetError(err instanceof Error ? err.message : 'Could not send that report. Please try again.');
-    } finally {
-      setBusy(false);
-    }
   };
 
   const archiveFromSwipe = (id: string, title: string) => {
@@ -1014,7 +982,6 @@ export const CommunityChatPage: React.FC = () => {
                       onClick={() => {
                         const target = rowMenu;
                         setRowMenu(null);
-                        setSheetError(null);
                         setConfirmBlock(target);
                       }}
                       className="w-full min-h-[56px] flex items-center gap-4 px-4 text-base font-semibold text-rose-600 rounded-2xl active:bg-rose-50 hover:bg-rose-50"
@@ -1040,162 +1007,34 @@ export const CommunityChatPage: React.FC = () => {
       ) : null}
 
       {confirmBlock ? (
-        <Portal>
-          <div
-            className="fixed inset-0 z-50 bg-black/40 flex items-end lg:items-center justify-center"
-            onClick={() => !busy && setConfirmBlock(null)}
-          >
-            <div
-              className="w-full max-w-[500px] lg:max-w-[400px] bg-white rounded-t-3xl lg:rounded-3xl shadow-2xl px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
-              onClick={(e) => e.stopPropagation()}
-              role="alertdialog"
-              aria-modal="true"
-              aria-labelledby="dm-block-title"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
-                <Ban size={22} aria-hidden />
-              </div>
-              <h2 id="dm-block-title" className="text-lg font-bold text-[#1A1A1A]">
-                Block {confirmBlock.title}?
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                They won’t be able to send you private messages, and they aren’t told you blocked them. You can unblock any time from this menu.
-              </p>
-              {sheetError ? <p className="mt-3 text-sm text-rose-700" role="alert">{sheetError}</p> : null}
-              <div className="mt-5 grid gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void changeBlock(confirmBlock.id, confirmBlock.title, true)}
-                  className="w-full min-h-[52px] rounded-2xl bg-rose-600 text-white text-base font-bold inline-flex items-center justify-center gap-2 active:bg-rose-700 disabled:opacity-60"
-                >
-                  {busy ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Ban size={18} aria-hidden />}
-                  {busy ? 'Blocking…' : 'Block'}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => openReport(confirmBlock)}
-                  className="w-full min-h-[52px] rounded-2xl border border-rose-200 text-rose-700 text-base font-bold inline-flex items-center justify-center gap-2 active:bg-rose-50"
-                >
-                  <Flag size={18} aria-hidden /> Block and report
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setConfirmBlock(null)}
-                  className="w-full min-h-[52px] rounded-2xl bg-gray-100 text-[#1A1A1A] text-base font-bold active:bg-gray-200"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </Portal>
+        <DmBlockSheet
+          target={confirmBlock}
+          onClose={() => setConfirmBlock(null)}
+          onBlocked={() => {
+            markBlocked(confirmBlock.id, true);
+            flash(`${confirmBlock.title} is blocked. They can’t message you.`);
+            setConfirmBlock(null);
+          }}
+          onReportInstead={() => openReport(confirmBlock)}
+        />
       ) : null}
 
       {reportFor ? (
-        <Portal>
-          <div
-            className="fixed inset-0 z-50 bg-black/40 flex items-end lg:items-center justify-center"
-            onClick={() => !busy && setReportFor(null)}
-          >
-            <div
-              className="w-full max-w-[500px] lg:max-w-[440px] max-h-[90dvh] overflow-y-auto bg-white rounded-t-3xl lg:rounded-3xl shadow-2xl px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="dm-report-title"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 id="dm-report-title" className="text-lg font-bold text-[#1A1A1A]">
-                    Report {reportFor.title}
-                  </h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Church leaders get your report with the recent messages from this chat. {reportFor.title} isn’t told.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => !busy && setReportFor(null)}
-                  className="min-h-[44px] min-w-[44px] -mr-2 -mt-2 rounded-full flex items-center justify-center text-gray-500"
-                  aria-label="Close"
-                >
-                  <X size={20} aria-hidden />
-                </button>
-              </div>
-              <fieldset className="mt-4">
-                <legend className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">What’s happening?</legend>
-                <div className="grid gap-2">
-                  {(
-                    [
-                      ['money', 'Asking for money, mobile money or a PIN'],
-                      ['impersonation', 'Pretending to be the Apostle, a pastor or a leader'],
-                      ['spam', 'Scam, fake link or spam'],
-                      ['harassment', 'Harassment, bullying or threats'],
-                      ['inappropriate', 'Inappropriate or sexual messages'],
-                      ['other', 'Something else'],
-                    ] as Array<[DmReportReason, string]>
-                  ).map(([value, text]) => (
-                    <label
-                      key={value}
-                      className={`flex items-center gap-3 min-h-[52px] px-4 rounded-2xl border cursor-pointer text-sm font-semibold ${
-                        reportReason === value ? 'border-rose-400 bg-rose-50 text-rose-800' : 'border-gray-200 text-[#1A1A1A]'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="dm-report-reason"
-                        value={value}
-                        checked={reportReason === value}
-                        onChange={() => setReportReason(value)}
-                        className="accent-rose-600 w-4 h-4"
-                      />
-                      {text}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <label className="block mt-4">
-                <span className="text-xs font-black uppercase tracking-widest text-gray-500">Anything else? (optional)</span>
-                <textarea
-                  value={reportNote}
-                  onChange={(e) => setReportNote(e.target.value.slice(0, 500))}
-                  rows={3}
-                  placeholder="e.g. They asked me to send 50,000 UGX by MTN."
-                  className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 text-base focus:outline-none focus:border-burgundy/50"
-                />
-              </label>
-              {!blockedIds.has(reportFor.id) ? (
-                <label className="mt-3 flex items-center gap-3 min-h-[48px] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={reportAlsoBlock}
-                    onChange={(e) => setReportAlsoBlock(e.target.checked)}
-                    className="accent-rose-600 w-5 h-5"
-                  />
-                  <span className="text-sm font-semibold text-[#1A1A1A]">Also block {reportFor.title}</span>
-                </label>
-              ) : null}
-              {sheetError ? <p className="mt-3 text-sm text-rose-700" role="alert">{sheetError}</p> : null}
-              <div className="mt-4 grid gap-2">
-                <button
-                  type="button"
-                  disabled={busy || !reportReason}
-                  onClick={() => void sendReport()}
-                  className="w-full min-h-[52px] rounded-2xl bg-rose-600 text-white text-base font-bold inline-flex items-center justify-center gap-2 active:bg-rose-700 disabled:opacity-50"
-                >
-                  {busy ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Flag size={18} aria-hidden />}
-                  {busy ? 'Sending…' : 'Send report'}
-                </button>
-                <p className="text-xs text-gray-500 text-center">
-                  If someone is in danger, call a church leader right away.
-                </p>
-              </div>
-            </div>
-          </div>
-        </Portal>
+        <DmReportSheet
+          target={reportFor}
+          alreadyBlocked={blockedIds.has(reportFor.id)}
+          onClose={() => setReportFor(null)}
+          onSent={(alsoBlocked) => {
+            if (alsoBlocked) markBlocked(reportFor.id, true);
+            flash(
+              alsoBlocked
+                ? `Report sent to church leaders, and ${reportFor.title} is blocked. Thank you.`
+                : 'Report sent to church leaders. Thank you.',
+              6000
+            );
+            setReportFor(null);
+          }}
+        />
       ) : null}
 
       {confirmDelete ? (

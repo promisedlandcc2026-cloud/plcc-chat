@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArrowLeft, Bell, BellOff, ClipboardList, CornerUpLeft, Info, Loader2, Megaphone, Pencil, Pin, Radio, Search, Send, X } from 'lucide-react';
+import { Archive, ArrowLeft, Ban, Bell, BellOff, ClipboardList, CornerUpLeft, Flag, Info, Loader2, Megaphone, MoreHorizontal, Pencil, Pin, Radio, Search, Send, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   CommunityChatError,
@@ -44,7 +44,8 @@ import { PollComposerSheet } from '../components/chat/PollComposerSheet';
 import { dmDisplayName } from '../lib/dmRecents';
 import { useActiveKaLink } from '../context/ActiveKaLinkContext';
 import { HuddleRecordingsSheet } from '../components/huddle/HuddleRecordingsSheet';
-import { listHuddleRecordings } from '../lib/communityChatClient';
+import { fetchDmList, listHuddleRecordings, setDmBlocked } from '../lib/communityChatClient';
+import { DmBlockSheet, DmReportSheet } from '../components/chat/DmSafetySheets';
 import { Button } from '../components/ui/Button';
 import { parseHuddleIntent } from '../lib/liveHuddles';
 import { fetchIntercessorsAccess } from '../lib/intercessorsClient';
@@ -96,6 +97,13 @@ export const CommunityChatRoomPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [archiving, setArchiving] = useState(false);
+  /** Direct messages: the ⋯ menu (Block / Report) and whether you blocked this person. */
+  const [dmMenuOpen, setDmMenuOpen] = useState(false);
+  const [dmBlockOpen, setDmBlockOpen] = useState(false);
+  const [dmReportOpen, setDmReportOpen] = useState(false);
+  const [youBlocked, setYouBlocked] = useState(false);
+  const [unblocking, setUnblocking] = useState(false);
+  const [safetyNotice, setSafetyNotice] = useState<string | null>(null);
   const locState = (location.state || {}) as LocationState;
   const { user, identity, memberAccessState } = useAuth();
   const [messages, setMessages] = useState<CommunityChatMessage[]>([]);
@@ -165,6 +173,37 @@ export const CommunityChatRoomPage: React.FC = () => {
     locState.channelName ||
     dmDisplayName(channelId, '', identity?.id || user?.id || '') ||
     (isDm ? 'Direct message' : 'Channel');
+
+  useEffect(() => {
+    if (!isDm || !validChannel || memberAccessState !== 'approved_member') return;
+    let alive = true;
+    void fetchDmList().then((list) => {
+      if (alive && list) setYouBlocked(Boolean(list.find((d) => d.channelId === channelId)?.blocked));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [channelId, isDm, memberAccessState, validChannel]);
+
+  const notify = (msg: string) => {
+    setSafetyNotice(msg);
+    window.setTimeout(() => setSafetyNotice(null), 5000);
+  };
+
+  const unblock = async () => {
+    if (unblocking) return;
+    setUnblocking(true);
+    try {
+      await setDmBlocked(channelId, false);
+      setYouBlocked(false);
+      setDmMenuOpen(false);
+      notify(`${roomTitle} is unblocked.`);
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Could not unblock. Please try again.');
+    } finally {
+      setUnblocking(false);
+    }
+  };
 
   const load = useCallback(
     async (opts?: { quiet?: boolean }) => {
@@ -904,6 +943,18 @@ export const CommunityChatRoomPage: React.FC = () => {
             {muted ? <BellOff size={18} aria-hidden /> : <Bell size={18} aria-hidden />}
             <span className="hidden sm:inline">{muted ? 'Muted' : 'Mute'}</span>
           </button>
+          {isDm ? (
+            <button
+              type="button"
+              onClick={() => setDmMenuOpen(true)}
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center text-burgundy rounded-xl active:bg-burgundy/10"
+              aria-label={`More options for ${roomTitle}`}
+              aria-haspopup="dialog"
+              title="More"
+            >
+              <MoreHorizontal size={20} aria-hidden />
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -927,6 +978,26 @@ export const CommunityChatRoomPage: React.FC = () => {
           />
         ) : null}
       </h1>
+
+      {isDm && youBlocked ? (
+        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-gray-50 border border-gray-200 pl-4 pr-1 py-1">
+          <Ban size={16} className="text-gray-500 shrink-0" aria-hidden />
+          <p className="flex-1 text-sm text-gray-600">You blocked {roomTitle}. They can’t message you.</p>
+          <button
+            type="button"
+            onClick={() => void unblock()}
+            disabled={unblocking}
+            className="shrink-0 min-h-[40px] px-3 rounded-xl text-sm font-bold text-burgundy active:bg-burgundy/10 disabled:opacity-50"
+          >
+            {unblocking ? 'Unblocking…' : 'Unblock'}
+          </button>
+        </div>
+      ) : null}
+      {safetyNotice ? (
+        <p className="mb-3 rounded-2xl bg-wine text-cream text-sm px-4 py-3" role="status">
+          {safetyNotice}
+        </p>
+      ) : null}
 
       {searchOpen ? (
         <div className="mb-3 rounded-2xl bg-white border border-gray-200 shadow-sm p-3">
@@ -1419,6 +1490,88 @@ export const CommunityChatRoomPage: React.FC = () => {
         />
       ) : null}
 
+      {dmMenuOpen ? (
+        <Portal>
+          <div className="fixed inset-0 z-[400] bg-black/40 flex items-end lg:items-center justify-center" onClick={() => setDmMenuOpen(false)}>
+            <div
+              className="w-full max-w-[500px] lg:max-w-[400px] bg-white rounded-t-3xl lg:rounded-3xl shadow-2xl p-2 pb-[max(1rem,env(safe-area-inset-bottom))]"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Options for ${roomTitle}`}
+            >
+              <p className="px-4 pt-3 pb-2 text-sm text-gray-500 truncate">{roomTitle}</p>
+              {youBlocked ? (
+                <button
+                  type="button"
+                  disabled={unblocking}
+                  onClick={() => void unblock()}
+                  className="w-full min-h-[56px] flex items-center gap-4 px-4 text-base font-semibold text-[#1A1A1A] rounded-2xl active:bg-gray-50 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Ban size={20} className="text-burgundy" aria-hidden /> Unblock {roomTitle}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDmMenuOpen(false);
+                    setDmBlockOpen(true);
+                  }}
+                  className="w-full min-h-[56px] flex items-center gap-4 px-4 text-base font-semibold text-rose-600 rounded-2xl active:bg-rose-50 hover:bg-rose-50"
+                >
+                  <Ban size={20} aria-hidden /> Block {roomTitle}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setDmMenuOpen(false);
+                  setDmReportOpen(true);
+                }}
+                className="w-full min-h-[56px] flex items-center gap-4 px-4 text-base font-semibold text-rose-600 rounded-2xl active:bg-rose-50 hover:bg-rose-50"
+              >
+                <Flag size={20} aria-hidden /> Report to church leaders
+              </button>
+              <p className="px-4 pt-1 pb-1 text-xs text-gray-500">
+                Reports go privately to church leaders with the recent messages. {roomTitle} isn’t told.
+              </p>
+            </div>
+          </div>
+        </Portal>
+      ) : null}
+
+      {dmBlockOpen ? (
+        <DmBlockSheet
+          target={{ id: channelId, title: roomTitle }}
+          onClose={() => setDmBlockOpen(false)}
+          onBlocked={() => {
+            setYouBlocked(true);
+            setDmBlockOpen(false);
+            notify(`${roomTitle} is blocked. They can’t message you.`);
+          }}
+          onReportInstead={() => {
+            setDmBlockOpen(false);
+            setDmReportOpen(true);
+          }}
+        />
+      ) : null}
+
+      {dmReportOpen ? (
+        <DmReportSheet
+          target={{ id: channelId, title: roomTitle }}
+          alreadyBlocked={youBlocked}
+          onClose={() => setDmReportOpen(false)}
+          onSent={(alsoBlocked) => {
+            if (alsoBlocked) setYouBlocked(true);
+            setDmReportOpen(false);
+            notify(
+              alsoBlocked
+                ? `Report sent to church leaders, and ${roomTitle} is blocked. Thank you.`
+                : 'Report sent to church leaders. Thank you.'
+            );
+          }}
+        />
+      ) : null}
     </main>
   );
 };
