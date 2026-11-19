@@ -108,3 +108,10 @@ describe('Bible on the home screen', () => {
     assert.match(page, /navigate\(`\/share\?\$\{q\.toString\(\)\}`\)/);
   });
 });
+
+describe('Android call crash (Nov 19): mediaSession.setMicrophoneActive returns nothing', () => {
+  it('is never followed by .catch directly; wrapped in Promise.resolve + try', () => {
+    assert.doesNotMatch(huddle, /setMicrophoneActive\([^)]*\)\.catch/);
+    assert.match(huddle, /Promise\.resolve\(ms\.setMicrophoneActive\(micEnabled\)\)\.catch/);
+  });
+});

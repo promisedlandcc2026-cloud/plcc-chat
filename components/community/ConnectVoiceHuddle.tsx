@@ -1750,9 +1750,15 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     };
   }, [conn, title]);
   useEffect(() => {
-    const ms = typeof navigator !== 'undefined' ? (navigator.mediaSession as MediaSession & { setMicrophoneActive?: (a: boolean) => Promise<void> }) : undefined;
+    const ms = typeof navigator !== 'undefined' ? (navigator.mediaSession as MediaSession & { setMicrophoneActive?: (a: boolean) => unknown }) : undefined;
     if (!ms?.setMicrophoneActive || conn !== 'connected') return;
-    void ms.setMicrophoneActive(micEnabled).catch(() => undefined);
+    // Chrome's setMicrophoneActive returns nothing (not a Promise): calling .catch on it
+    // crashed the call screen on Android (Nov 19). Never assume a Promise here.
+    try {
+      void Promise.resolve(ms.setMicrophoneActive(micEnabled)).catch(() => undefined);
+    } catch {
+      /* not supported */
+    }
   }, [conn, micEnabled]);
 
   const endForEveryone = useCallback(async () => {
