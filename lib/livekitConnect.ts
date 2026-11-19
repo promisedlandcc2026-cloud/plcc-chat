@@ -36,7 +36,12 @@ export function isLiveKitQuotaError(err: unknown): boolean {
 /**
  * One LiveKit connect. A 429 aborts the Room so the client does not walk every region.
  */
-export async function connectLiveKitOnce(room: Room, url: string, token: string): Promise<void> {
+export async function connectLiveKitOnce(
+  room: Room,
+  url: string,
+  token: string,
+  opts: { autoSubscribe?: boolean } = {}
+): Promise<void> {
   const NativeWebSocket = typeof window !== 'undefined' ? window.WebSocket : null;
   const startedAt = typeof performance !== 'undefined' ? performance.now() : 0;
   let sawQuota = false;
@@ -70,7 +75,8 @@ export async function connectLiveKitOnce(room: Room, url: string, token: string)
     window.WebSocket = Wrapped;
   }
   try {
-    const options: RoomConnectOptions = { autoSubscribe: true, maxRetries: 0 };
+    // Phase 5: Ka Link passes autoSubscribe:false and picks tracks itself (Data Saver skips camera video).
+    const options: RoomConnectOptions = { autoSubscribe: opts.autoSubscribe ?? true, maxRetries: 0 };
     await room.connect(url, token, options);
     if (sawQuota || recentLiveKitQuotaResponse(startedAt)) {
       await room.disconnect(true).catch(() => {});

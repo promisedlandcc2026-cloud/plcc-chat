@@ -39,8 +39,13 @@ import {
   Volume2,
   X,
   MoreHorizontal,
+  PhoneCall,
+  SignalLow,
+  Gauge,
 } from 'lucide-react';
 import {
+  AudioPresets,
+  VideoPresets,
   LocalAudioTrack,
   Room,
   RoomEvent,
@@ -50,9 +55,26 @@ import {
   type Participant,
   type RemoteParticipant,
   type RemoteTrack,
+  type RemoteTrackPublication,
   type TrackPublication,
   DisconnectReason,
 } from 'livekit-client';
+import {
+  KA_LINK_AWAY_TOPIC,
+  KA_LINK_BACK_MUTED_NOTICE,
+  KA_LINK_WEAK_SIGNAL_NOTICE,
+  awayLabel,
+  decodeAwayWire,
+  encodeAwayWire,
+  readDataSaver,
+  shouldSubscribeTrack,
+  signalLabel,
+  signalLevel,
+  subscribeDataSaver,
+  writeDataSaver,
+  type AwayReason,
+  type SignalLevel,
+} from '../../lib/kaLinkDataSaver';
 import { CommunityChatError } from '../../lib/communityChatTypes';
 import {
   endHuddle,
@@ -222,6 +244,10 @@ type Tile = {
   reader: boolean;
   /** Ka Link team role from the server-signed token (Phase 3). */
   team: 'admin' | 'leader' | null;
+  /** Phase 5 #30: weak or lost connection. */
+  signal: SignalLevel;
+  /** Phase 5 #34: on a phone call / stepped away (sent by their phone). */
+  away: AwayReason | null;
 };
 
 /** Phase 3 (#18): a Ka Link team leader (e.g. Pr. Grace) tells the moderators they are ready. */
@@ -413,6 +439,21 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   hostMuteNoticeRef.current = hostMuteNotice;
   const [micEnabled, setMicEnabled] = useState(false);
   const [camEnabled, setCamEnabled] = useState(false);
+  /** Phase 5 Data Saver: skip downloading other people's camera video (on by default). */
+  const [dataSaver, setDataSaverState] = useState<boolean>(() => readDataSaver());
+  const dataSaverRef = useRef(dataSaver);
+  dataSaverRef.current = dataSaver;
+  /** Camera videos available but not downloaded because Data Saver is on. */
+  const [hiddenVideos, setHiddenVideos] = useState(0);
+  /** Phase 5 #34: who is on a phone call or stepped away (identity → reason). */
+  const awayRef = useRef<Map<string, AwayReason>>(new Map());
+  /** What this phone last told the room about itself. */
+  const localAwayRef = useRef<AwayReason | null>(null);
+  /** The phone took our mic while it was on (phone call): keep them muted when they return. */
+  const micInterruptedRef = useRef(false);
+  /** Page was hidden since the last time it was visible (phone call, other app). */
+  const wasHiddenRef = useRef(false);
+  const weakSignalShownRef = useRef(false);
   const [handRaised, setHandRaised] = useState(false);
   /** Screen share: who is presenting (one at a time), and our own share controls (moderators and up). */
   const [sharer, setSharer] = useState<ScreenSharer | null>(null);
@@ -641,6 +682,24 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     if (mountedRef.current) setMusicPlaying(false);
   }, []);
 
+  /** Phase 5: download voices and screen share always; camera video only when Data Saver is off. */
+  const applySubscriptions = useCallback((room: Room) => {
+    const saver = dataSaverRef.current;
+    for (const p of room.remoteParticipants.values()) {
+      for (const pub of p.trackPublications.values()) {
+        const remotePub = pub as RemoteTrackPublication;
+        const want = shouldSubscribeTrack(String(remotePub.source), String(remotePub.kind), saver);
+        if (remotePub.isDesired !== want) {
+          try {
+            remotePub.setSubscribed(want);
+          } catch {
+            /* track went away */
+          }
+        }
+      }
+    }
+  }, []);
+
   const refreshTiles = useCallback((room: Room) => {
     if (!mountedRef.current) return;
     const speakers = new Set(room.activeSpeakers.map((p) => p.identity));
@@ -661,6 +720,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         raisedAt: parseHandRaisedAt(p.metadata),
         reader: stageRef.current.readerIds.includes(p.identity),
         team: participantTeam(p),
+        signal: signalLevel(p.connectionQuality),
+        away: isLocal ? localAwayRef.current : awayRef.current.get(p.identity) ?? null,
       });
     };
 
@@ -669,6 +730,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       displayName(a).localeCompare(displayName(b))
     );
     for (const r of remotes) push(r, false);
+    let hidden = 0;
+    for (const r of remotes) {
+      const cam = r.getTrackPublication(Track.Source.Camera);
+      if (cam && !cam.isMuted && !cam.track) hidden += 1;
+    }
+    setHiddenVideos(hidden);
     const sorted = sortTilesRaisedFirst(next);
     setTiles(sorted);
     const isSharing = (p: Participant) => {
@@ -827,6 +894,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       await room.localParticipant.publishTrack(localTrack, {
         name: HUDDLE_MUSIC_TRACK_NAME,
         source: Track.Source.Unknown,
+        // Phase 5 #29: everyone downloads this — keep it light on mobile data
+        // (speech-level bitrate, no silence-skipping, no duplicate packets).
+        audioPreset: AudioPresets.speech,
+        dtx: false,
+        red: false,
       });
       musicTrackRef.current = localTrack;
       setMusicPlaying(true);
@@ -986,13 +1058,30 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       setTitle(tokenPayload.channelName || channelName || 'Live Ka Link');
       setCanModerate(Boolean(tokenPayload.canModerate));
 
-      const room = new Room({ adaptiveStream: true, dynacast: true });
+      // Phase 5: lighter video for mobile data — 360p camera with a 180p layer for weak signals.
+      const room = new Room({
+        adaptiveStream: true,
+        dynacast: true,
+        videoCaptureDefaults: { resolution: VideoPresets.h360.resolution },
+        publishDefaults: {
+          simulcast: true,
+          videoEncoding: VideoPresets.h360.encoding,
+          videoSimulcastLayers: [VideoPresets.h180],
+          dtx: true,
+        },
+      });
       roomRef.current = room;
 
       const onChange = () => refreshTiles(room);
 
       room
         .on(RoomEvent.ParticipantConnected, () => {
+          // Phase 5 #34: newcomers learn we're on a call / away.
+          if (localAwayRef.current) {
+            void room.localParticipant
+              .publishData(encodeAwayWire({ v: 1, t: 'away', r: localAwayRef.current }), { reliable: true, topic: KA_LINK_AWAY_TOPIC })
+              .catch(() => undefined);
+          }
           if (captionsOnRef.current) {
             void room.localParticipant
               .publishData(encodeCaptionWire({ v: 1, t: 'on' }), { reliable: true, topic: HUDDLE_CAPTION_TOPIC })
@@ -1001,6 +1090,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           onChange();
         })
         .on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
+          awayRef.current.delete(p.identity);
           const prefix = `${p.identity}:`;
           for (const key of Array.from(audioElsRef.current.keys()) as string[]) {
             if (key === p.identity || key.startsWith(prefix)) detachRemoteAudio(key);
@@ -1061,6 +1151,14 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         .on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
           if (!mountedRef.current || !participant) return;
+          if (topic === KA_LINK_AWAY_TOPIC) {
+            const wire = decodeAwayWire(payload);
+            if (!wire) return;
+            if (wire.t === 'away') awayRef.current.set(participant.identity, wire.r);
+            else awayRef.current.delete(participant.identity);
+            onChange();
+            return;
+          }
           if (topic === HUDDLE_READY_TOPIC) {
             // Only moderators see it, and only from a real team member (role is in the signed token).
             if (!canModerateRef.current || !participantTeam(participant)) return;
@@ -1147,8 +1245,25 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           }
           onChange();
         })
-        .on(RoomEvent.TrackPublished, onChange)
+        .on(RoomEvent.TrackPublished, () => {
+          applySubscriptions(room);
+          onChange();
+        })
         .on(RoomEvent.TrackUnpublished, onChange)
+        // Phase 5 #30: signal strength for everyone; suggest Data Saver once if ours is weak.
+        .on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+          if (
+            participant.identity === room.localParticipant.identity &&
+            signalLevel(quality) !== 'ok' &&
+            !dataSaverRef.current &&
+            !weakSignalShownRef.current &&
+            mountedRef.current
+          ) {
+            weakSignalShownRef.current = true;
+            setNotice(KA_LINK_WEAK_SIGNAL_NOTICE);
+          }
+          onChange();
+        })
         // #14: recording started/stopped (shown to everyone).
         .on(RoomEvent.RecordingStatusChanged, (recording: boolean) => {
           if (!mountedRef.current) return;
@@ -1220,7 +1335,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       connectingRef.current = true;
       try {
         // 3. One connect; a LiveKit 429 (out of minutes) throws LiveKitQuotaError.
-        await connectLiveKitOnce(room, tokenPayload.url, tokenPayload.token);
+        await connectLiveKitOnce(room, tokenPayload.url, tokenPayload.token, { autoSubscribe: false });
       } finally {
         connectingRef.current = false;
       }
@@ -1246,6 +1361,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         }
       }
 
+      // Phase 5: pick what to download (Data Saver skips camera video).
+      applySubscriptions(room);
       for (const p of room.remoteParticipants.values()) {
         for (const pub of p.trackPublications.values()) {
           if (pub.kind === Track.Kind.Audio && pub.track) {
@@ -1330,6 +1447,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     detachRemoteAudio,
     disconnectRoom,
     refreshTiles,
+    applySubscriptions,
   ]);
 
   useEffect(() => {
@@ -1383,6 +1501,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     if (blocked || !room.canPlaybackAudio) setNeedSoundTap(true);
     else setNeedSoundTap(false);
 
+    // Phase 5 #34: a phone call took the mic — they stay muted until they tap Unmute.
+    if (micInterruptedRef.current) {
+      micInterruptedRef.current = false;
+      setNotice(KA_LINK_BACK_MUTED_NOTICE);
+      return;
+    }
     // Mic: only repair it if the member had it on — never unmute someone.
     if (!micEnabledRef.current) return;
     const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
@@ -1390,6 +1514,21 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     const media = track?.mediaStreamTrack;
     if (!track || !media) return;
     if (media.readyState === 'ended' || media.muted) {
+      if (wasHiddenRef.current) {
+        // Came back from a call or another app: don't switch their mic back on by itself.
+        selfMuteIntentRef.current = true;
+        try {
+          await room.localParticipant.setMicrophoneEnabled(false);
+        } catch {
+          /* ignore */
+        } finally {
+          selfMuteIntentRef.current = false;
+        }
+        setMicEnabled(false);
+        micEnabledRef.current = false;
+        setNotice(KA_LINK_BACK_MUTED_NOTICE);
+        return;
+      }
       try {
         await track.restartTrack();
       } catch {
@@ -1448,6 +1587,133 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     onClose();
   }, [disconnectRoom, onClose]);
 
+  // ---------------------------------------------------------------------------
+  // Phase 5: Data Saver, phone calls / stepping away, lock-screen controls
+  // ---------------------------------------------------------------------------
+
+  const setDataSaver = useCallback((on: boolean) => {
+    writeDataSaver(on);
+    setDataSaverState(on);
+  }, []);
+
+  // Data Saver changed (here, in Messages, or in another tab): re-pick downloads.
+  useEffect(() => subscribeDataSaver((on) => setDataSaverState(on)), []);
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!room || conn !== 'connected') return;
+    applySubscriptions(room);
+    refreshTiles(room);
+  }, [dataSaver, conn, applySubscriptions, refreshTiles]);
+
+  /** Tell the room we're on a call / away (null = back). */
+  const sendAway = useCallback(
+    (reason: AwayReason | null) => {
+      if (localAwayRef.current === reason) return;
+      localAwayRef.current = reason;
+      const room = roomRef.current;
+      if (!room) return;
+      const wire = reason ? ({ v: 1, t: 'away', r: reason } as const) : ({ v: 1, t: 'back' } as const);
+      void room.localParticipant
+        .publishData(encodeAwayWire(wire), { reliable: true, topic: KA_LINK_AWAY_TOPIC })
+        .catch(() => undefined);
+      refreshTiles(room);
+    },
+    [refreshTiles]
+  );
+  const sendAwayRef = useRef(sendAway);
+  sendAwayRef.current = sendAway;
+
+  // The phone took the mic (incoming phone call): mute them and say so.
+  useEffect(() => {
+    if (conn !== 'connected' || !micEnabled) return;
+    const room = roomRef.current;
+    const pub = room?.localParticipant.getTrackPublication(Track.Source.Microphone);
+    const media = (pub?.track as LocalAudioTrack | undefined)?.mediaStreamTrack;
+    if (!room || !media) return;
+    const onTaken = () => {
+      if (!micEnabledRef.current || roomRef.current !== room) return;
+      micInterruptedRef.current = true;
+      sendAwayRef.current('call');
+      selfMuteIntentRef.current = true;
+      void room.localParticipant
+        .setMicrophoneEnabled(false)
+        .catch(() => undefined)
+        .finally(() => {
+          selfMuteIntentRef.current = false;
+        });
+      setMicEnabled(false);
+      micEnabledRef.current = false;
+    };
+    media.addEventListener('mute', onTaken);
+    media.addEventListener('ended', onTaken);
+    return () => {
+      media.removeEventListener('mute', onTaken);
+      media.removeEventListener('ended', onTaken);
+    };
+  }, [conn, micEnabled]);
+
+  // Left the app (screen off, another app, a text): "Listening in background" until they are back.
+  useEffect(() => {
+    const onVis = () => {
+      if (!roomRef.current) return;
+      if (document.visibilityState === 'hidden') {
+        wasHiddenRef.current = true;
+        if (!localAwayRef.current) sendAwayRef.current('away');
+      } else {
+        sendAwayRef.current(null);
+        // resumeAudio (same event) reads wasHiddenRef first; clear it after.
+        window.setTimeout(() => {
+          wasHiddenRef.current = false;
+        }, 4000);
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
+  // Lock screen / notification controls while in a Ka Link (Android; some iPhones).
+  const toggleMicRef = useRef<() => void>(() => undefined);
+  const leaveRef = useRef<() => void>(() => undefined);
+  leaveRef.current = () => void leave();
+  useEffect(() => {
+    const ms = typeof navigator !== 'undefined' ? navigator.mediaSession : undefined;
+    if (!ms || conn !== 'connected') return;
+    try {
+      if (typeof MediaMetadata !== 'undefined') {
+        ms.metadata = new MediaMetadata({
+          title: title || 'Live Ka Link',
+          artist: 'PLCC Ka Link',
+          artwork: [{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
+        });
+      }
+    } catch {
+      /* not supported */
+    }
+    const set = (action: string, handler: (() => void) | null) => {
+      try {
+        ms.setActionHandler(action as MediaSessionAction, handler);
+      } catch {
+        /* this phone doesn't know that button */
+      }
+    };
+    set('togglemicrophone', () => toggleMicRef.current());
+    set('hangup', () => leaveRef.current());
+    return () => {
+      set('togglemicrophone', null);
+      set('hangup', null);
+      try {
+        ms.metadata = null;
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [conn, title]);
+  useEffect(() => {
+    const ms = typeof navigator !== 'undefined' ? (navigator.mediaSession as MediaSession & { setMicrophoneActive?: (a: boolean) => Promise<void> }) : undefined;
+    if (!ms?.setMicrophoneActive || conn !== 'connected') return;
+    void ms.setMicrophoneActive(micEnabled).catch(() => undefined);
+  }, [conn, micEnabled]);
+
   const endForEveryone = useCallback(async () => {
     if (!canModerate || ending) return;
     const ok = window.confirm(
@@ -1499,7 +1765,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       await room.localParticipant.setMicrophoneEnabled(next);
       setMicEnabled(next);
       micEnabledRef.current = next;
-      if (next) setHostMuteNotice(null);
+      if (next) {
+        setHostMuteNotice(null);
+        micInterruptedRef.current = false;
+        sendAwayRef.current(null);
+      }
       refreshTiles(room);
     } catch {
       if (next) {
@@ -1513,6 +1783,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       selfMuteIntentRef.current = false;
     }
   }, [micEnabled, refreshTiles]);
+  toggleMicRef.current = () => void toggleMic();
 
   useEffect(() => {
     captionsOnRef.current = captionsOn;
@@ -2186,11 +2457,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                                 setActiveTab('attendance');
                               }
                             }}
-                            aria-label={`${tile.name}${tile.isLocal ? ' (you)' : ''}${tile.moderator ? ', moderator' : ''}${pos ? `, hand raised number ${pos}` : ''}${tile.micOn ? ', mic on' : ', muted'}`}
+                            aria-label={`${tile.name}${tile.isLocal ? ' (you)' : ''}${tile.moderator ? ', moderator' : ''}${pos ? `, hand raised number ${pos}` : ''}${tile.micOn ? ', mic on' : ', muted'}${tile.away ? `, ${awayLabel(tile.away).toLowerCase()}` : tile.signal !== 'ok' ? `, ${signalLabel(tile.signal).toLowerCase()}` : ''}`}
                           >
                             <span className={`pr-avatar ${tile.speaking && tile.micOn ? 'is-speaking' : ''} ${tile.moderator ? 'is-mod' : ''}`}>
                               {initials(tile.name)}
                               {pos ? <span className="pr-rail-hand" aria-hidden>{pos}</span> : !tile.micOn ? <span className="pr-rail-muted" aria-hidden /> : null}
+                              {tile.away ? (
+                                <span className="pr-rail-status is-away" aria-hidden><PhoneCall size={10} /></span>
+                              ) : tile.signal !== 'ok' ? (
+                                <span className="pr-rail-status" aria-hidden><SignalLow size={10} /></span>
+                              ) : null}
                             </span>
                             <span className="pr-rail-name">{tile.isLocal ? 'You' : tile.name.split(/\s+/)[0]}</span>
                           </button>
@@ -2227,6 +2503,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               {hostMuteNotice ? <p className="pr-notice is-strong" role="status">{hostMuteNotice}</p> : null}
               {screenError ? <p className="pr-notice is-bad" role="alert">{screenError}</p> : null}
               {notice ? <p className="pr-notice" role="status">{notice}</p> : null}
+              {connected && dataSaver && hiddenVideos > 0 ? (
+                <div className="pr-datasaver" role="status" data-testid="ka-link-video-paused">
+                  <span>Video paused to save data</span>
+                  <button type="button" onClick={() => setDataSaver(false)}>Show video</button>
+                </div>
+              ) : null}
               {connected && sharer && participantFor(sharer.identity) ? (
                 <ScreenShareStage participant={participantFor(sharer.identity)!} sharer={sharer} />
               ) : null}
@@ -2591,6 +2873,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                               <button type="button" className="pr-more-item" onClick={() => { setMoreOpen(false); setRecordingsOpen(true); }}>
                                 <Disc size={20} aria-hidden /> <span>Recordings</span>
                               </button>
+                              {/* Phase 5: Data Saver — pause other people's video on mobile data. */}
+                              <button
+                                type="button"
+                                className={`pr-more-item ${dataSaver ? 'is-on' : ''}`}
+                                onClick={() => setDataSaver(!dataSaver)}
+                                aria-pressed={dataSaver}
+                                data-testid="ka-link-data-saver"
+                              >
+                                <Gauge size={20} aria-hidden /> <span>{dataSaver ? 'Data Saver on' : 'Data Saver off'}</span>
+                              </button>
                               {!prayerWatch ? (
                                 <button type="button" className="pr-more-item" onClick={() => void shareHuddle()}>
                                   <Share2 size={20} aria-hidden /> <span>{shareDone || 'Share link'}</span>
@@ -2745,6 +3037,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                             <span className="pr-role is-reader"><BookOpen size={12} aria-hidden /> Reader</span>
                           ) : tile.team === 'leader' ? (
                             <span className="pr-role is-reader"><HandHeart size={12} aria-hidden /> Leader</span>
+                          ) : null}
+                          {tile.away ? (
+                            <span className="pr-role is-away" data-testid="ka-link-away-badge"><PhoneCall size={12} aria-hidden /> {awayLabel(tile.away)}</span>
+                          ) : tile.signal !== 'ok' ? (
+                            <span className="pr-role is-weak" data-testid="ka-link-signal-badge"><SignalLow size={12} aria-hidden /> {signalLabel(tile.signal)}</span>
                           ) : null}
                           {tile.micOn ? <Mic size={17} className="pr-mic-on" aria-label="Microphone on" /> : <MicOff size={17} className="pr-mic-off" aria-label="Muted" />}
                         </li>
@@ -3080,6 +3377,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                       <div className="flex items-center gap-1.5 mt-0.5 text-white/80">
                         {tile.micOn ? <Mic size={12} /> : <MicOff size={12} />}
                         {tile.handRaised ? <Hand size={12} className="text-gold" /> : null}
+                        {tile.away ? (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-sky-200"><PhoneCall size={11} aria-hidden />{awayLabel(tile.away)}</span>
+                        ) : tile.signal !== 'ok' ? (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-200"><SignalLow size={11} aria-hidden />{signalLabel(tile.signal)}</span>
+                        ) : null}
                       </div>
                     </div>
                   </li>

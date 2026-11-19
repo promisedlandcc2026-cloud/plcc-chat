@@ -6,6 +6,7 @@ import { HuddleLiveProvider } from './context/HuddleLiveContext';
 import { ActiveKaLinkProvider } from './context/ActiveKaLinkContext';
 import { MemberGate } from './components/auth/MemberGate';
 import { LazyRoute } from './components/routing/LazyRoute';
+import { OpenInAppBanner } from './components/ui/OpenInAppBanner';
 
 /**
  * PLCC Ka Link — standalone chat + Live Huddle for Promised Land Christian Center.
@@ -28,6 +29,7 @@ const LivePrayer = lazy(() => import('./pages/LivePrayer').then((m) => ({ defaul
 /** Phone-width column on phones; full-width two-pane chat on desktop (see pages/ChatHome). */
 const AppShell: React.FC = () => (
   <div className="min-h-screen max-w-[500px] lg:max-w-[1400px] mx-auto bg-eggshell shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_12px_40px_rgba(0,0,0,0.06)] flex flex-col relative">
+    <OpenInAppBanner />
     <Routes>
       <Route path="/" element={<Navigate to="/community/chat" replace />} />
       <Route path="/community" element={<Navigate to="/community/chat" replace />} />

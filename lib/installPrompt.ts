@@ -133,6 +133,17 @@ async function alreadyInstalledOnDevice(): Promise<boolean> {
   }
 }
 
+/**
+ * Phase 5 #33 — "one app, not two": the PLCC app is on this phone but this is
+ * the browser. Known when this browser saw the install (or "I've added it"),
+ * or Android/Chrome confirms it via getInstalledRelatedApps.
+ */
+export async function installedAppButInBrowser(): Promise<boolean> {
+  if (isRunningInstalled()) return false;
+  if (readFlag() === 'installed') return true;
+  return alreadyInstalledOnDevice();
+}
+
 /** Whether to show the prompt at all. Records "installed" when it can tell. */
 export async function shouldAskToInstall(): Promise<boolean> {
   if (isRunningInstalled()) {

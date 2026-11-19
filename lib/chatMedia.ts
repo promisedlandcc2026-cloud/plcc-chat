@@ -13,10 +13,9 @@ import { supabase } from './supabase';
 import { getValidAccessToken } from './authAccessToken';
 import { sendChatMessage } from './communityChatClient';
 import { CommunityChatError, type CommunityChatAttachment, type CommunityChatMessage } from './communityChatTypes';
+import { photoSettings, readDataSaver } from './kaLinkDataSaver';
 
 export const CHAT_MEDIA_MAX_BYTES = 25 * 1024 * 1024;
-const PHOTO_MAX_EDGE = 1600;
-const PHOTO_QUALITY = 0.82;
 
 export type ChatMediaKind = 'image' | 'audio' | 'video' | 'file';
 
@@ -54,7 +53,8 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * Shrink a phone photo (often 4–8 MB) to a sharp ~200–500 KB JPEG.
+ * Shrink a phone photo (often 4–8 MB) to a sharp ~200–500 KB JPEG
+ * (smaller still with Data Saver on — Phase 5).
  * GIFs and anything the browser can't decode are sent as-is.
  */
 export async function preparePhoto(file: File): Promise<{ blob: Blob; mime: string; name: string }> {
@@ -63,8 +63,9 @@ export async function preparePhoto(file: File): Promise<{ blob: Blob; mime: stri
     return { blob: file, mime: mime || 'image/jpeg', name: file.name };
   }
   try {
+    const { maxEdge, quality } = photoSettings(readDataSaver());
     const bitmap = await loadBitmap(file);
-    const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
     const w = Math.max(1, Math.round(bitmap.width * scale));
     const h = Math.max(1, Math.round(bitmap.height * scale));
     const canvas = document.createElement('canvas');
@@ -74,7 +75,7 @@ export async function preparePhoto(file: File): Promise<{ blob: Blob; mime: stri
     if (!ctx) throw new Error('no canvas');
     ctx.drawImage(bitmap, 0, 0, w, h);
     if ('close' in bitmap && typeof (bitmap as ImageBitmap).close === 'function') (bitmap as ImageBitmap).close();
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', PHOTO_QUALITY));
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
     if (!blob || (blob.size >= file.size && ['image/jpeg', 'image/png', 'image/webp'].includes(mime))) {
       return { blob: file, mime: mime || 'image/jpeg', name: file.name };
     }
