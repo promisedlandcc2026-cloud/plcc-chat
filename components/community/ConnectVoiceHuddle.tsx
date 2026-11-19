@@ -149,6 +149,7 @@ const DailyBackupHuddle = lazy(() =>
 import {
   appendHuddleChatMessage,
   buildHuddleChatWirePayload,
+  type HuddleChatReplyRef,
   createHuddleChatId,
   decodeIncomingHuddleChat,
   encodeHuddleChatPayload,
@@ -160,6 +161,8 @@ import {
   HUDDLE_HOST_MUTE_NOTICE,
   huddleMicrophonePublishAllowed,
   mergeHandMetadata,
+  nextHandNo,
+  parseHandNo,
   parseHandRaised,
   sortTilesRaisedFirst,
   syncRosterFromTiles,
@@ -242,6 +245,8 @@ type Tile = {
   moderator: boolean;
   /** When the hand went up (ms), for first-come, first-served order. */
   raisedAt: number | null;
+  /** Fixed hand number for this Ka Link (kept after the hand is lowered). */
+  handNo: number | null;
   /** Bible reader this session (may unmute while mics are locked). */
   reader: boolean;
   /** Ka Link team role from the server-signed token (Phase 3). */
@@ -524,6 +529,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [musicVolume, setMusicVolume] = useState(HUDDLE_MUSIC_DEFAULT_VOLUME);
   // Ephemeral emoji reactions (same wire format as PLCC Canaan — not chat, nothing is saved).
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+  /** Where the Reactions button is, so the picker can float above the (sideways-scrolling) tools row. */
+  const [reactionAnchor, setReactionAnchor] = useState<{ left: number; bottom: number } | null>(null);
   const [activeReactions, setActiveReactions] = useState<HuddleReactionEvent[]>([]);
   const [reactionBusy, setReactionBusy] = useState(false);
   const [reactionError, setReactionError] = useState<string | null>(null);
@@ -721,6 +728,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         speaking: speakers.has(p.identity),
         moderator: p.attributes?.['plcc.role'] === 'moderator' || (isLocal && canModerateRef.current),
         raisedAt: parseHandRaisedAt(p.metadata),
+        handNo: parseHandNo(p.metadata),
         reader: stageRef.current.readerIds.includes(p.identity),
         team: participantTeam(p),
         signal: signalLevel(p.connectionQuality),
@@ -1070,7 +1078,23 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           simulcast: true,
           videoEncoding: VideoPresets.h360.encoding,
           videoSimulcastLayers: [VideoPresets.h180],
-          dtx: true,
+          // Voices: members reported sound going off and on and a crackle when someone
+          // speaks. DTX (silence skipping) cut quiet/soft voices and clicked at the start
+          // of speech, so it is off; the speech preset (24 kbps) keeps data use at or
+          // below the old music preset with DTX. RED re-sends audio to cover lost packets
+          // on weak mobile data.
+          audioPreset: AudioPresets.speech,
+          dtx: false,
+          red: true,
+        },
+        // Echo cancellation, noise suppression, auto gain and voice isolation (stated
+        // explicitly so a library update can't quietly change them).
+        audioCaptureDefaults: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          voiceIsolation: true,
+          channelCount: 1,
         },
       });
       roomRef.current = room;
@@ -1356,12 +1380,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       }
       setMicEnabled(false);
       micEnabledRef.current = false;
-      if (camEnabled) {
+      // Video only for moderators and the Ka Link team (Pr. Grace); members join audio-only.
+      const mayUseCamera = Boolean(tokenPayload.canModerate) || participantTeam(room.localParticipant) !== null;
+      if (camEnabled && mayUseCamera) {
         try {
           await room.localParticipant.setCameraEnabled(true);
         } catch {
           setError('Camera could not be enabled. You can still join with audio.');
         }
+      } else if (camEnabled) {
+        setCamEnabled(false);
       }
 
       // Phase 5: pick what to download (Data Saver skips camera video).
@@ -1971,7 +1999,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     const local: LocalParticipant = room.localParticipant;
     const next = !handRaised;
     try {
-      await local.setMetadata(mergeHandMetadata(local.metadata, next));
+      // First raise: take the next number in the room; after that keep the same number.
+      const handNo = next
+        ? parseHandNo(local.metadata) ??
+          nextHandNo([local.metadata, ...Array.from(room.remoteParticipants.values(), (p: Participant) => p.metadata)])
+        : null;
+      await local.setMetadata(mergeHandMetadata(local.metadata, next, handNo));
       setHandRaised(next);
       refreshTiles(room);
     } catch {
@@ -2060,13 +2093,14 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     [conn, ingestReaction, lastReactionSentAt, reactionBusy]
   );
 
-  const sendChat = useCallback(async (text: string) => {
+  const sendChat = useCallback(async (text: string, reply?: HuddleChatReplyRef | null) => {
     const room = roomRef.current;
     if (!room) return;
     const local = room.localParticipant;
     const wire = buildHuddleChatWirePayload({
       id: createHuddleChatId(),
       text,
+      reply,
     });
     if (!wire) return;
     setChatSending(true);
@@ -2100,18 +2134,21 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   };
 
   // #6: hands in the order they went up (first come, first served).
+  // First come, first served — by fixed hand number when everyone has one.
   const raisedOrdered = useMemo(() => orderRaisedHands(tiles, handFirstSeenRef.current), [tiles]);
   const raisedNames = useMemo(
     () => raisedOrdered.map((t) => (t.isLocal ? `${t.name} (you)` : t.name)),
     [raisedOrdered]
   );
   const raisedEntries = useMemo(
-    () => raisedOrdered.map((t) => ({ identity: t.identity, name: t.name, isLocal: t.isLocal })),
+    () => raisedOrdered.map((t, i) => ({ identity: t.identity, name: t.name, isLocal: t.isLocal, number: t.handNo ?? i + 1 })),
     [raisedOrdered]
   );
+  // Each person's fixed hand number (from their metadata); older apps without one
+  // fall back to their place in the line.
   const handPosition = useMemo(() => {
     const m = new Map<string, number>();
-    raisedOrdered.forEach((t, i) => m.set(t.identity, i + 1));
+    raisedOrdered.forEach((t, i) => m.set(t.identity, t.handNo ?? i + 1));
     return m;
   }, [raisedOrdered]);
 
@@ -2199,6 +2236,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   // dark layout below.
   if (!embedded) {
     const localTile = tiles.find((t) => t.isLocal);
+    // Video is for Pr. Grace, the Ka Link team and moderators (Canaan enforces it too).
+    const canUseCamera = canModerate || Boolean(localTile?.team);
     const speakingNow = tiles.filter((t) => t.speaking && t.micOn).map((t) => (t.isLocal ? 'You' : t.name));
     const anyVideo = tiles.some((t) => t.camOn);
     const connected = conn === 'connected';
@@ -2784,8 +2823,14 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                           <div className="relative">
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
                                 setReactionError(null);
+                                const r = e.currentTarget.getBoundingClientRect();
+                                const w = 208;
+                                setReactionAnchor({
+                                  left: Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8),
+                                  bottom: window.innerHeight - r.top + 8,
+                                });
                                 setReactionPickerOpen((open) => !open);
                               }}
                               disabled={reactionBusy}
@@ -2802,7 +2847,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                               <div
                                 role="menu"
                                 aria-label="Ka Link reactions"
-                                className="absolute bottom-[calc(100%+0.5rem)] left-1/2 z-50 w-52 -translate-x-1/2 rounded-2xl border border-[#eadfca] bg-white p-2 shadow-xl"
+                                // Fixed, not absolute: on phones the tools row scrolls sideways and
+                                // clipped the picker, so the emojis never showed.
+                                className="fixed z-[460] w-52 rounded-2xl border border-[#eadfca] bg-white p-2 shadow-xl"
+                                style={reactionAnchor ? { left: reactionAnchor.left, bottom: reactionAnchor.bottom } : { left: '50%', bottom: '8rem', transform: 'translateX(-50%)' }}
+                                data-testid="huddle-reaction-picker"
                               >
                                 <p className="px-2 pb-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#7a5a1c]">Reactions</p>
                                 <div className="grid grid-cols-1 gap-1">
@@ -2839,7 +2888,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                           </button>
                         ) : null}
                         <TranslateButton t={translation} variant="room" />
-                        {!audioOnly ? (
+                        {!audioOnly && (canUseCamera || camEnabled) ? (
                           <button
                             type="button"
                             onClick={() => void toggleCam()}
@@ -3523,7 +3572,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             >
               {micEnabled ? <Mic size={22} /> : <MicOff size={22} />}
             </button>
-            {!audioOnly && (
+            {!audioOnly && (canModerate || camEnabled || tiles.some((t) => t.isLocal && t.team)) && (
             <button
               type="button"
               onClick={() => void toggleCam()}
@@ -3576,7 +3625,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setReactionAnchor({
+                      left: Math.min(Math.max(8, r.left + r.width / 2 - 104), window.innerWidth - 216),
+                      bottom: window.innerHeight - r.top + 8,
+                    });
                     setReactionError(null);
                     setReactionPickerOpen((open) => !open);
                   }}
@@ -3595,7 +3649,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   <div
                     role="menu"
                     aria-label="Ka Link reactions"
-                    className="absolute bottom-[calc(100%+0.5rem)] left-1/2 z-50 w-52 -translate-x-1/2 rounded-2xl border border-white/15 bg-[#0c110f] p-2 shadow-xl"
+                    className="fixed z-[460] w-52 rounded-2xl border border-white/15 bg-[#0c110f] p-2 shadow-xl"
+                    style={reactionAnchor ? { left: reactionAnchor.left, bottom: reactionAnchor.bottom } : { left: '50%', bottom: '8rem', transform: 'translateX(-50%)' }}
                   >
                     <p className="px-2 pb-1.5 text-xs font-black uppercase tracking-[0.2em] text-gold">
                       Reactions

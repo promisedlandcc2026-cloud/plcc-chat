@@ -8,13 +8,36 @@ export const HUDDLE_CHAT_SCHEMA_VERSION = 1 as const;
 export const HUDDLE_CHAT_MAX_LENGTH = 500;
 export const HUDDLE_CHAT_TOPIC = 'awc.huddle.chat';
 
+/** A reply's short quote of the message it answers (optional; older apps ignore it). */
+export type HuddleChatReplyRef = {
+  id: string;
+  name: string;
+  text: string;
+};
+
+export const HUDDLE_CHAT_REPLY_QUOTE_MAX = 120;
+
 export type HuddleChatWirePayload = {
   type: typeof HUDDLE_CHAT_TYPE;
   v: typeof HUDDLE_CHAT_SCHEMA_VERSION;
   id: string;
   text: string;
   sentAt: number;
+  reply?: HuddleChatReplyRef;
 };
+
+/** Clean a reply quote; null when missing or invalid. */
+export function normalizeHuddleChatReply(raw: unknown): HuddleChatReplyRef | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = String(o.id || '').trim();
+  if (!id || id.length > 80) return null;
+  const name = String(o.name || '').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Member';
+  let text = String(o.text || '').replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+  if (text.length > HUDDLE_CHAT_REPLY_QUOTE_MAX) text = `${text.slice(0, HUDDLE_CHAT_REPLY_QUOTE_MAX - 1)}…`;
+  return { id, name, text };
+}
 
 export type HuddleChatMessage = {
   id: string;
@@ -24,6 +47,7 @@ export type HuddleChatMessage = {
   senderName: string;
   isLocal: boolean;
   showModeratorBadge: boolean;
+  reply?: HuddleChatReplyRef;
 };
 
 export function createHuddleChatId(): string {
@@ -57,17 +81,20 @@ export function buildHuddleChatWirePayload(input: {
   id: string;
   text: string;
   sentAt?: number;
+  reply?: HuddleChatReplyRef | null;
 }): HuddleChatWirePayload | null {
   const checked = validateHuddleChatText(input.text);
   if (!checked.ok) return null;
   const id = String(input.id || '').trim();
   if (!id) return null;
+  const reply = normalizeHuddleChatReply(input.reply);
   return {
     type: HUDDLE_CHAT_TYPE,
     v: HUDDLE_CHAT_SCHEMA_VERSION,
     id,
     text: checked.text,
     sentAt: Number(input.sentAt) || Date.now(),
+    ...(reply ? { reply } : {}),
   };
 }
 
@@ -86,12 +113,14 @@ export function parseHuddleChatWirePayload(raw: unknown): HuddleChatWirePayload 
   if (!checked.ok) return null;
   const sentAt = Number(o.sentAt);
   if (!Number.isFinite(sentAt) || sentAt <= 0) return null;
+  const reply = normalizeHuddleChatReply(o.reply);
   return {
     type: HUDDLE_CHAT_TYPE,
     v: HUDDLE_CHAT_SCHEMA_VERSION,
     id,
     text: checked.text,
     sentAt,
+    ...(reply ? { reply } : {}),
   };
 }
 
@@ -113,6 +142,7 @@ export function hydrateHuddleChatMessage(opts: {
     senderName: String(opts.senderName || '').trim() || (isLocal ? 'You' : 'Member'),
     isLocal,
     showModeratorBadge: isLocal && Boolean(opts.localCanModerate),
+    ...(opts.payload.reply ? { reply: opts.payload.reply } : {}),
   };
 }
 
