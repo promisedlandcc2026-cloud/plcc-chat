@@ -86,7 +86,7 @@ describe('reply to a message in the Ka Link chat', async () => {
 
 describe('video only for Pr. Grace, the Ka Link team and moderators', () => {
   it('members see no camera button and never turn it on at join', () => {
-    assert.match(huddle, /const canUseCamera = canModerate \|\| Boolean\(localTile\?\.team\)/);
+    assert.match(huddle, /const canUseCamera = canModerate \|\| teamMayUseVideo\(localTile\?\.team\)/);
     assert.match(huddle, /!audioOnly && \(canUseCamera \|\| camEnabled\)/);
     assert.match(huddle, /if \(camEnabled && mayUseCamera\)/);
   });
@@ -113,5 +113,12 @@ describe('Android call crash (Nov 19): mediaSession.setMicrophoneActive returns 
   it('is never followed by .catch directly; wrapped in Promise.resolve + try', () => {
     assert.doesNotMatch(huddle, /setMicrophoneActive\([^)]*\)\.catch/);
     assert.match(huddle, /Promise\.resolve\(ms\.setMicrophoneActive\(micEnabled\)\)\.catch/);
+  });
+});
+
+describe('standing Bible readers (Ka Link team "reader")', () => {
+  it('show as readers, may unmute (server grants it), get no video', () => {
+    assert.match(huddle, /reader: stageRef\.current\.readerIds\.includes\(p\.identity\) \|\| participantTeam\(p\) === 'reader'/);
+    assert.match(huddle, /function teamMayUseVideo[\s\S]*team === 'admin' \|\| team === 'leader'/);
   });
 });

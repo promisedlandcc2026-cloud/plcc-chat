@@ -250,7 +250,7 @@ type Tile = {
   /** Bible reader this session (may unmute while mics are locked). */
   reader: boolean;
   /** Ka Link team role from the server-signed token (Phase 3). */
-  team: 'admin' | 'leader' | null;
+  team: 'admin' | 'leader' | 'reader' | null;
   /** Phase 5 #30: weak or lost connection. */
   signal: SignalLevel;
   /** Phase 5 #34: on a phone call / stepped away (sent by their phone). */
@@ -262,9 +262,14 @@ const HUDDLE_READY_TOPIC = 'plcc-ready';
 const READY_RESEND_MS = 30_000;
 type ReadyAlert = { identity: string; name: string; at: number };
 
-function participantTeam(p: Participant): 'admin' | 'leader' | null {
+function participantTeam(p: Participant): 'admin' | 'leader' | 'reader' | null {
   const t = p.attributes?.['plcc.team'];
-  return t === 'admin' || t === 'leader' ? t : null;
+  return t === 'admin' || t === 'leader' || t === 'reader' ? t : null;
+}
+
+/** Video is for the Ka Link team's admins and leaders (Pr. Grace), not standing Bible readers. */
+function teamMayUseVideo(team: 'admin' | 'leader' | 'reader' | null | undefined): boolean {
+  return team === 'admin' || team === 'leader';
 }
 
 type Props = {
@@ -729,7 +734,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         moderator: p.attributes?.['plcc.role'] === 'moderator' || (isLocal && canModerateRef.current),
         raisedAt: parseHandRaisedAt(p.metadata),
         handNo: parseHandNo(p.metadata),
-        reader: stageRef.current.readerIds.includes(p.identity),
+        // Bible reader for this session, or a standing reader from Canaan's Ka Link team.
+        reader: stageRef.current.readerIds.includes(p.identity) || participantTeam(p) === 'reader',
         team: participantTeam(p),
         signal: signalLevel(p.connectionQuality),
         away: isLocal ? localAwayRef.current : awayRef.current.get(p.identity) ?? null,
@@ -1188,7 +1194,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           }
           if (topic === HUDDLE_READY_TOPIC) {
             // Only moderators see it, and only from a real team member (role is in the signed token).
-            if (!canModerateRef.current || !participantTeam(participant)) return;
+            if (!canModerateRef.current || !teamMayUseVideo(participantTeam(participant))) return;
             const alert: ReadyAlert = { identity: participant.identity, name: displayName(participant), at: Date.now() };
             setReadyAlerts((prev) => [...prev.filter((a) => a.identity !== alert.identity), alert].slice(-5));
             try {
@@ -1381,7 +1387,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       setMicEnabled(false);
       micEnabledRef.current = false;
       // Video only for moderators and the Ka Link team (Pr. Grace); members join audio-only.
-      const mayUseCamera = Boolean(tokenPayload.canModerate) || participantTeam(room.localParticipant) !== null;
+      const mayUseCamera = Boolean(tokenPayload.canModerate) || teamMayUseVideo(participantTeam(room.localParticipant));
       if (camEnabled && mayUseCamera) {
         try {
           await room.localParticipant.setCameraEnabled(true);
@@ -2243,7 +2249,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   if (!embedded) {
     const localTile = tiles.find((t) => t.isLocal);
     // Video is for Pr. Grace, the Ka Link team and moderators (Canaan enforces it too).
-    const canUseCamera = canModerate || Boolean(localTile?.team);
+    const canUseCamera = canModerate || teamMayUseVideo(localTile?.team);
     const speakingNow = tiles.filter((t) => t.speaking && t.micOn).map((t) => (t.isLocal ? 'You' : t.name));
     const anyVideo = tiles.some((t) => t.camOn);
     const connected = conn === 'connected';
@@ -3578,7 +3584,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             >
               {micEnabled ? <Mic size={22} /> : <MicOff size={22} />}
             </button>
-            {!audioOnly && (canModerate || camEnabled || tiles.some((t) => t.isLocal && t.team)) && (
+            {!audioOnly && (canModerate || camEnabled || tiles.some((t) => t.isLocal && teamMayUseVideo(t.team))) && (
             <button
               type="button"
               onClick={() => void toggleCam()}
