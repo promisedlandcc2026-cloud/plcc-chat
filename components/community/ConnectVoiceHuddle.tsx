@@ -2767,6 +2767,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                       </div>
 
                       <div className="pr-tools" role="toolbar" aria-label="Ka Link tools">
+                        {/* Bible stays on the bar: on phones the left menu is hidden and the Bible tab sits below the room. */}
+                        <button type="button" onClick={openBible} className={`pr-tool ${sideTab === 'bible' || bibleSheetOpen ? 'is-on' : ''}`} title="Read the Bible" aria-label="Open the Bible">
+                          <BookOpen size={17} aria-hidden /> <span>Bible</span>
+                        </button>
                         {!prayerWatch ? (
                           <button type="button" onClick={() => setActiveTab('chat')} className="pr-tool is-icon relative" aria-label="Room chat" title="Chat">
                             <MessageCircle size={18} aria-hidden />
