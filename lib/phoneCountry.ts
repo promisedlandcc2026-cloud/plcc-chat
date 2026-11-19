@@ -50,6 +50,13 @@ export function toE164WithCountry(raw: string, country: PhoneCountry): string | 
   if (digits.startsWith(country.dial) && digits.length >= country.dial.length + 8) {
     return digits.length <= 15 ? `+${digits}` : null;
   }
+  // A Ugandan number typed with "United States / Canada" picked (0772 557842 or
+  // 772 557842): US/Canada numbers never start with 0 and have 10 digits, so it
+  // can only be Ugandan. Canaan corrects this too (ugandaFromUsMisdial).
+  if (country.dial === '1') {
+    const ug = (digits.length === 10 && digits.startsWith('0') ? digits.slice(1) : digits.length === 9 ? digits : '');
+    if (/^[237]\d{8}$/.test(ug)) return `+256${ug}`;
+  }
   // Drop the local trunk 0 (Uganda, Kenya, UK, …). The US has none.
   if (country.dial !== '1') digits = digits.replace(/^0+/, '');
   const full = `${country.dial}${digits}`;

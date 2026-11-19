@@ -25,6 +25,10 @@ describe('phone numbers (#15)', () => {
   it('members abroad', () => {
     assert.equal(toE164WithCountry('07700 900123', findPhoneCountry('GB')), '+447700900123');
     assert.equal(toE164WithCountry('(555) 123-4567', findPhoneCountry('US')), '+15551234567');
+    // A Ugandan number typed with United States picked is still Ugandan (was +10772557842).
+    assert.equal(toE164WithCountry('0772 557842', findPhoneCountry('US')), '+256772557842');
+    assert.equal(toE164WithCountry('772 557842', findPhoneCountry('US')), '+256772557842');
+    assert.equal(toE164WithCountry('508 555 1234', findPhoneCountry('US')), '+15085551234');
     assert.equal(toE164WithCountry('+254 712 345678', UG), '+254712345678');
     assert.equal(toE164WithCountry('00254712345678', UG), '+254712345678');
     assert.equal(normalisePhone('5551234567'), '+15551234567');
