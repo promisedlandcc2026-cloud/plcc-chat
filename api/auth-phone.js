@@ -14,6 +14,7 @@ const REPORTABLE_REASONS = new Set([
   'member_pending',
   'member_not_found',
   'member_check_failed',
+  'app_crash',
 ]);
 
 function shortUserAgent(req) {
