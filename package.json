@@ -8,9 +8,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --test scripts/*.test.mjs"
+    "test": "node --test scripts/*.test.mjs",
+    "app:sync": "npm run build && cap sync",
+    "app:assets": "capacitor-assets generate --android --ios --iconBackgroundColor \"#0e1512\" --splashBackgroundColor \"#0e1512\""
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/ios": "^8.6.2",
     "@daily-co/daily-js": "^0.93.0",
     "@supabase/supabase-js": "^2.116.0",
     "livekit-client": "^2.22.3",
@@ -20,6 +25,8 @@
     "react-router-dom": "^7.13.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.2",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.24",

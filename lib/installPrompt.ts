@@ -11,6 +11,8 @@
  * never tells a website it was added to the home screen, hence "I've added it".
  */
 
+import { isNativeApp } from './nativeShell';
+
 const STORAGE_KEY = 'awc_install_prompt'; // 'dismissed' | 'installed'
 const DISMISSED_AT_KEY = 'awc_install_prompt_dismissed_at';
 const LEGACY_DISMISSED_KEY = 'awc_pwa_dismissed';
@@ -71,6 +73,8 @@ export function markInstalled() {
 /** True when Connect is open from the home-screen icon (not a browser tab). */
 export function isRunningInstalled(): boolean {
   if (typeof window === 'undefined') return false;
+  // #21: the App Store / Play Store app counts as installed.
+  if (isNativeApp()) return true;
   const nav = navigator as Navigator & { standalone?: boolean };
   return (
     nav.standalone === true ||

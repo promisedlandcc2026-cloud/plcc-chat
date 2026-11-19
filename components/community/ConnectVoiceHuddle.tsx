@@ -75,6 +75,7 @@ import {
   type AwayReason,
   type SignalLevel,
 } from '../../lib/kaLinkDataSaver';
+import { startNativeCall, stopNativeCall } from '../../lib/nativeShell';
 import { CommunityChatError } from '../../lib/communityChatTypes';
 import {
   endHuddle,
@@ -1670,6 +1671,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
+
+  // #21 store app (Android): "On Ka Link" notification keeps the call going in the background.
+  const nativeCallLive = conn === 'connected' || conn === 'reconnecting';
+  useEffect(() => {
+    if (!nativeCallLive) return;
+    void startNativeCall(title);
+    return () => {
+      void stopNativeCall();
+    };
+  }, [nativeCallLive, title]);
 
   // Lock screen / notification controls while in a Ka Link (Android; some iPhones).
   const toggleMicRef = useRef<() => void>(() => undefined);
