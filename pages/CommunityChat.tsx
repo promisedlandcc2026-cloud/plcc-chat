@@ -18,6 +18,8 @@ import {
   Megaphone,
   MessageCircle,
   Users,
+  BookOpen,
+  ChevronRight,
   Plus,
   RefreshCcw,
   Search,
@@ -604,6 +606,22 @@ export const CommunityChatPage: React.FC = () => {
         messageUnread={messageUnread}
         liveCount={liveRows.length}
       />
+
+      {/* Bible on the home screen (members asked for it here, not only inside a Ka Link). */}
+      <Link
+        to="/bible"
+        className="mb-4 flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#d9b45e]/60 bg-gradient-to-r from-[#0f3d2c] to-[#062a1d] px-4 py-3 text-[#f4ecdb] shadow-sm active:scale-[0.99]"
+        data-testid="home-bible-card"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d9b45e]/15 text-[#f1d58a]">
+          <BookOpen size={20} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-bold">Bible</span>
+          <span className="block text-xs text-[#f4ecdb]/75">Read in English and Luganda · share a verse to any chat</span>
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-[#f1d58a]" aria-hidden />
+      </Link>
 
       <label className="relative block mb-5">
         <span className="sr-only">Search messages</span>

@@ -41,9 +41,32 @@ export function parseHandRaised(metadata: string | undefined): boolean {
   }
 }
 
+/**
+ * This person's hand number for the Ka Link (given the first time they raise a hand).
+ * It stays theirs for the session — lowering (by them or a moderator) keeps it, and it
+ * never shifts when other hands go down. Null if they haven't raised a hand yet.
+ */
+export function parseHandNo(metadata: string | undefined | null): number | null {
+  if (!metadata) return null;
+  try {
+    const n = Number(JSON.parse(metadata)?.handNo);
+    return Number.isInteger(n) && n > 0 && n < 100000 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The next free hand number: one more than the highest number anyone in the room holds. */
+export function nextHandNo(metadatas: Array<string | undefined | null>): number {
+  let max = 0;
+  for (const m of metadatas) max = Math.max(max, parseHandNo(m) ?? 0);
+  return max + 1;
+}
+
 export function mergeHandMetadata(
   existing: string | undefined,
-  handRaised: boolean
+  handRaised: boolean,
+  handNo?: number | null
 ): string {
   let base: Record<string, unknown> = {};
   if (existing) {
@@ -61,6 +84,8 @@ export function mergeHandMetadata(
     v: 1,
     handRaised,
     raisedAt: handRaised ? Date.now() : null,
+    // Keep the number they already have; set it on their first raise.
+    ...(handNo ? { handNo } : {}),
   });
 }
 

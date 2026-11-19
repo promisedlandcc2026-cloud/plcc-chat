@@ -5,6 +5,8 @@ export type HuddleHandEntry = {
   identity: string;
   name: string;
   isLocal: boolean;
+  /** Their fixed hand number for this Ka Link. */
+  number?: number;
 };
 
 type Props = {
@@ -66,7 +68,7 @@ export const HuddleHandsPanel: React.FC<Props> = ({
                 className="flex items-center gap-3 rounded-2xl bg-gold/10 border border-gold/30 px-3 py-2.5"
               >
                 <span className="w-8 h-8 rounded-full bg-gold text-burgundy flex items-center justify-center text-xs font-black shrink-0">
-                  {index + 1}
+                  {entry.number ?? index + 1}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold truncate">

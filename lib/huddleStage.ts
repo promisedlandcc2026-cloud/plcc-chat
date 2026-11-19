@@ -40,7 +40,7 @@ export function parseHandRaisedAt(metadata: string | undefined | null): number |
  * Raised hands in the order they went up (#6). `firstSeen` holds when this
  * device first saw a hand without a time, so it still keeps its place.
  */
-export function orderRaisedHands<T extends { identity: string; handRaised: boolean; raisedAt?: number | null }>(
+export function orderRaisedHands<T extends { identity: string; handRaised: boolean; raisedAt?: number | null; handNo?: number | null }>(
   tiles: T[],
   firstSeen: Map<string, number>,
   now: number = Date.now()
@@ -51,6 +51,8 @@ export function orderRaisedHands<T extends { identity: string; handRaised: boole
   for (const id of Array.from(firstSeen.keys())) if (!up.has(id)) firstSeen.delete(id);
   for (const t of raised) if (!firstSeen.has(t.identity)) firstSeen.set(t.identity, t.raisedAt ?? now);
   return [...raised].sort((a, b) => {
+    // Fixed hand numbers (kept for the whole Ka Link) decide the line when both have one.
+    if (a.handNo && b.handNo && a.handNo !== b.handNo) return a.handNo - b.handNo;
     const ta = a.raisedAt ?? firstSeen.get(a.identity) ?? now;
     const tb = b.raisedAt ?? firstSeen.get(b.identity) ?? now;
     return ta - tb || a.identity.localeCompare(b.identity);
