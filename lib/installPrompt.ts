@@ -11,6 +11,8 @@
  * never tells a website it was added to the home screen, hence "I've added it".
  */
 
+import { isNativeApp } from './nativeShell';
+
 const STORAGE_KEY = 'awc_install_prompt'; // 'dismissed' | 'installed'
 const DISMISSED_AT_KEY = 'awc_install_prompt_dismissed_at';
 const LEGACY_DISMISSED_KEY = 'awc_pwa_dismissed';
@@ -71,6 +73,8 @@ export function markInstalled() {
 /** True when Connect is open from the home-screen icon (not a browser tab). */
 export function isRunningInstalled(): boolean {
   if (typeof window === 'undefined') return false;
+  // #21: the App Store / Play Store app counts as installed.
+  if (isNativeApp()) return true;
   const nav = navigator as Navigator & { standalone?: boolean };
   return (
     nav.standalone === true ||
@@ -131,6 +135,17 @@ async function alreadyInstalledOnDevice(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Phase 5 #33 — "one app, not two": the PLCC app is on this phone but this is
+ * the browser. Known when this browser saw the install (or "I've added it"),
+ * or Android/Chrome confirms it via getInstalledRelatedApps.
+ */
+export async function installedAppButInBrowser(): Promise<boolean> {
+  if (isRunningInstalled()) return false;
+  if (readFlag() === 'installed') return true;
+  return alreadyInstalledOnDevice();
 }
 
 /** Whether to show the prompt at all. Records "installed" when it can tell. */

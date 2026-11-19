@@ -3,6 +3,7 @@ import { FileText, Download, X } from 'lucide-react';
 import type { CommunityChatAttachment } from '../../lib/communityChatTypes';
 import { formatFileSize, stableMediaUrl } from '../../lib/chatMedia';
 import { Portal } from './Portal';
+import { readDataSaver, videoPreload } from '../../lib/kaLinkDataSaver';
 
 /** Photos, voice notes, videos and documents inside a chat bubble. */
 export const ChatAttachments: React.FC<{
@@ -11,6 +12,8 @@ export const ChatAttachments: React.FC<{
 }> = ({ attachments, mine }) => {
   const [viewing, setViewing] = useState<string | null>(null);
   if (!attachments.length) return null;
+  // Phase 5: with Data Saver on, videos download only when tapped.
+  const preload = videoPreload(readDataSaver());
 
   return (
     <div className="space-y-2 mb-1">
@@ -59,7 +62,7 @@ export const ChatAttachments: React.FC<{
               key={att.id}
               controls
               playsInline
-              preload="metadata"
+              preload={preload}
               src={url}
               className="w-full max-h-80 rounded-xl bg-black"
             />

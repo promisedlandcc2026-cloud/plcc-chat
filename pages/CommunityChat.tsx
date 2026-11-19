@@ -4,6 +4,9 @@ import {
   Archive,
   ArchiveRestore,
   ChevronDown,
+  ChevronsLeft,
+  Ban,
+  Flag,
   Church,
   HandHeart,
   Lock,
@@ -18,6 +21,7 @@ import {
   Plus,
   RefreshCcw,
   Search,
+  Trash2,
   User,
   X,
 } from 'lucide-react';
@@ -37,7 +41,16 @@ import {
   searchChatDirectory,
 } from '../lib/communityChatClient';
 import { HuddleLiveBadge } from '../components/huddle/HuddleLiveDot';
-import { dmDisplayName, listDmRecents, rememberDmRecent, replaceDmRecents } from '../lib/dmRecents';
+import { dmDisplayName, forgetDmRecent, listDmRecents, rememberDmRecent, replaceDmRecents } from '../lib/dmRecents';
+import { SwipeToDelete } from '../components/chat/SwipeToDelete';
+import { DmBlockSheet, DmReportSheet } from '../components/chat/DmSafetySheets';
+import {
+  dismissSwipeTip,
+  hasDismissedSwipeTip,
+  hasSeenSwipePeek,
+  isTouchDevice,
+  markSwipePeekSeen,
+} from '../lib/dmSwipeHint';
 import { Button } from '../components/ui/Button';
 import { MemberPageHeader } from '../components/member/MemberPageHeader';
 import { ChatAlertsCard } from '../components/chat/ChatAlertsCard';
@@ -45,7 +58,14 @@ import { AccountMenu } from '../components/chat/AccountMenu';
 import { BackToAwcOne } from '../components/ui/BackToAwcOne';
 import { NewGroupSheet } from '../components/chat/NewGroupSheet';
 import { CHAT_LEADER_ROLES } from '../lib/chatRoles';
-import { fetchArchivedChatIds, fetchDmList, searchChatMessages, setChatArchived } from '../lib/communityChatClient';
+import {
+  deleteDmChat,
+  fetchArchivedChatIds,
+  fetchDmList,
+  searchChatMessages,
+  setChatArchived,
+  setDmBlocked,
+} from '../lib/communityChatClient';
 import { Portal } from '../components/chat/Portal';
 import type { ChatSearchHit } from '../lib/communityChatTypes';
 import { ChatNavTabs } from '../components/chat/ChatNavTabs';
@@ -109,6 +129,23 @@ export const CommunityChatPage: React.FC = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [rowMenu, setRowMenu] = useState<{ id: string; title: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  /** Which DM row is swiped open, and which one is waiting on "Delete chat?". */
+  const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  /** DMs where you blocked the other person. */
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
+  const [confirmBlock, setConfirmBlock] = useState<{ id: string; title: string } | null>(null);
+  const [reportFor, setReportFor] = useState<{ id: string; title: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  /** First-time hints that chats can be swiped left to delete. */
+  const [touch] = useState(isTouchDevice);
+  const [peekPending, setPeekPending] = useState(() => !hasSeenSwipePeek());
+  const [showSwipeTip, setShowSwipeTip] = useState(() => !hasDismissedSwipeTip());
+  const hideSwipeTip = () => {
+    dismissSwipeTip();
+    setShowSwipeTip(false);
+  };
   const longPress = React.useRef<{ timer: number | null; fired: boolean }>({ timer: null, fired: false });
   const location = useLocation();
   /** Search messages across every room you're in. */
@@ -147,6 +184,7 @@ export const CommunityChatPage: React.FC = () => {
       if (archived) setArchivedIds(archived);
       setChannels(list);
       setUnreadByChannel(unread.byChannel);
+      if (dms) setBlockedIds(new Set(dms.filter((d) => d.blocked).map((d) => d.channelId)));
       if (dms && ownerId) {
         // The Vault's list wins; keep this device's copy in step for room titles.
         replaceDmRecents(
@@ -326,6 +364,74 @@ export const CommunityChatPage: React.FC = () => {
     }
   };
 
+  const isDmId = (id: string) => dmRecents.some((d) => d.channelId === id);
+
+  const deleteDm = async (id: string, title: string) => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await deleteDmChat(id);
+      if (ownerId) forgetDmRecent(ownerId, id);
+      setDmRecents((prev) => prev.filter((d) => d.channelId !== id));
+      setArchivedIds((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setConfirmDelete(null);
+      if (activeChannelId === id) navigate('/community/chat?tab=messages', { replace: true });
+      setToast(`Chat with ${title} deleted.`);
+      window.setTimeout(() => setToast(null), 4000);
+    } catch (err) {
+      setConfirmDelete(null);
+      setToast(err instanceof Error ? err.message : 'Could not delete this chat.');
+      window.setTimeout(() => setToast(null), 6000);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const flash = (msg: string, ms = 4000) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), ms);
+  };
+  const markBlocked = (id: string, on: boolean) =>
+    setBlockedIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+
+  const changeBlock = async (id: string, title: string, on: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await setDmBlocked(id, on);
+      markBlocked(id, on);
+      setConfirmBlock(null);
+      setRowMenu(null);
+      flash(on ? `${title} is blocked. They can’t message you.` : `${title} is unblocked.`);
+    } catch (err) {
+      flash(err instanceof Error ? err.message : 'Something went wrong. Please try again.', 6000);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openReport = (target: { id: string; title: string }) => {
+    setRowMenu(null);
+    setConfirmBlock(null);
+    setReportFor(target);
+  };
+
+  const archiveFromSwipe = (id: string, title: string) => {
+    const archive = !archivedIds.has(id);
+    void toggleArchive(id, archive);
+    flash(archive ? `${title} archived. It’s under Archived at the bottom.` : `${title} moved back to Messages.`);
+  };
+
   const rowPressHandlers = (id: string, title: string) => ({
     onContextMenu: (e: React.MouseEvent) => {
       e.preventDefault();
@@ -364,8 +470,7 @@ export const CommunityChatPage: React.FC = () => {
     const huddle = huddleByChannel[channel.id];
     const active = activeChannelId === channel.id;
     const live = isHuddleChannelLive(huddle) && !opts?.isDm;
-    return (
-      <li key={channel.id} {...rowPressHandlers(channel.id, title)}>
+    const row = (
         <Link
           to={`/community/chat/${channel.id}`}
           state={{
@@ -391,6 +496,7 @@ export const CommunityChatPage: React.FC = () => {
             </div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
               {visibilityLabel(opts?.isDm ? 'dm' : channel.visibility)}
+              {opts?.isDm && blockedIds.has(channel.id) ? ' · Blocked' : ''}
               {live && huddle?.participantCount
                 ? ` · ${huddle.participantCount} in Ka Link`
                 : ''}
@@ -405,6 +511,31 @@ export const CommunityChatPage: React.FC = () => {
             </span>
           ) : null}
         </Link>
+    );
+    return (
+      <li key={channel.id} {...rowPressHandlers(channel.id, title)}>
+        {opts?.isDm ? (
+          <SwipeToDelete
+            label={title}
+            open={swipeOpenId === channel.id}
+            onOpenChange={(o) => {
+              setSwipeOpenId(o ? channel.id : swipeOpenId === channel.id ? null : swipeOpenId);
+              if (o && showSwipeTip) hideSwipeTip(); // they found it
+            }}
+            peek={touch && peekPending && activeTab === 'messages' && activeDms[0]?.channelId === channel.id}
+            onPeekDone={() => {
+              markSwipePeekSeen();
+              setPeekPending(false);
+            }}
+            onDelete={() => setConfirmDelete({ id: channel.id, title })}
+            onArchive={() => archiveFromSwipe(channel.id, title)}
+            archived={archivedIds.has(channel.id)}
+          >
+            {row}
+          </SwipeToDelete>
+        ) : (
+          row
+        )}
       </li>
     );
   };
@@ -679,6 +810,26 @@ export const CommunityChatPage: React.FC = () => {
                   No private messages yet. Tap New message to write to a member.
                 </div>
               ) : (
+                <>
+                {showSwipeTip ? (
+                  <div className="mb-2 flex items-center gap-3 rounded-2xl bg-burgundy/5 border border-burgundy/10 pl-4 pr-1 py-1">
+                    <span className="text-burgundy shrink-0 inline-flex" aria-hidden>
+                      <ChevronsLeft size={18} className="animate-pulse" />
+                    </span>
+                    <p className="flex-1 text-xs text-gray-600 leading-snug">
+                      {touch
+                        ? 'Tip: swipe a chat left to archive or delete it. Press and hold to block or report.'
+                        : 'Tip: right-click a chat to archive, delete, block or report.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={hideSwipeTip}
+                      className="shrink-0 min-h-[40px] px-3 rounded-xl text-xs font-bold text-burgundy active:bg-burgundy/10"
+                    >
+                      Got it
+                    </button>
+                  </div>
+                ) : null}
                 <ul className="space-y-2">
                   {activeDms.map((dm) =>
                     renderChannelRow(
@@ -695,6 +846,7 @@ export const CommunityChatPage: React.FC = () => {
                     )
                   )}
                 </ul>
+                </>
               )}
             </section>
           ) : null}
@@ -799,9 +951,134 @@ export const CommunityChatPage: React.FC = () => {
                   <Archive size={20} className="text-burgundy" aria-hidden /> Archive chat
                 </button>
               )}
+              {isDmId(rowMenu.id) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = rowMenu;
+                    setRowMenu(null);
+                    setConfirmDelete(target);
+                  }}
+                  className="w-full min-h-[56px] flex items-center gap-4 px-4 text-base font-semibold text-rose-600 rounded-2xl active:bg-rose-50 hover:bg-rose-50"
+                >
+                  <Trash2 size={20} aria-hidden /> Delete chat
+                </button>
+              ) : null}
+              {isDmId(rowMenu.id) ? (
+                <>
+                  <div className="my-1 mx-4 border-t border-gray-100" />
+                  {blockedIds.has(rowMenu.id) ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void changeBlock(rowMenu.id, rowMenu.title, false)}
+                      className="w-full min-h-[56px] flex items-center gap-4 px-4 text-base font-semibold text-[#1A1A1A] rounded-2xl active:bg-gray-50 hover:bg-gray-50"
+                    >
+                      <Ban size={20} className="text-burgundy" aria-hidden /> Unblock {rowMenu.title}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = rowMenu;
+                        setRowMenu(null);
+                        setConfirmBlock(target);
+                      }}
+                      className="w-full min-h-[56px] flex items-center gap-4 px-4 text-base font-semibold text-rose-600 rounded-2xl active:bg-rose-50 hover:bg-rose-50"
+                    >
+                      <Ban size={20} aria-hidden /> Block {rowMenu.title}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => openReport(rowMenu)}
+                    className="w-full min-h-[56px] flex items-center gap-4 px-4 text-base font-semibold text-rose-600 rounded-2xl active:bg-rose-50 hover:bg-rose-50"
+                  >
+                    <Flag size={20} aria-hidden /> Report to church leaders
+                  </button>
+                </>
+              ) : null}
               <p className="px-4 pb-1 text-xs text-gray-500">
                 Archived chats move to the bottom and come back when someone posts. Only you see this.
               </p>
+            </div>
+          </div>
+        </Portal>
+      ) : null}
+
+      {confirmBlock ? (
+        <DmBlockSheet
+          target={confirmBlock}
+          onClose={() => setConfirmBlock(null)}
+          onBlocked={() => {
+            markBlocked(confirmBlock.id, true);
+            flash(`${confirmBlock.title} is blocked. They can’t message you.`);
+            setConfirmBlock(null);
+          }}
+          onReportInstead={() => openReport(confirmBlock)}
+        />
+      ) : null}
+
+      {reportFor ? (
+        <DmReportSheet
+          target={reportFor}
+          alreadyBlocked={blockedIds.has(reportFor.id)}
+          onClose={() => setReportFor(null)}
+          onSent={(alsoBlocked) => {
+            if (alsoBlocked) markBlocked(reportFor.id, true);
+            flash(
+              alsoBlocked
+                ? `Report sent to church leaders, and ${reportFor.title} is blocked. Thank you.`
+                : 'Report sent to church leaders. Thank you.',
+              6000
+            );
+            setReportFor(null);
+          }}
+        />
+      ) : null}
+
+      {confirmDelete ? (
+        <Portal>
+          <div
+            className="fixed inset-0 z-50 bg-black/40 flex items-end lg:items-center justify-center"
+            onClick={() => !deleting && setConfirmDelete(null)}
+          >
+            <div
+              className="w-full max-w-[500px] lg:max-w-[400px] bg-white rounded-t-3xl lg:rounded-3xl shadow-2xl px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+              onClick={(e) => e.stopPropagation()}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="dm-delete-title"
+              aria-describedby="dm-delete-desc"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
+                <Trash2 size={22} aria-hidden />
+              </div>
+              <h2 id="dm-delete-title" className="text-lg font-bold text-[#1A1A1A]">
+                Delete chat with {confirmDelete.title}?
+              </h2>
+              <p id="dm-delete-desc" className="text-sm text-gray-600 mt-1">
+                The chat and its messages are removed for you only. {confirmDelete.title} still has their copy. If either of you writes again, it starts fresh.
+              </p>
+              <div className="mt-5 grid gap-2">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => void deleteDm(confirmDelete.id, confirmDelete.title)}
+                  className="w-full min-h-[52px] rounded-2xl bg-rose-600 text-white text-base font-bold inline-flex items-center justify-center gap-2 active:bg-rose-700 disabled:opacity-60"
+                >
+                  {deleting ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Trash2 size={18} aria-hidden />}
+                  {deleting ? 'Deleting…' : 'Delete chat'}
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => setConfirmDelete(null)}
+                  className="w-full min-h-[52px] rounded-2xl bg-gray-100 text-[#1A1A1A] text-base font-bold active:bg-gray-200"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </Portal>

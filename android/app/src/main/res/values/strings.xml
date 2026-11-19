@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PLCC Ka Link</string>
+    <string name="title_activity_main">PLCC Ka Link</string>
+    <string name="package_name">org.promisedlandcc.kalink</string>
+    <string name="custom_url_scheme">org.promisedlandcc.kalink</string>
+</resources>

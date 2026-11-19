@@ -250,6 +250,7 @@ export function sanitizeDmList(raw) {
         partnerName: clip(c.partnerName, 80) || 'Member',
         lastMessageAt: asIsoTimestamp(c.lastMessageAt),
         lastMessage: c.lastMessage == null ? null : clip(c.lastMessage, 120),
+        blocked: c.blocked === true,
       };
     })
     .filter(Boolean);
@@ -1371,4 +1372,34 @@ export function sanitizeSongList(raw) {
       url: okUrl ? url : null,
     }];
   });
+}
+
+/* ---------- DM block / report ---------- */
+
+export const DM_REPORT_REASONS = Object.freeze(['spam', 'money', 'impersonation', 'harassment', 'inappropriate', 'other']);
+
+/** @param {unknown} raw */
+export function parseDmBlockCommand(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const b = /** @type {Record<string, unknown>} */ (raw);
+  if (Object.keys(b).some((k) => k !== 'channelId' && k !== 'blocked')) return null;
+  const channelId = asNullableString(b.channelId);
+  if (!channelId || !UUID_RE.test(channelId) || typeof b.blocked !== 'boolean') return null;
+  return { channelId, blocked: b.blocked };
+}
+
+/** @param {unknown} raw */
+export function parseDmReportCommand(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const b = /** @type {Record<string, unknown>} */ (raw);
+  if (Object.keys(b).some((k) => !['channelId', 'reason', 'note', 'block'].includes(k))) return null;
+  const channelId = asNullableString(b.channelId);
+  if (!channelId || !UUID_RE.test(channelId)) return null;
+  const reason = asNullableString(b.reason);
+  if (!reason || !DM_REPORT_REASONS.includes(reason)) return null;
+  if (b.note != null && typeof b.note !== 'string') return null;
+  const note = String(b.note || '').trim();
+  if (note.length > MAX_REPORT_NOTE_CHARS) return null;
+  if (b.block != null && typeof b.block !== 'boolean') return null;
+  return { channelId, reason, note, block: b.block === true };
 }

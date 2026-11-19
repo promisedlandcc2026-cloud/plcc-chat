@@ -11,6 +11,8 @@ import {
   parseMarkChatReadCommand,
   parseOpenDmCommand,
   parseReportMessageCommand,
+  parseDmBlockCommand,
+  parseDmReportCommand,
   parseSendChatMessageCommand,
   parseVaultChatChannelsResponse,
   parseVaultChatMessageMutationResponse,
@@ -125,6 +127,9 @@ const ALLOWED_RESOURCES = new Set([
   'dm-list',
   'archives',
   'room-archive',
+  'dm-delete',
+  'dm-block',
+  'dm-report',
   'room-mute',
   'directory',
   'dm',
@@ -547,6 +552,14 @@ export default async function handler(req, res) {
         signal: controller.signal,
         redirect: 'error',
       });
+      if (upstream.status === 403) {
+        // Blocked DMs and announcement rooms explain themselves.
+        const denied = await upstream.json().catch(() => null);
+        if ((denied?.code === 'blocked' || denied?.code === 'announce_only') && typeof denied?.error === 'string') {
+          return json(res, 403, { ok: false, code: denied.code, message: denied.error.slice(0, 160) });
+        }
+        return mapUpstreamError(res, 403);
+      }
       if (!upstream.ok) return mapUpstreamError(res, upstream.status);
       let body;
       try {
@@ -931,6 +944,63 @@ export default async function handler(req, res) {
         return mapUpstreamError(res, upstream.status);
       }
       return json(res, 200, { ok: true, channelId: b.channelId, archived: b.archived });
+    }
+
+    if (resource === 'dm-block' || resource === 'dm-report') {
+      // Block a member from messaging you, or report a private conversation to church leaders.
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
+      }
+      const parsedBody = parseJsonBody(req);
+      const b = parsedBody.ok && parsedBody.body && typeof parsedBody.body === 'object' ? parsedBody.body : null;
+      const command = b ? (resource === 'dm-block' ? parseDmBlockCommand(b) : parseDmReportCommand(b)) : null;
+      if (!command) {
+        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That request was not valid.' });
+      }
+      const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, resource), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify(command),
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      const body = await upstream.json().catch(() => null);
+      if (!upstream.ok) {
+        if ((upstream.status === 503 || upstream.status === 429 || upstream.status === 502) && typeof body?.error === 'string') {
+          return json(res, upstream.status, { ok: false, code: 'not_sent', message: body.error.slice(0, 160), blocked: body?.blocked === true });
+        }
+        return mapUpstreamError(res, upstream.status);
+      }
+      return json(res, 200, { ok: true, channelId: command.channelId, blocked: body?.blocked === true });
+    }
+
+    if (resource === 'dm-delete') {
+      // "Delete chat" on a direct message — hides it (and its earlier messages) for you only.
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
+      }
+      const parsedBody = parseJsonBody(req);
+      const b = parsedBody.ok && parsedBody.body && typeof parsedBody.body === 'object' ? parsedBody.body : null;
+      if (!b || !UUID_RE.test(String(b.channelId || '')) || Object.keys(b).some((k) => k !== 'channelId')) {
+        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That request was not valid.' });
+      }
+      const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'dm-delete'), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify({ channelId: b.channelId }),
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      if (!upstream.ok) {
+        const body = await upstream.json().catch(() => null);
+        if (upstream.status === 503 && typeof body?.error === 'string') {
+          return json(res, 503, { ok: false, code: 'not_set_up', message: body.error.slice(0, 160) });
+        }
+        return mapUpstreamError(res, upstream.status);
+      }
+      return json(res, 200, { ok: true, channelId: b.channelId, deleted: true });
     }
 
     if (resource === 'dm-list') {
@@ -1408,7 +1478,13 @@ export default async function handler(req, res) {
           message: 'Reporting isn’t switched on yet. Please tell a church leader directly.',
         });
       }
-      if (!upstream.ok) return mapUpstreamError(res, upstream.status, 'You can’t report messages in this chat.');
+      if (!upstream.ok) {
+        const body = await upstream.json().catch(() => null);
+        if ((upstream.status === 503 || upstream.status === 429 || upstream.status === 502) && typeof body?.error === 'string') {
+          return json(res, upstream.status, { ok: false, code: 'not_sent', message: body.error.slice(0, 160) });
+        }
+        return mapUpstreamError(res, upstream.status, 'You can’t report messages in this chat.');
+      }
       return json(res, 200, { ok: true, messageId: command.messageId });
     }
 

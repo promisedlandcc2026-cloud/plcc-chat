@@ -14,9 +14,12 @@ const huddle = read('components/community/ConnectVoiceHuddle.tsx');
 const toolbar = huddle.slice(huddle.indexOf('<div className="pr-tools" role="toolbar"'), huddle.indexOf('{moreOpen ? ('));
 
 describe('tidy call tools', () => {
-  it('bar keeps only everyday tools + More; Bible/Prayer Request live in the side panel', () => {
-    assert.doesNotMatch(toolbar, /openBible|setSheet\('prayer'\)|End for everyone|setRecordingsOpen/);
+  it('bar keeps only everyday tools + More; Prayer Request lives in the side panel', () => {
+    assert.doesNotMatch(toolbar, /setSheet\('prayer'\)|End for everyone|setRecordingsOpen/);
     assert.match(toolbar, /data-testid="huddle-more-tools"/);
+  });
+  it('Bible stays on the bar (phones have no left menu; the Bible tab is below the room)', () => {
+    assert.match(toolbar, /onClick=\{openBible\}[\s\S]*?<span>Bible<\/span>/);
   });
   it('host tools are in More, only for moderators; REC stays visible while recording', () => {
     assert.match(huddle, /\{canModerate \? \([\s\S]*Host tools[\s\S]*End for everyone/);
