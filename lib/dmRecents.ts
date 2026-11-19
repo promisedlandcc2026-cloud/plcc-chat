@@ -87,3 +87,8 @@ export function dmDisplayName(channelId: string, fallback = 'Direct message', ow
   const hit = readAll(ownerId).find((r) => r.channelId === channelId);
   return hit?.partnerName || fallback;
 }
+
+/** Drop a deleted DM from this device's copy too. */
+export function forgetDmRecent(ownerId: string, channelId: string): void {
+  writeAll(ownerId, readAll(ownerId).filter((r) => r.channelId !== channelId));
+}

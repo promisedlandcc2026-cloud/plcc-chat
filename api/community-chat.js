@@ -125,6 +125,7 @@ const ALLOWED_RESOURCES = new Set([
   'dm-list',
   'archives',
   'room-archive',
+  'dm-delete',
   'room-mute',
   'directory',
   'dm',
@@ -931,6 +932,34 @@ export default async function handler(req, res) {
         return mapUpstreamError(res, upstream.status);
       }
       return json(res, 200, { ok: true, channelId: b.channelId, archived: b.archived });
+    }
+
+    if (resource === 'dm-delete') {
+      // "Delete chat" on a direct message — hides it (and its earlier messages) for you only.
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
+      }
+      const parsedBody = parseJsonBody(req);
+      const b = parsedBody.ok && parsedBody.body && typeof parsedBody.body === 'object' ? parsedBody.body : null;
+      if (!b || !UUID_RE.test(String(b.channelId || '')) || Object.keys(b).some((k) => k !== 'channelId')) {
+        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That request was not valid.' });
+      }
+      const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'dm-delete'), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify({ channelId: b.channelId }),
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      if (!upstream.ok) {
+        const body = await upstream.json().catch(() => null);
+        if (upstream.status === 503 && typeof body?.error === 'string') {
+          return json(res, 503, { ok: false, code: 'not_set_up', message: body.error.slice(0, 160) });
+        }
+        return mapUpstreamError(res, upstream.status);
+      }
+      return json(res, 200, { ok: true, channelId: b.channelId, deleted: true });
     }
 
     if (resource === 'dm-list') {

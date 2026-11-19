@@ -353,6 +353,11 @@ export async function setChatArchived(channelId: string, archived: boolean): Pro
   await postJson('room-archive', { channelId, archived }, archived ? 'Could not archive this chat.' : 'Could not unarchive this chat.');
 }
 
+/** "Delete chat" for a direct message — only for you; it comes back if someone writes again. */
+export async function deleteDmChat(channelId: string): Promise<void> {
+  await postJson('dm-delete', { channelId }, 'Could not delete this chat.');
+}
+
 export async function fetchGroupMembers(channelId: string): Promise<ChatPerson[]> {
   const d = await getJson<{ people: ChatPerson[] }>(
     `/api/community-chat?resource=group-members&channelId=${encodeURIComponent(channelId)}`,
