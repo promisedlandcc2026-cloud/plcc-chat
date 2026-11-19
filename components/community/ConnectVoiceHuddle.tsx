@@ -44,6 +44,7 @@ import {
   Gauge,
 } from 'lucide-react';
 import {
+  ConnectionState,
   AudioPresets,
   VideoPresets,
   LocalAudioTrack,
@@ -209,6 +210,13 @@ import {
   isHuddleMusicPublication,
   roomHasHuddleMusic,
 } from '../../lib/huddleMusic';
+
+/**
+ * A join that hasn't finished after this long is stuck (usually a step that stalled while the
+ * phone was in the background). Give up on it so the next rejoin isn't blocked forever.
+ */
+const JOIN_WATCHDOG_MS = 35_000;
+const JOIN_STALLED_MESSAGE = "Couldn't reconnect to the Ka Link. Tap Reload to rejoin.";
 
 /** LiveKit closed this copy on purpose (joined elsewhere, removed, or ended): do not auto-rejoin. */
 function huddleDisconnectIsFinal(reason?: DisconnectReason): boolean {
@@ -580,6 +588,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const joinRef = useRef<() => Promise<void>>(async () => {});
   /** Dropped while the phone slept or the member switched apps — rejoin when they're back. */
   const lostConnectionRef = useRef(false);
+  /** Each join gets a number; an older join that finishes late is ignored. */
+  const joinGenRef = useRef(0);
+  /** Rooms we gave up on: their late events must not touch the current call. */
+  const retiredRoomsRef = useRef<WeakSet<Room>>(new WeakSet());
+  const joinStallsRef = useRef(0);
   const canModerateRef = useRef(false);
   const activeTabRef = useRef<HuddleMobileTabId | null>(null);
   const micEnabledRef = useRef(false);
@@ -1032,6 +1045,29 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const join = useCallback(async (opts?: { reconnect?: boolean }) => {
     if (joinInFlightRef.current || roomRef.current) return;
     joinInFlightRef.current = true;
+    const gen = ++joinGenRef.current;
+    const watchdog = window.setTimeout(() => {
+      if (joinGenRef.current !== gen || !joinInFlightRef.current) return;
+      joinGenRef.current += 1;
+      joinInFlightRef.current = false;
+      connectingRef.current = false;
+      const stuck = roomRef.current;
+      roomRef.current = null;
+      if (stuck) {
+        retiredRoomsRef.current.add(stuck);
+        void stuck.disconnect(true).catch(() => undefined);
+      }
+      if (!mountedRef.current || leaveIntentionalRef.current) return;
+      lostConnectionRef.current = true;
+      joinStallsRef.current += 1;
+      if (joinStallsRef.current === 1 && document.visibilityState === 'visible') {
+        setConn('reconnecting');
+        void joinRef.current();
+        return;
+      }
+      setError(JOIN_STALLED_MESSAGE);
+      setConn('error');
+    }, JOIN_WATCHDOG_MS);
     leaveIntentionalRef.current = false;
     const reconnecting = Boolean(opts?.reconnect);
     setConn(reconnecting ? 'reconnecting' : 'connecting');
@@ -1047,7 +1083,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     try {
       // 1. Same shared line as everyone else in this huddle (Vault or Connect).
       const plan = await planHuddleLine(channelId);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || joinGenRef.current !== gen) return;
       if (plan.provider === 'daily') {
         setDailyCreds(plan.creds);
         return;
@@ -1064,7 +1100,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           if (mountedRef.current) setNotice('The church server is slow. Trying again…');
         },
       });
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || joinGenRef.current !== gen) return;
       setNotice(
         tokenPayload.fallback
           ? 'The church database is having trouble, so you joined with the permission saved from your last Ka Link. Everything in the call works as usual.'
@@ -1310,9 +1346,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         // LiveKit's own quick resume (network blip): show it, don't hang up.
         .on(RoomEvent.Reconnecting, () => {
+          if (roomRef.current !== room) return;
           if (mountedRef.current && !connectingRef.current) setConn('reconnecting');
         })
         .on(RoomEvent.Reconnected, () => {
+          if (roomRef.current !== room) return;
           if (!mountedRef.current) return;
           setConn('connected');
           void resumeAudioRef.current();
@@ -1322,6 +1360,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           if (mountedRef.current && !room.canPlaybackAudio) setNeedSoundTap(true);
         })
         .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+          // An old connection closing late (after the phone came back) must not end the new call.
+          if (retiredRoomsRef.current.has(room) || (roomRef.current && roomRef.current !== room)) return;
           if (!mountedRef.current) return;
           if (connectingRef.current) return;
           clearRemoteAudio();
@@ -1370,7 +1410,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       } finally {
         connectingRef.current = false;
       }
-      if (!mountedRef.current) {
+      if (!mountedRef.current || joinGenRef.current !== gen) {
+        retiredRoomsRef.current.add(room);
         await room.disconnect(true);
         return;
       }
@@ -1415,6 +1456,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       }
       refreshTiles(room);
       reconnectAttemptsRef.current = 0;
+      joinStallsRef.current = 0;
       lostConnectionRef.current = false;
       setConn('connected');
 
@@ -1435,8 +1477,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       });
       setHandRaised(parseHandRaised(room.localParticipant.metadata));
     } catch (err) {
+      // A join we already gave up on: the current call (if any) isn't ours to close.
+      if (joinGenRef.current !== gen) return;
       await disconnectRoom();
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || joinGenRef.current !== gen) return;
       if (err instanceof LiveKitQuotaError) {
         // LiveKit is out of minutes: move this huddle to the backup line.
         rememberLiveKitQuota();
@@ -1471,7 +1515,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       setError(message);
       setConn('error');
     } finally {
-      joinInFlightRef.current = false;
+      window.clearTimeout(watchdog);
+      if (joinGenRef.current === gen) joinInFlightRef.current = false;
     }
   }, [
     attachRemoteAudio,
@@ -1494,7 +1539,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   useEffect(() => {
     const onBack = () => {
       if (document.visibilityState !== 'visible') return;
-      if (!mountedRef.current || leaveIntentionalRef.current || !lostConnectionRef.current) return;
+      if (!mountedRef.current || leaveIntentionalRef.current) return;
+      // The phone closed the call while away but no 'disconnected' arrived: drop it and rejoin.
+      const dead = roomRef.current;
+      if (dead && dead.state === ConnectionState.Disconnected && !joinInFlightRef.current) {
+        retiredRoomsRef.current.add(dead);
+        roomRef.current = null;
+        clearRemoteAudio();
+        lostConnectionRef.current = true;
+      }
+      if (!lostConnectionRef.current) return;
       lostConnectionRef.current = false;
       reconnectAttemptsRef.current = 0;
       setError(null);
@@ -1509,7 +1563,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       window.removeEventListener('pageshow', onBack);
       window.removeEventListener('online', onBack);
     };
-  }, []);
+  }, [clearRemoteAudio]);
 
   /**
    * Bring sound and mic back after the phone interrupted the call (incoming
@@ -1525,8 +1579,14 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     } catch {
       blocked = true;
     }
+    const cameBack = wasHiddenRef.current;
     for (const el of audioElsRef.current.values()) {
-      if (!el.paused) continue;
+      // iPhones: after the background, audio can keep "playing" with no sound. Re-attach it.
+      if (cameBack && el.srcObject) {
+        const stream = el.srcObject;
+        el.srcObject = null;
+        el.srcObject = stream;
+      } else if (!el.paused) continue;
       try {
         await el.play();
       } catch {
@@ -2685,6 +2745,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   {conn === 'prejoin' || conn === 'error' ? (
                     <div className="pr-join">
                       {error ? <p className="text-center text-sm font-semibold text-[#ffb4a8]">{error}</p> : null}
+                      {error === JOIN_STALLED_MESSAGE ? (
+                        <button
+                          type="button"
+                          onClick={() => window.location.reload()}
+                          className="mx-auto block rounded-full border border-white/25 px-4 py-1.5 text-sm font-semibold text-white"
+                          data-testid="huddle-reload"
+                        >
+                          Reload
+                        </button>
+                      ) : null}
                       <button type="button" onClick={() => void join()} className="pr-join-go">
                         {mode === 'start' ? 'Start Ka Link' : 'Join prayer room'}
                       </button>
@@ -3341,6 +3411,15 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             </p>
             {error ? (
               <p className="text-sm text-red-300 text-center font-medium">{error}</p>
+            ) : null}
+            {error === JOIN_STALLED_MESSAGE ? (
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mx-auto block rounded-full border border-white/25 px-4 py-1.5 text-sm font-semibold text-white"
+              >
+                Reload
+              </button>
             ) : null}
             <div className="flex justify-center gap-3">
               <button
