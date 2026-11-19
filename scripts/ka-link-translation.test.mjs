@@ -94,8 +94,9 @@ describe('wake endpoint', () => {
 
 describe('tidy call tools (Nov 2026)', () => {
   const toolbar = huddle.slice(huddle.indexOf('<div className="pr-tools" role="toolbar"'), huddle.indexOf('{moreOpen ? ('));
-  it('bar keeps only everyday tools + More; Bible/Prayer Request live in the side panel', () => {
-    assert.doesNotMatch(toolbar, /openBible|setSheet\('prayer'\)|End for everyone|setRecordingsOpen/);
+  it('bar keeps everyday tools (Bible included) + More; Prayer Request lives in the side panel', () => {
+    assert.doesNotMatch(toolbar, /setSheet\('prayer'\)|End for everyone|setRecordingsOpen/);
+    assert.match(toolbar, /onClick=\{openBible\}/);
     assert.match(toolbar, /data-testid="huddle-more-tools"/);
     assert.match(toolbar, /<TranslateButton/);
   });
