@@ -9,6 +9,7 @@ import { DmCallProvider } from './context/DmCallContext';
 import { MemberGate } from './components/auth/MemberGate';
 import { LazyRoute } from './components/routing/LazyRoute';
 import { OpenInAppBanner } from './components/ui/OpenInAppBanner';
+import { AppNav } from './components/ui/AppNav';
 
 /**
  * PLCC Ka Link — standalone chat + Live Huddle for Promised Land Christian Center.
@@ -141,6 +142,8 @@ const AppShell: React.FC = () => (
       />
       <Route path="*" element={<Navigate to="/community/chat" replace />} />
     </Routes>
+    {/* Chats · Messages · Live · Bible · Apps on every main page. */}
+    <AppNav />
   </div>
 );
 
