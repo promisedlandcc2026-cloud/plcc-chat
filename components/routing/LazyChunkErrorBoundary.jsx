@@ -37,7 +37,7 @@ export class LazyChunkErrorBoundary extends React.Component {
     if (this.state.hasError && this.state.updating) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 py-24 min-h-[50vh] text-center" role="status">
-          <p className="text-sm text-gray-600">Updating Connect to the latest version…</p>
+          <p className="text-sm text-gray-600">Updating the app to the latest version…</p>
         </div>
       );
     }
@@ -49,7 +49,7 @@ export class LazyChunkErrorBoundary extends React.Component {
           <p className="text-sm text-gray-600 leading-relaxed">
             {this.state.staleBuild
               ? 'The app was just updated. Tap Retry to load the latest version (if you’re in a call, it updates by itself when you leave).'
-              : 'Please check your connection and try again. You can still use the rest of Connect.'}
+              : 'Please check your connection and try again. You can still use the rest of the app.'}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
