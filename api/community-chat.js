@@ -478,13 +478,13 @@ async function handleBridge(req, res) {
       const parsedBody = parseJsonBody(req);
       const b = parsedBody.ok && parsedBody.body && typeof parsedBody.body === 'object' ? parsedBody.body : null;
       const action = String(b?.action || '');
-      if (!b || !['inbox', 'ring', 'join', 'decline', 'end', 'status'].includes(action) || (action !== 'inbox' && !UUID.test(String(b.channelId || '')))) {
+      if (!b || !['inbox', 'pending', 'ring', 'join', 'decline', 'end', 'status'].includes(action) || (action !== 'inbox' && action !== 'pending' && !UUID.test(String(b.channelId || '')))) {
         return json(res, 400, { ok: false, code: 'invalid_body', message: 'That call request was not valid.' });
       }
       const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'dm-call'), {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
-        body: JSON.stringify({ action, channelId: action === 'inbox' ? null : String(b.channelId), video: b.video === true }),
+        body: JSON.stringify({ action, channelId: action === 'inbox' || action === 'pending' ? null : String(b.channelId), video: b.video === true }),
         signal: controller.signal,
         redirect: 'error',
       });

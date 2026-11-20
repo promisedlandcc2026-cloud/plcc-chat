@@ -15,7 +15,7 @@ describe('Ka Link private calls', () => {
   it('the bridge passes dm-call through to Canaan with a fixed shape', async () => {
     const bridge = read('api/community-chat.js');
     assert.match(bridge, /'dm-call',\n  'member-conduct'/);
-    assert.match(bridge, /\['inbox', 'ring', 'join', 'decline', 'end', 'status'\]\.includes\(action\)/);
+    assert.match(bridge, /\['inbox', 'pending', 'ring', 'join', 'decline', 'end', 'status'\]\.includes\(action\)/);
     assert.match(bridge, /buildVaultCommunityChatSubUrl\(originResult\.origin, 'dm-call'\)/);
     const { buildVaultCommunityChatSubUrl } = await import('../api/_utils/vaultOrigin.js');
     assert.match(buildVaultCommunityChatSubUrl('https://canaan.example', 'dm-call'), /subResource=dm-call$/);
@@ -80,5 +80,14 @@ describe('Ka Link private calls', () => {
   it('phones already allow camera and microphone', () => {
     assert.match(read('ios/App/App/Info.plist'), /NSCameraUsageDescription/);
     assert.match(read('android/app/src/main/AndroidManifest.xml'), /android\.permission\.CAMERA/);
+  });
+
+  it('a missed ring ping still rings: retries the call topic and checks for a ringing call', () => {
+    const ctx = read('context/DmCallContext.tsx');
+    assert.match(ctx, /retryLater\(\)/);
+    assert.match(ctx, /status === 'CHANNEL_ERROR' \|\| status === 'TIMED_OUT' \|\| status === 'CLOSED'/);
+    assert.match(ctx, /fetchPendingCall\(\)/);
+    assert.match(ctx, /addEventListener\('visibilitychange', onVisible\)/);
+    assert.match(ctx, /setInterval\(\(\) => void checkPending\(\), 20_000\)/);
   });
 });
