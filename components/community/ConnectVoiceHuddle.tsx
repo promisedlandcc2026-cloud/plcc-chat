@@ -2334,7 +2334,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         }
         return true;
       } catch (err) {
-        setModError(err instanceof Error && err.message ? err.message : 'That did not work. Please try again.');
+        const message = err instanceof Error && err.message ? err.message : 'That did not work. Please try again.';
+        setModError(message);
+        // Issues: a moderator button that fails is recorded with Canaan's reason.
+        reportIssue({
+          area: 'huddle',
+          code: `huddle_mod_${action}_failed`.slice(0, 64),
+          status: err instanceof CommunityChatError ? err.status : null,
+          message: message.slice(0, 300),
+          channelId,
+        });
         return false;
       } finally {
         setModBusy(false);

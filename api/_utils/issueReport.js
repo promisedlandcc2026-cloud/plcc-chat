@@ -32,6 +32,8 @@ export function shouldReportBridgeFailure(resource, status, code) {
   const s = Number(status) || 0;
   if (!s || s < 400) return false;
   if (r === 'issue-report' || r === 'issues') return false;
+  // Moderator buttons: every refusal is worth seeing (incl. 400 'not valid').
+  if (r === 'huddle-moderate' && s >= 400 && s !== 401) return true;
   if (s === 401 || s === 400 || s === 405 || s === 413 || s === 415) return false;
   if (r === 'huddle-token' && (s === 403 || s === 503) && code !== 'rate_limited') return false;
   if (r === 'huddle-can-start' && s === 403) return false;
