@@ -48,7 +48,7 @@ export class LazyChunkErrorBoundary extends React.Component {
           <h1 className="text-lg font-bold text-[#1A1A1A]">Couldn’t load {section}</h1>
           <p className="text-sm text-gray-600 leading-relaxed">
             {this.state.staleBuild
-              ? 'Connect was just updated. Tap Retry to load the latest version.'
+              ? 'The app was just updated. Tap Retry to load the latest version (if you’re in a call, it updates by itself when you leave).'
               : 'Please check your connection and try again. You can still use the rest of Connect.'}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
