@@ -5,7 +5,7 @@ import type { HuddleModerateAction } from '../../lib/communityChatClient';
 /**
  * Ka Link Phase 2 moderator tools (Nov 2026):
  *  #5 mute / unmute anyone   #7 lower all hands   #8 lock mics, allow to speak
- *  #11 Bible readers          #16 remove / block
+ *  #11 Bible readers          #16 remove · warn, then block (lasting)
  */
 
 export type ModeratorTarget = {
@@ -52,7 +52,10 @@ export function ModeratorRoomBar({
   );
 }
 
-type SheetAction = { action: HuddleModerateAction; label: string; Icon: React.ElementType; danger?: boolean; confirm?: string };
+/** 'conduct' opens the Warn / Block sheet instead of a call action. */
+export type ModeratorSheetAction = HuddleModerateAction | 'conduct';
+
+type SheetAction = { action: ModeratorSheetAction; label: string; Icon: React.ElementType; danger?: boolean; confirm?: string };
 
 export function moderatorActionsFor(target: ModeratorTarget, micLock: boolean): SheetAction[] {
   const out: SheetAction[] = [];
@@ -79,12 +82,12 @@ export function moderatorActionsFor(target: ModeratorTarget, micLock: boolean): 
       danger: true,
       confirm: `Remove ${target.name} from this Ka Link? They can join again.`,
     });
+    // Lasting block (calls, chat, Tribes posts) — warn first, then block (Nov 19).
     out.push({
-      action: 'block',
-      label: 'Remove and block',
+      action: 'conduct',
+      label: 'Warn or block…',
       Icon: ShieldBan,
       danger: true,
-      confirm: `Remove ${target.name} and block them from rejoining this Ka Link?`,
     });
   }
   return out;
@@ -102,7 +105,7 @@ export function PersonActionsSheet({
   micLock: boolean;
   busy: boolean;
   error: string | null;
-  onAction: (action: HuddleModerateAction) => void;
+  onAction: (action: ModeratorSheetAction) => void;
   onClose: () => void;
 }) {
   const actions = moderatorActionsFor(target, micLock);

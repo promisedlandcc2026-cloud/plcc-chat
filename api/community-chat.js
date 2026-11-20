@@ -100,6 +100,7 @@ import {
 const UPSTREAM_TIMEOUT_MS = 15000;
 const TOKEN_UPSTREAM_TIMEOUT_MS = 20000;
 const ALLOWED_RESOURCES = new Set([
+  'member-conduct',
   'issue-report',
   'issues',
   'channels',
@@ -467,6 +468,66 @@ async function handleBridge(req, res) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    if (resource === 'member-conduct') {
+      // Warn, then block, an unruly member (moderators / leaders). Canaan checks who may.
+      const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (req.method === 'GET') {
+        const params = new URLSearchParams();
+        if (String(query.can || '') === '1') params.set('can', '1');
+        const target = String(query.targetUserId || '');
+        const cid = String(query.channelId || '');
+        if (UUID.test(target)) params.set('targetUserId', target);
+        if (UUID.test(cid)) params.set('channelId', cid);
+        if (!params.has('can') && !params.has('targetUserId')) {
+          return json(res, 400, { ok: false, code: 'invalid_query', message: 'Pick the member first.' });
+        }
+        const upstream = await fetch(`${buildVaultCommunityChatSubUrl(originResult.origin, 'member-conduct')}&${params.toString()}`, {
+          method: 'GET',
+          headers: { Accept: 'application/json', Authorization: `Bearer ${auth.token}` },
+          signal: controller.signal,
+          redirect: 'error',
+        });
+        const body = await upstream.json().catch(() => null);
+        if (!upstream.ok) {
+          return json(res, upstream.status === 403 ? 403 : 502, { ok: false, code: 'forbidden', message: String(body?.error || 'Not allowed.').slice(0, 200) });
+        }
+        return json(res, 200, { ok: true, canModerate: body?.canModerate === true, status: body?.status || null });
+      }
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'GET, POST');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only GET and POST are supported.' });
+      }
+      const parsedBody = parseJsonBody(req);
+      const b = parsedBody.ok && parsedBody.body && typeof parsedBody.body === 'object' ? parsedBody.body : null;
+      const action = String(b?.action || '');
+      if (!b || !['warn', 'block'].includes(action) || !UUID.test(String(b.targetUserId || ''))) {
+        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That request was not valid.' });
+      }
+      const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'member-conduct'), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify({
+          action,
+          targetUserId: String(b.targetUserId),
+          reason: typeof b.reason === 'string' ? b.reason.slice(0, 200) : null,
+          place: ['call', 'chat', 'post'].includes(String(b.place)) ? String(b.place) : 'chat',
+          channelId: UUID.test(String(b.channelId || '')) ? String(b.channelId) : null,
+          postId: typeof b.postId === 'string' ? b.postId.slice(0, 64) : null,
+          app: 'ka-link',
+        }),
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      const body = await upstream.json().catch(() => null);
+      if (!upstream.ok) {
+        return json(res, [400, 403, 409, 503].includes(upstream.status) ? upstream.status : 502, {
+          ok: false,
+          code: 'conduct_failed',
+          message: String(body?.error || 'Could not do that. Please try again.').slice(0, 200),
+        });
+      }
+      return json(res, 200, { ok: true, status: body?.status || null });
+    }
     if (resource === 'issue-report') {
       if (req.method !== 'POST') {
         res.setHeader('Allow', 'POST');
@@ -659,8 +720,8 @@ async function handleBridge(req, res) {
       if (upstream.status === 403) {
         // Blocked DMs and announcement rooms explain themselves.
         const denied = await upstream.json().catch(() => null);
-        if ((denied?.code === 'blocked' || denied?.code === 'announce_only') && typeof denied?.error === 'string') {
-          return json(res, 403, { ok: false, code: denied.code, message: denied.error.slice(0, 160) });
+        if ((denied?.code === 'blocked' || denied?.code === 'announce_only' || denied?.code === 'member_blocked') && typeof denied?.error === 'string') {
+          return json(res, 403, { ok: false, code: denied.code, message: denied.error.slice(0, 200) });
         }
         return mapUpstreamError(res, 403);
       }
@@ -1725,6 +1786,9 @@ async function handleBridge(req, res) {
         if (upstream.status === 403) {
           const errBody = await upstream.json().catch(() => null);
           if (isHuddleStartForbidden(403, errBody)) return huddleNotStarted(res);
+          if (errBody && errBody.code === 'member_blocked') {
+            return json(res, 403, { ok: false, code: 'member_blocked', message: String(errBody.error || '').slice(0, 200) });
+          }
           if (errBody && errBody.code === 'HUDDLE_BLOCKED') {
             return json(res, 403, {
               ok: false,

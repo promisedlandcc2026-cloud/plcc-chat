@@ -105,6 +105,8 @@ import {
   type HuddleStageView,
 } from '../../lib/huddleStage';
 import { ModeratorRoomBar, PersonActionsSheet } from '../huddle/HuddleModeratorTools';
+import { ConductNoticeModal, ConductSheet } from '../conduct/ConductSheet';
+import { HUDDLE_CONDUCT_TOPIC, parseConductNotice, type ConductNotice, type ConductTarget } from '../../lib/memberConduct';
 import { VAULT_URL } from '../../lib/appLinks';
 import { GuidelinesSheet, PrayerRequestSheet } from './PrayerRoomSheets';
 import { findSanctumOverflow, isRoomFullError, openSanctumOverflow, type SanctumOverflow } from '../../lib/sanctumOverflow';
@@ -443,6 +445,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const stageRef = useRef<HuddleStageView>(EMPTY_HUDDLE_STAGE);
   const handFirstSeenRef = useRef<Map<string, number>>(new Map());
   const [modTargetId, setModTargetId] = useState<string | null>(null);
+  /** Warn / Block sheet (moderators) and the notice a warned/blocked member sees. */
+  const [conductTarget, setConductTarget] = useState<ConductTarget | null>(null);
+  const [conductNotice, setConductNotice] = useState<ConductNotice | null>(null);
   const [modBusy, setModBusy] = useState(false);
   const [modError, setModError] = useState<string | null>(null);
   /** Phase 3: "I'm ready" alerts moderators see, and when this leader last sent one. */
@@ -1248,6 +1253,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           onChange();
         })
         .on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
+          // A moderator's warning / block comes from Canaan (no participant).
+          if (topic === HUDDLE_CONDUCT_TOPIC) {
+            const notice = parseConductNotice(payload);
+            if (notice && mountedRef.current && roomRef.current === room) setConductNotice(notice);
+            return;
+          }
           if (!mountedRef.current || !participant) return;
           if (topic === KA_LINK_AWAY_TOPIC) {
             const wire = decodeAwayWire(payload);
@@ -2358,6 +2369,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   );
   const inCount = roster.filter((e) => e.status === 'in').length;
 
+  // Warn / Block sheet (moderators) and the warning a member must acknowledge — every layout.
+  const conductOverlays = (
+    <>
+      {conductTarget ? <ConductSheet target={conductTarget} onClose={() => setConductTarget(null)} /> : null}
+      {conductNotice ? (
+        <ConductNoticeModal kind={conductNotice.t} reason={conductNotice.reason} onClose={() => setConductNotice(null)} />
+      ) : null}
+    </>
+  );
+
   if (dailyCreds) {
     return (
       <Suspense
@@ -2492,6 +2513,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     // Minimized: a small floating bar; the chat underneath stays usable and the call keeps going.
     if (minimized) {
       return (
+        <>
+        {conductOverlays}
         <div className="pr-mini" role="region" aria-label="Live Ka Link (minimized)">
           <button type="button" onClick={() => setMinimized(false)} className="pr-mini-main" aria-label="Open the prayer room">
             <span className={`pr-mini-dot ${connected ? 'is-live' : ''}`} aria-hidden />
@@ -2531,6 +2554,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             <LogOut size={18} aria-hidden />
           </button>
         </div>
+        </>
       );
     }
 
@@ -3352,6 +3376,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           {activeTab === 'attendance' && !prayerWatch ? <HuddlePeoplePanel variant="embedded" roster={roster} title="Attendance" /> : null}
         </HuddleTabSheet>
 
+        {conductOverlays}
+
         {modTargetId && canModerate
           ? (() => {
               const t = tiles.find((x) => x.identity === modTargetId);
@@ -3371,6 +3397,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   error={modError}
                   onClose={() => setModTargetId(null)}
                   onAction={async (action) => {
+                    if (action === 'conduct') {
+                      setConductTarget({ userId: t.identity, name: t.name, place: 'call', channelId });
+                      setModTargetId(null);
+                      return;
+                    }
                     const done = action === 'allow-mic' ? await letSpeak(t.identity) : await moderate(action, t.identity);
                     if (done) setModTargetId(null);
                   }}
@@ -3389,6 +3420,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       aria-modal={embedded ? undefined : true}
       aria-label="Live Ka Link"
     >
+      {conductOverlays}
       {conn === 'connected' && activeReactions.length > 0 ? (
         <div
           className="pointer-events-none absolute right-3 bottom-44 z-40 flex max-w-[min(14rem,46%)] flex-col-reverse items-end gap-1.5"

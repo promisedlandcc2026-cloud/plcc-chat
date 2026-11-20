@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ConductSheet } from '../components/conduct/ConductSheet';
+import { isConductTargetId, type ConductTarget } from '../lib/memberConduct';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Archive, ArrowLeft, Ban, Bell, BellOff, ClipboardList, CornerUpLeft, Flag, Info, Loader2, Megaphone, MoreHorizontal, Pencil, Pin, Radio, Search, Send, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -149,6 +151,8 @@ export const CommunityChatRoomPage: React.FC = () => {
   const [announceOnly, setAnnounceOnly] = useState(false);
   const [canPost, setCanPost] = useState(true);
   const [canPin, setCanPin] = useState(false);
+  /** Moderators: warn, then block, an unruly member (Nov 19). */
+  const [conductTarget, setConductTarget] = useState<ConductTarget | null>(null);
   const [canManage, setCanManage] = useState(false);
   const [roomVisibility, setRoomVisibility] = useState<string | null>(null);
   const [roomDescription, setRoomDescription] = useState<string | null>(null);
@@ -1397,8 +1401,21 @@ export const CommunityChatRoomPage: React.FC = () => {
           onEdit={() => startEdit(actionsFor)}
           onDelete={() => onDelete(actionsFor)}
           onReport={(reason, note) => reportChatMessage(actionsFor.id, reason, note)}
+          onWarnOrBlock={
+            !isDm && (isLeader || canPin) && isConductTargetId(actionsFor.author.id)
+              ? () =>
+                  setConductTarget({
+                    userId: actionsFor.author.id,
+                    name: actionsFor.author.name || 'This member',
+                    place: 'chat',
+                    channelId,
+                  })
+              : undefined
+          }
         />
       ) : null}
+
+      {conductTarget ? <ConductSheet target={conductTarget} onClose={() => setConductTarget(null)} /> : null}
 
       {requestComposerOpen ? (
         <RequestComposerSheet

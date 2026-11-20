@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Portal } from './Portal';
-import { CheckCircle2, Copy, CornerUpLeft, Flag, Loader2, Pencil, Pin, PinOff, Trash2, X } from 'lucide-react';
+import { ShieldBan, CheckCircle2, Copy, CornerUpLeft, Flag, Loader2, Pencil, Pin, PinOff, Trash2, X } from 'lucide-react';
 import type { CommunityChatMessage } from '../../lib/communityChatTypes';
 import type { ChatReportReason } from '../../lib/communityChatClient';
 import { CHAT_REACTIONS } from '../../lib/chatMessageUtils';
@@ -127,7 +127,9 @@ export const MessageActions: React.FC<{
   onEdit: () => void;
   onDelete: () => Promise<void>;
   onReport?: (reason: ChatReportReason, note: string) => Promise<void>;
-}> = ({ message, selfId, canEdit, canDelete, canPin, isPinned, onTogglePin, onClose, onReact, onReply, onEdit, onDelete, onReport }) => {
+  /** Moderators: warn the sender, then block them if it continues. */
+  onWarnOrBlock?: () => void;
+}> = ({ message, selfId, canEdit, canDelete, canPin, isPinned, onTogglePin, onClose, onReact, onReply, onEdit, onDelete, onReport, onWarnOrBlock }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [reporting, setReporting] = useState(false);
   const canReport = Boolean(onReport) && message.author.id !== selfId;
@@ -291,6 +293,20 @@ export const MessageActions: React.FC<{
                 Delete for everyone
               </button>
             )
+          ) : null}
+          {onWarnOrBlock && message.author.id !== selfId ? (
+            <button
+              type="button"
+              className={`${row} text-amber-800`}
+              onClick={() => {
+                onWarnOrBlock();
+                onClose();
+              }}
+              data-testid="message-warn-block"
+            >
+              <ShieldBan size={20} aria-hidden />
+              Warn or block {message.author.name || 'sender'}
+            </button>
           ) : null}
           {canReport ? (
             <button type="button" className={`${row} text-gray-600`} onClick={() => setReporting(true)}>
