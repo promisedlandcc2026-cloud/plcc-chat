@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppCrashBoundary } from './components/routing/AppCrashBoundary.jsx';
 import { HuddleLiveProvider } from './context/HuddleLiveContext';
 import { ActiveKaLinkProvider } from './context/ActiveKaLinkContext';
+import { DmCallProvider } from './context/DmCallContext';
 import { MemberGate } from './components/auth/MemberGate';
 import { LazyRoute } from './components/routing/LazyRoute';
 import { OpenInAppBanner } from './components/ui/OpenInAppBanner';
@@ -169,7 +170,10 @@ const App: React.FC = () => {
         <HuddleLiveProvider>
           {/* Holds the live call above the routes, so Back / page changes never hang up. */}
           <ActiveKaLinkProvider>
-            <AppShell />
+            {/* Private calls in DMs (voice / video): rings anywhere in the app. */}
+            <DmCallProvider>
+              <AppShell />
+            </DmCallProvider>
           </ActiveKaLinkProvider>
         </HuddleLiveProvider>
       </CrashGuard>

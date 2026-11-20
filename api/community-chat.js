@@ -99,6 +99,7 @@ import {
 const UPSTREAM_TIMEOUT_MS = 15000;
 const TOKEN_UPSTREAM_TIMEOUT_MS = 20000;
 const ALLOWED_RESOURCES = new Set([
+  'dm-call',
   'member-conduct',
   'issue-report',
   'issues',
@@ -467,6 +468,52 @@ async function handleBridge(req, res) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    if (resource === 'dm-call') {
+      // Private audio / video calls in a DM. Canaan checks both people, blocks and paused members.
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
+      }
+      const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const parsedBody = parseJsonBody(req);
+      const b = parsedBody.ok && parsedBody.body && typeof parsedBody.body === 'object' ? parsedBody.body : null;
+      const action = String(b?.action || '');
+      if (!b || !['inbox', 'ring', 'join', 'decline', 'end', 'status'].includes(action) || (action !== 'inbox' && !UUID.test(String(b.channelId || '')))) {
+        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That call request was not valid.' });
+      }
+      const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'dm-call'), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify({ action, channelId: action === 'inbox' ? null : String(b.channelId), video: b.video === true }),
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      const body = await upstream.json().catch(() => null);
+      if (!upstream.ok) {
+        const status = [400, 403, 409, 410, 503].includes(upstream.status) ? upstream.status : 502;
+        return json(res, status, {
+          ok: false,
+          code: typeof body?.code === 'string' ? body.code.slice(0, 40) : 'call_failed',
+          message: String(body?.error || 'The call did not go through. Please try again.').replace(/[\u0000-\u001f]/g, ' ').slice(0, 200),
+        });
+      }
+      const str = (v, max = 4096) => (typeof v === 'string' ? v.slice(0, max) : null);
+      return json(res, 200, {
+        ok: true,
+        topic: str(body?.topic, 80),
+        ringSeconds: Number(body?.ringSeconds) || 45,
+        token: str(body?.token),
+        url: str(body?.url, 300),
+        channelId: str(body?.channelId, 64),
+        partnerId: str(body?.partnerId, 64),
+        callerId: str(body?.callerId, 64),
+        callerName: str(body?.callerName, 120),
+        video: body?.video === true,
+        active: body?.active === true,
+        ringing: body?.ringing === true,
+        reason: str(body?.reason, 20),
+      });
+    }
     if (resource === 'member-conduct') {
       // Warn, then block, an unruly member (moderators / leaders). Canaan checks who may.
       const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

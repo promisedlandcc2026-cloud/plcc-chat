@@ -69,7 +69,7 @@ describe('Back button minimizes instead of hanging up', () => {
 
   it('keeps the call above the routes, not inside the chat page', () => {
     const app = read('App.tsx');
-    assert.match(app, /<ActiveKaLinkProvider>\s*<AppShell \/>/);
+    assert.match(app, /<ActiveKaLinkProvider>[\s\S]*?<AppShell \/>[\s\S]*?<\/ActiveKaLinkProvider>/);
     const room = read('pages/CommunityChatRoom.tsx');
     assert.doesNotMatch(room, /<ConnectVoiceHuddle/);
     assert.match(room, /openKaLink\(/);
