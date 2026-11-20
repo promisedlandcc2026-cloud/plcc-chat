@@ -5,7 +5,8 @@
 
 export type HuddleStageView = { micLock: boolean; readerIds: string[] };
 
-export const EMPTY_HUDDLE_STAGE: HuddleStageView = { micLock: false, readerIds: [] };
+/** PLCC (Nov 19 2026): every Ka Link starts with mics locked until a moderator unlocks. */
+export const EMPTY_HUDDLE_STAGE: HuddleStageView = { micLock: true, readerIds: [] };
 
 /** Read `stage` from LiveKit room metadata (written by Canaan). */
 export function parseHuddleStageView(roomMetadata: string | undefined | null): HuddleStageView {
@@ -17,7 +18,7 @@ export function parseHuddleStageView(roomMetadata: string | undefined | null): H
     const readerIds = Array.isArray(stage.readerIds)
       ? stage.readerIds.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0).slice(0, 12)
       : [];
-    return { micLock: stage.micLock === true, readerIds };
+    return { micLock: stage.micLock !== false, readerIds };
   } catch {
     return EMPTY_HUDDLE_STAGE;
   }

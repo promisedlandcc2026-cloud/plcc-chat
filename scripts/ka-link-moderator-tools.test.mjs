@@ -56,8 +56,11 @@ describe('stage from room metadata (#8, #11)', () => {
   it('parses mic lock and readers, ignores junk', () => {
     const meta = JSON.stringify({ hostId: 'h', stage: { micLock: true, readerIds: ['r1', 5, ''] } });
     assert.deepEqual(parseHuddleStageView(meta), { micLock: true, readerIds: ['r1'] });
-    assert.deepEqual(parseHuddleStageView('{bad'), { micLock: false, readerIds: [] });
-    assert.deepEqual(parseHuddleStageView(undefined), { micLock: false, readerIds: [] });
+    // PLCC: locked unless a moderator unlocked it (micLock: false).
+    assert.deepEqual(parseHuddleStageView('{bad'), { micLock: true, readerIds: [] });
+    assert.deepEqual(parseHuddleStageView(undefined), { micLock: true, readerIds: [] });
+    assert.deepEqual(parseHuddleStageView(JSON.stringify({ hostId: 'h' })), { micLock: true, readerIds: [] });
+    assert.deepEqual(parseHuddleStageView(JSON.stringify({ stage: { micLock: false } })), { micLock: false, readerIds: [] });
   });
 });
 
