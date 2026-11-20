@@ -546,7 +546,6 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   /** Set when this room is at its 50-seat cap: offer PLCC Sanctum's overflow room. */
   const [roomFull, setRoomFull] = useState<{ checking: boolean; overflow: SanctumOverflow | null } | null>(null);
   const [sheet, setSheet] = useState<'prayer' | 'guidelines' | null>(null);
-  const [peopleSearchOpen, setPeopleSearchOpen] = useState(false);
   const [peopleQuery, setPeopleQuery] = useState('');
   /** This device is playing the waiting music into the room. */
   const [musicPlaying, setMusicPlaying] = useState(false);

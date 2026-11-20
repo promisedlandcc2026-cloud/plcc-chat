@@ -84,7 +84,6 @@ export function diagnosePerson(
   sessions: HuddleSession[],
   opts: { now?: number } = {}
 ): Diagnosis {
-  const now = opts.now ?? Date.now();
   const rows = allRows.filter((r) => personKey(r) === key).sort((a, b) => ms(a.at) - ms(b.at));
   const name = rows.find((r) => r.userName)?.userName || 'This member';
   // Greeting name: "Sophia", but keep titles whole ("Mrs Bogere", "Pastor John").
