@@ -610,17 +610,17 @@ export const CommunityChatPage: React.FC = () => {
       {/* Bible on the home screen (members asked for it here, not only inside a Ka Link). */}
       <Link
         to="/bible"
-        className="mb-4 flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#d9b45e]/60 bg-gradient-to-r from-[#0f3d2c] to-[#062a1d] px-4 py-3 text-[#f4ecdb] shadow-sm active:scale-[0.99]"
+        className="tribes-gold-card mb-4 flex min-h-[72px] items-center gap-3 rounded-[22px] bg-[#F4B23E] px-4 py-3.5 active:scale-[0.99] transition-transform motion-reduce:transition-none"
         data-testid="home-bible-card"
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d9b45e]/15 text-[#f1d58a]">
-          <BookOpen size={20} aria-hidden />
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1A120C]/10">
+          <BookOpen size={21} aria-hidden />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-bold">Bible</span>
-          <span className="block text-xs text-[#f4ecdb]/75">Read in English and Luganda · share a verse to any chat</span>
+          <span className="block font-display text-[19px] font-extrabold leading-tight">Bible</span>
+          <span className="block text-[13px] font-semibold">Read in English and Luganda · share a verse to any chat</span>
         </span>
-        <ChevronRight size={18} className="shrink-0 text-[#f1d58a]" aria-hidden />
+        <ChevronRight size={20} className="shrink-0" aria-hidden />
       </Link>
 
       <label className="relative block mb-5">

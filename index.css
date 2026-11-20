@@ -15,14 +15,14 @@
 }
 
 body {
-  @apply text-[#1A1A1A] antialiased;
-  /* Slightly cooler outer frame so the 500px app column reads as centered on desktop */
-  background-color: #ebe4dc;
+  @apply text-[#F7EFE6] antialiased;
+  /* Outer frame around the 500px app column on desktop (Red Earth & Gold). */
+  background-color: #0B0806;
 }
 
 /*
  * Design kit (Sanctuary): UI text and headings use Plus Jakarta Sans; the
- * Playfair serif is reserved for page titles and hero moments via
+ * Bricolage Grotesque display face is reserved for page titles and hero moments via
  * `font-display`. Minimum UI text is 12px.
  */
 h1, h2, h3 {
@@ -30,7 +30,8 @@ h1, h2, h3 {
 }
 
 .font-display {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', system-ui, sans-serif;
+  letter-spacing: -0.02em;
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -75,8 +76,8 @@ input, textarea, select {
  */
 :root,
 html[data-season='brand'] {
-  --season-accent: #1d372c;
-  --season-accent-soft: #fdf6d8;
+  --season-accent: #9E3B22;
+  --season-accent-soft: #3A2E27;
   --season-gradient: linear-gradient(135deg, rgba(29, 55, 44, 0.2), transparent);
 }
 html[data-season='fall'],
@@ -294,11 +295,11 @@ html[data-season='anniversary'] {
 }
 
 .awc-dock {
-  background: rgba(8, 15, 12, 0.88);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  backdrop-filter: blur(18px) saturate(140%);
-  border: 1px solid rgba(242, 217, 138, 0.22);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+  background: rgba(33, 25, 21, 0.95);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 236, 214, 0.1);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
 }
 
 /* Welcome page "Slide to begin" */
@@ -325,6 +326,7 @@ html[data-season='anniversary'] {
   .awc-slide-shine, .awc-slide-nudge { animation: none; }
   .awc-slide-shine { -webkit-text-fill-color: rgba(255,255,255,0.7); }
   .awc-stained-glass__glow,
+  .tribes-live-dot,
   .awc-live-dot,
   .awc-wallet[data-sheen='ambient'] .awc-wallet__sheen,
   .awc-story-bar__fill[data-running='true'] {
@@ -361,3 +363,189 @@ html[data-season='anniversary'] {
   .awc-typing-dot, .awc-typing-in { animation: none; }
   .awc-typing-dot { opacity: 0.6; }
 }
+
+/* ══ PLCC Ka Link — Red Earth & Gold (Nov 2026, same theme as Tribes) ═════════════════════════
+   Warm near-black ground (Uganda's red-earth roads at dusk), charcoal cards,
+   one bright gold accent, Bricolage Grotesque headings. One theme layer so
+   every screen follows without rewriting each page; scoped to html.tribes-dark.
+   Ground #15100D · card #211915 · raised #2B211B · line rgba(255,236,214,.1)
+   text #F7EFE6 · muted #BBA898 · gold #F4B23E · live #FF7A5C            */
+html.tribes-dark { color-scheme: dark; }
+html.tribes-dark body { color: #F7EFE6; }
+
+/* Grounds */
+html.tribes-dark .bg-eggshell,
+html.tribes-dark .bg-cream,
+html.tribes-dark .bg-gold-cream,
+html.tribes-dark .bg-\[\#F7F1E5\],
+html.tribes-dark .bg-\[\#f6f1e6\],
+html.tribes-dark .bg-\[\#f6f0e2\],
+html.tribes-dark .bg-\[\#faf7f5\] { background-color: #15100D; }
+
+/* Cards */
+html.tribes-dark .bg-white,
+html.tribes-dark .bg-\[\#FBF7EE\],
+html.tribes-dark .bg-\[\#FDF9EF\],
+html.tribes-dark .bg-\[\#fffcf4\],
+html.tribes-dark .bg-\[\#FFFCF4\],
+html.tribes-dark .bg-gold-light,
+html.tribes-dark .bg-\[\#F3EBD8\],
+html.tribes-dark .bg-\[\#F3E2B3\],
+html.tribes-dark .bg-white\/60,
+html.tribes-dark .bg-white\/70,
+html.tribes-dark .bg-white\/80,
+html.tribes-dark .bg-white\/90,
+html.tribes-dark .bg-white\/95 { background-color: #211915; }
+html.tribes-dark .bg-gray-50,
+html.tribes-dark .bg-gray-100,
+html.tribes-dark .bg-stone-50,
+html.tribes-dark .bg-stone-100,
+html.tribes-dark .bg-blue-50 { background-color: #2B211B; }
+html.tribes-dark .bg-amber-50,
+html.tribes-dark .bg-amber-50\/60,
+html.tribes-dark .bg-amber-50\/80 { background-color: rgba(244, 178, 62, 0.1); }
+html.tribes-dark .bg-red-50 { background-color: rgba(255, 122, 92, 0.12); }
+html.tribes-dark .bg-emerald-50 { background-color: rgba(79, 178, 134, 0.12); }
+html.tribes-dark .bg-gray-200,
+html.tribes-dark .bg-gray-300 { background-color: #3A2E27; }
+
+/* Text */
+html.tribes-dark .text-ink,
+html.tribes-dark .text-black,
+html.tribes-dark .text-burgundy,
+html.tribes-dark .text-burgundy-dark,
+html.tribes-dark .text-gray-900,
+html.tribes-dark .text-gray-800,
+html.tribes-dark .text-gray-700,
+html.tribes-dark .text-\[\#1A1A1A\],
+html.tribes-dark .text-\[\#1a1a1a\],
+html.tribes-dark .text-\[\#12231c\],
+html.tribes-dark .text-\[\#12301f\],
+html.tribes-dark .text-\[\#1d372c\],
+html.tribes-dark .text-\[\#0d1a14\] { color: #F7EFE6; }
+html.tribes-dark .text-ink-muted,
+html.tribes-dark .text-ink-soft,
+html.tribes-dark .text-gray-600,
+html.tribes-dark .text-gray-500,
+html.tribes-dark .text-\[\#4B5563\],
+html.tribes-dark .text-\[\#5A606C\],
+html.tribes-dark .text-\[\#5B6658\],
+html.tribes-dark .text-\[\#636A77\],
+html.tribes-dark .text-\[\#4a5a52\] { color: #BBA898; }
+html.tribes-dark .text-gray-400 { color: #9C8A7B; }
+html.tribes-dark .text-\[\#3B3F47\] { color: #E6D8C8; }
+html.tribes-dark .text-amber-800,
+html.tribes-dark .text-amber-900,
+html.tribes-dark .text-amber-950 { color: #F6C97A; }
+html.tribes-dark .text-red-800,
+html.tribes-dark .text-red-900 { color: #FF9A80; }
+html.tribes-dark .text-emerald-900,
+html.tribes-dark .text-emerald-950 { color: #8FD9B6; }
+html.tribes-dark .text-\[\#7A5C0F\],
+html.tribes-dark .text-\[\#B8893A\] { color: #F4B23E; }
+html.tribes-dark .text-red-600,
+html.tribes-dark .text-red-700 { color: #FF9A80; }
+html.tribes-dark .text-emerald-700,
+html.tribes-dark .text-emerald-800,
+html.tribes-dark .text-green-700 { color: #8FD9B6; }
+
+/* Lines */
+html.tribes-dark [class*="border-gray-"],
+html.tribes-dark [class*="border-stone-"],
+html.tribes-dark [class*="border-burgundy"],
+html.tribes-dark .border-\[\#E8DCC2\],
+html.tribes-dark .border-\[\#E3D6BA\],
+html.tribes-dark .border-\[\#EEE5DA\],
+html.tribes-dark .border-\[\#eadfca\],
+html.tribes-dark .border-\[\#D9CDB4\],
+html.tribes-dark [class*="divide-gray-"] > * + * { border-color: rgba(255, 236, 214, 0.1); }
+html.tribes-dark [class*="border-[#1d372c]"],
+html.tribes-dark [class*="border-[#C9A35A]/"] { border-color: rgba(255, 236, 214, 0.14); }
+html.tribes-dark .bg-\[\#E8DCC2\],
+html.tribes-dark .bg-\[\#EFE7D6\] { background-color: rgba(255, 236, 214, 0.12); }
+html.tribes-dark [class*="bg-[#1d372c]/"] { background-color: rgba(255, 236, 214, 0.06); }
+/* Hover/press washes were light-on-ivory; make them a warm lift on dark. */
+html.tribes-dark [class*="hover:bg-[#F"]:hover,
+html.tribes-dark [class*="hover:bg-[#f"]:hover,
+html.tribes-dark [class*="hover:bg-gray-"]:hover,
+html.tribes-dark [class*="hover:bg-[#1d372c]/"]:hover,
+html.tribes-dark [class*="active:bg-gray-"]:active { background-color: #2B211B; }
+html.tribes-dark .shadow-card { box-shadow: 0 1px 0 rgba(255, 236, 214, 0.04), 0 10px 26px rgba(0, 0, 0, 0.35); }
+
+/* Forms */
+html.tribes-dark input:not([type='checkbox']):not([type='radio']):not([type='range']),
+html.tribes-dark textarea,
+html.tribes-dark select {
+  background-color: #211915;
+  color: #F7EFE6;
+  border-color: rgba(255, 236, 214, 0.14);
+}
+html.tribes-dark input::placeholder,
+html.tribes-dark textarea::placeholder { color: #9C8A7B; }
+
+/* Primary actions: forest buttons become gold with dark text. */
+html.tribes-dark :is(button, a).bg-burgundy,
+html.tribes-dark :is(button, a).bg-\[\#1d372c\],
+html.tribes-dark :is(button, a).bg-\[\#0f3d2c\] {
+  background-color: #F4B23E;
+  color: #15100D;
+}
+html.tribes-dark :is(button, a).bg-burgundy *,
+html.tribes-dark :is(button, a).bg-\[\#1d372c\] *,
+html.tribes-dark :is(button, a).bg-\[\#0f3d2c\] * { color: #15100D; }
+html.tribes-dark :is(button, a).bg-burgundy:disabled { background-color: #3A2E27; color: #9C8A7B; }
+
+/* Anything sitting on gold keeps dark text (placed last so it wins). */
+html.tribes-dark .bg-gold,
+html.tribes-dark .bg-leaf,
+html.tribes-dark .bg-\[\#C9A35A\],
+html.tribes-dark .bg-\[\#E4C36A\],
+html.tribes-dark .bg-\[\#F2D98A\],
+html.tribes-dark .tribes-gold-btn,
+html.tribes-dark .tribes-verse-frame,
+html.tribes-dark .tribes-gold-card { color: #1A120C; }
+html.tribes-dark .bg-\[\#C9A35A\],
+html.tribes-dark .bg-\[\#E4C36A\] { background-color: #F4B23E; }
+html.tribes-dark :is(.bg-gold, .bg-leaf, .bg-\[\#C9A35A\], .bg-\[\#E4C36A\], .bg-\[\#F2D98A\], .tribes-gold-btn, .tribes-verse-frame, .tribes-gold-card) :is([class*="text-"], a, button, span, p, blockquote, figcaption) { color: #1A120C; }
+
+/* Woven patterns (pure CSS — no download on mobile data) */
+.tribes-weave-a { background-color: #2B211B; background-image: repeating-linear-gradient(45deg, rgba(244,178,62,.95) 0 5px, transparent 5px 16px), repeating-linear-gradient(-45deg, rgba(212,88,58,.9) 0 5px, transparent 5px 16px); }
+.tribes-weave-b { background-color: #16302A; background-image: repeating-linear-gradient(45deg, rgba(79,178,134,.9) 0 4px, transparent 4px 13px), repeating-linear-gradient(-45deg, rgba(244,178,62,.85) 0 4px, transparent 4px 13px); }
+.tribes-weave-c { background-color: #1E2147; background-image: repeating-linear-gradient(60deg, rgba(120,138,255,.9) 0 4px, transparent 4px 14px), repeating-linear-gradient(-60deg, rgba(244,178,62,.8) 0 3px, transparent 3px 14px); }
+.tribes-weave-d { background-color: #3A1A14; background-image: repeating-linear-gradient(90deg, rgba(247,239,230,.85) 0 3px, transparent 3px 12px), repeating-linear-gradient(0deg, rgba(212,88,58,.9) 0 5px, transparent 5px 12px); }
+.tribes-weave-e { background-color: #2A1B2E; background-image: repeating-linear-gradient(45deg, rgba(232,120,170,.85) 0 4px, transparent 4px 14px), repeating-linear-gradient(-45deg, rgba(244,178,62,.8) 0 4px, transparent 4px 14px); }
+.tribes-weave-f { background-color: #13262E; background-image: repeating-linear-gradient(30deg, rgba(90,200,220,.85) 0 4px, transparent 4px 14px), repeating-linear-gradient(-30deg, rgba(247,239,230,.6) 0 2px, transparent 2px 14px); }
+
+@keyframes tribes-live-pulse { 0% { box-shadow: 0 0 0 0 rgba(255,122,92,.75); } 100% { box-shadow: 0 0 0 10px rgba(255,122,92,0); } }
+.tribes-live-dot { animation: tribes-live-pulse 1.6s infinite; }
+
+/* Prayer room (Ka Link calls) in Red Earth & Gold. Overrides live here, not in
+   prayer-room.css, because that file is shared word-for-word with PLCC Sanctum. */
+html.tribes-dark .pr-shell {
+  --pr-green: #211915;
+  --pr-green-deep: #15100D;
+  --pr-gold: #F4B23E;
+  --pr-gold-light: #F6C97A;
+  --pr-gold-ink: #F4B23E;
+  --pr-cream: #F7EFE6;
+  --pr-card: #211915;
+  --pr-ink: #F7EFE6;
+  --pr-line: rgba(255, 236, 214, 0.12);
+  --pr-text: #F7EFE6;
+  --pr-muted: #BBA898;
+  background: radial-gradient(120% 80% at 50% 0%, #2A1C15 0%, #19120E 60%, #15100D 100%);
+}
+html.tribes-dark .pr-room { background: #211915; }
+html.tribes-dark .pr-orb { background: radial-gradient(circle at 50% 35%, #3A2E27, #15100D 70%); }
+html.tribes-dark .pr-video,
+html.tribes-dark .pr-bible-sheet { background: #15100D; color: #F7EFE6; }
+html.tribes-dark .pr-bible { background: #211915; color: #F7EFE6; }
+html.tribes-dark .pr-bible-sheet-head { border-bottom-color: rgba(255, 236, 214, 0.1); }
+html.tribes-dark .pr-bible-sheet-head p { font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif; color: #F7EFE6; }
+html.tribes-dark .pr-bible-sheet-head p svg { color: #F4B23E; }
+html.tribes-dark .pr-bible-sheet-sub { color: #BBA898; }
+html.tribes-dark .pr-mini { background: rgba(33, 25, 21, 0.97); border-color: rgba(244, 178, 62, 0.45); color: #F7EFE6; }
+html.tribes-dark .pr-full-title { font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif; }
+html.tribes-dark .pr-icon-btn { background: #211915; border-color: rgba(255, 236, 214, 0.14); color: #F7EFE6; }
+html.tribes-dark .pr-icon-btn:hover { background: #2B211B; }
+html.tribes-dark .pr-icon-btn.is-solid { background: #F4B23E; color: #15100D; border-color: #F4B23E; }
