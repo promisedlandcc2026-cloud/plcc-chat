@@ -20,6 +20,8 @@ import {
   endDmCall,
   fetchCallInbox,
   fetchDmCallStatus,
+  fetchPendingCall,
+  inboxRetryDelayMs,
   joinDmCall,
   ringDmCall,
   type CallPhase,
@@ -370,54 +372,111 @@ export const DmCallProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [showIncoming]
   );
 
-  // Listen for incoming calls on my private call topic.
+  // Listen for incoming calls on my private call topic. Keeps retrying if the topic can't be
+  // fetched or the live connection drops, and also asks "is anyone calling me?" when the app
+  // opens or comes back to the front (and every 20s while open), so a missed ping still rings.
   useEffect(() => {
-    if (!selfId || memberAccessState !== 'approved_member' || !isSupabaseConfigured) return;
+    if (!selfId || memberAccessState !== 'approved_member') return;
     let alive = true;
     let channel: RealtimeChannel | null = null;
-    void fetchCallInbox()
-      .then(({ topic, ringSeconds }) => {
-        if (!alive || !topic) return;
-        ringSecondsRef.current = ringSeconds;
-        channel = supabase
-          .channel(topic, { config: { broadcast: { self: false } } })
-          .on('broadcast', { event: 'ring' }, (msg) => {
-            const p = (msg.payload || {}) as Record<string, string>;
-            if (!p.channelId || p.callerId === selfId) return;
-            showIncoming({ channelId: p.channelId, partnerName: p.callerName || 'Someone', video: p.video === '1' });
-          })
-          .on('broadcast', { event: 'ended' }, (msg) => {
-            const p = (msg.payload || {}) as Record<string, string>;
-            const c = callRef.current;
-            if (!p.channelId || p.channelId !== c.channelId) return;
-            if (c.phase === 'incoming') {
-              stopTone();
-              clearTimers();
-              setCall(IDLE); // they gave up, or I declined on another phone
-            } else if (c.phase === 'outgoing' && p.by !== selfId) {
-              void endDmCall(p.channelId);
-              finish(p.reason === 'declined' ? 'declined' : 'ended');
-            } else if ((c.phase === 'connected' || c.phase === 'connecting' || c.phase === 'reconnecting') && p.by !== selfId) {
-              finish('ended');
-            }
-          })
-          .on('broadcast', { event: 'answered' }, (msg) => {
-            const p = (msg.payload || {}) as Record<string, string>;
-            const c = callRef.current;
-            // Answered on another of my phones: stop ringing here.
-            if (c.phase === 'incoming' && p.channelId === c.channelId) {
-              stopTone();
-              clearTimers();
-              setCall(IDLE);
-            }
-          })
-          .subscribe();
-      })
-      .catch(() => {
-        /* calls still work from the chat; just no ringing here */
-      });
+    let retryTimer: number | null = null;
+    let attempt = 0;
+
+    const checkPending = async () => {
+      if (!alive || document.visibilityState !== 'visible') return;
+      const c = callRef.current;
+      if (c.phase !== 'idle' && c.phase !== 'ended') return;
+      const pending = await fetchPendingCall();
+      if (alive && pending) showIncoming({ channelId: pending.channelId, partnerName: pending.callerName, video: pending.video });
+    };
+
+    const retryLater = () => {
+      if (!alive || retryTimer) return;
+      retryTimer = window.setTimeout(() => {
+        retryTimer = null;
+        void subscribe();
+      }, inboxRetryDelayMs(attempt++));
+    };
+
+    const subscribe = async () => {
+      if (!alive || !isSupabaseConfigured) return;
+      if (channel) {
+        void supabase.removeChannel(channel);
+        channel = null;
+      }
+      let topic: string | null = null;
+      try {
+        const inbox = await fetchCallInbox();
+        topic = inbox.topic;
+        ringSecondsRef.current = inbox.ringSeconds;
+      } catch {
+        topic = null;
+      }
+      if (!alive) return;
+      if (!topic) {
+        retryLater();
+        return;
+      }
+      channel = supabase
+        .channel(topic, { config: { broadcast: { self: false } } })
+        .on('broadcast', { event: 'ring' }, (msg) => {
+          const p = (msg.payload || {}) as Record<string, string>;
+          if (!p.channelId || p.callerId === selfId) return;
+          showIncoming({ channelId: p.channelId, partnerName: p.callerName || 'Someone', video: p.video === '1' });
+        })
+        .on('broadcast', { event: 'ended' }, (msg) => {
+          const p = (msg.payload || {}) as Record<string, string>;
+          const c = callRef.current;
+          if (!p.channelId || p.channelId !== c.channelId) return;
+          if (c.phase === 'incoming') {
+            stopTone();
+            clearTimers();
+            setCall(IDLE); // they gave up, or I declined on another phone
+          } else if (c.phase === 'outgoing' && p.by !== selfId) {
+            void endDmCall(p.channelId);
+            finish(p.reason === 'declined' ? 'declined' : 'ended');
+          } else if ((c.phase === 'connected' || c.phase === 'connecting' || c.phase === 'reconnecting') && p.by !== selfId) {
+            finish('ended');
+          }
+        })
+        .on('broadcast', { event: 'answered' }, (msg) => {
+          const p = (msg.payload || {}) as Record<string, string>;
+          const c = callRef.current;
+          // Answered on another of my phones: stop ringing here.
+          if (c.phase === 'incoming' && p.channelId === c.channelId) {
+            stopTone();
+            clearTimers();
+            setCall(IDLE);
+          }
+        })
+        .subscribe((status) => {
+          if (!alive) return;
+          if (status === 'SUBSCRIBED') {
+            attempt = 0;
+            void checkPending();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            retryLater();
+          }
+        });
+    };
+
+    void subscribe();
+    void checkPending();
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void checkPending();
+      if (!channel) void subscribe();
+    };
+    const onOnline = () => void subscribe();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
+    const poll = window.setInterval(() => void checkPending(), 20_000);
     return () => {
       alive = false;
+      if (retryTimer) window.clearTimeout(retryTimer);
+      window.clearInterval(poll);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
       if (channel) void supabase.removeChannel(channel);
     };
   }, [finish, memberAccessState, selfId, showIncoming]);

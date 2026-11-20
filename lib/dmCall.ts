@@ -81,6 +81,21 @@ export async function fetchDmCallStatus(channelId: string): Promise<DmCallStatus
   }
 }
 
+/** Anyone calling me right now? (Safety net when the ring ping was missed.) */
+export async function fetchPendingCall(): Promise<{ channelId: string; callerName: string; video: boolean } | null> {
+  try {
+    const d = await post({ action: 'pending' });
+    return d.ringing === true && d.channelId ? { channelId: d.channelId, callerName: d.callerName || 'Someone', video: d.video === true } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Pure: wait before asking again for my call topic (5s, 10s, 20s … up to a minute). */
+export function inboxRetryDelayMs(attempt: number): number {
+  return Math.min(60_000, 5_000 * 2 ** Math.max(0, Math.min(attempt, 4)));
+}
+
 /** Pure: "0:07", "12:30", "1:02:03". */
 export function formatCallDuration(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
