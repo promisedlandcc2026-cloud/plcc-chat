@@ -480,3 +480,6 @@
 .pr-rail-status.is-away { color: #c6d7ff; }
 .pr-datasaver { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 0.6rem; border-radius: 0.9rem; padding: 0.5rem 0.6rem 0.5rem 0.85rem; font-size: 0.82rem; line-height: 1.35; background: var(--pr-soft); color: var(--pr-text); }
 .pr-datasaver button { flex-shrink: 0; min-height: 36px; padding: 0 0.8rem; border-radius: 9999px; font-weight: 800; font-size: 0.8rem; background: linear-gradient(180deg, var(--pr-gold-light, #f1d58f), var(--pr-gold, #d9b45e)); color: #1d2414; }
+
+/* The Ka Link bottom bar (components/ui/AppNav) sits over full-screen pages such as the Bible. */
+body.has-app-nav .pr-bible-sheet-body { margin-bottom: calc(0.6rem + 58px + env(safe-area-inset-bottom)); }

@@ -3,11 +3,12 @@
  * and a small green bar when minimized so people can keep chatting during a call.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { Maximize2, Mic, MicOff, Minimize2, Phone, PhoneOff, RefreshCw, Video, VideoOff } from 'lucide-react';
+import { Maximize2, Mic, MicOff, Minimize2, Phone, PhoneOff, PictureInPicture2, RefreshCw, Video, VideoOff } from 'lucide-react';
 import type { Track } from 'livekit-client';
 import { useDmCall } from '../../context/DmCallContext';
 import { callStatusLine } from '../../lib/dmCall';
 import { useScreenWakeLock } from '../../lib/useScreenWakeLock';
+import { enterCallPip, pipSupported } from '../../lib/callPip';
 
 function initials(name: string): string {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -78,7 +79,7 @@ export const DmCallScreen: React.FC = () => {
       <button
         type="button"
         onClick={() => ctx.setMinimized(false)}
-        className="fixed top-[max(env(safe-area-inset-top),0.5rem)] left-1/2 -translate-x-1/2 z-[85] flex items-center gap-2 rounded-full bg-emerald-600 text-white pl-3 pr-4 py-2 shadow-xl text-sm font-bold"
+        className="fixed top-[max(env(safe-area-inset-top),0.5rem)] left-1/2 -translate-x-1/2 z-[480] flex items-center gap-2 rounded-full bg-emerald-600 text-white pl-3 pr-4 py-2 shadow-xl text-sm font-bold"
         aria-label={`Back to your call with ${call.partnerName}`}
       >
         <span className="w-2 h-2 rounded-full bg-white animate-pulse" aria-hidden />
@@ -92,7 +93,7 @@ export const DmCallScreen: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-[85] flex flex-col bg-gradient-to-b from-[#1d372c] via-[#12231c] to-[#0b1510] text-white"
+      className="fixed inset-0 z-[480] flex flex-col bg-gradient-to-b from-[#1d372c] via-[#12231c] to-[#0b1510] text-white"
       role="dialog"
       aria-modal="true"
       aria-label={call.video ? `Video call with ${call.partnerName}` : `Voice call with ${call.partnerName}`}
@@ -119,14 +120,34 @@ export const DmCallScreen: React.FC = () => {
           {call.video ? 'PLCC VIDEO CALL' : 'PLCC VOICE CALL'}
         </span>
         {call.phase !== 'incoming' && call.phase !== 'ended' ? (
-          <button
-            type="button"
-            onClick={() => ctx.setMinimized(true)}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full active:bg-white/10"
-            aria-label="Minimize the call (keep chatting)"
-          >
-            <Minimize2 size={20} />
-          </button>
+          <div className="flex items-center gap-1">
+            {pipSupported() ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void enterCallPip().then((ok) => {
+                    if (ok) ctx.setMinimized(true);
+                  });
+                }}
+                className="min-h-[44px] px-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 text-sm font-bold active:bg-white/25"
+                aria-label="Float the call so you can use other apps"
+                data-testid="call-float"
+              >
+                <PictureInPicture2 size={18} aria-hidden />
+                Float
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => ctx.setMinimized(true)}
+              className="min-h-[44px] px-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 text-sm font-bold active:bg-white/25"
+              aria-label="Minimize the call (keep using Ka Link)"
+              data-testid="call-minimize"
+            >
+              <Minimize2 size={18} aria-hidden />
+              Minimize
+            </button>
+          </div>
         ) : (
           <span className="min-h-[44px]" />
         )}

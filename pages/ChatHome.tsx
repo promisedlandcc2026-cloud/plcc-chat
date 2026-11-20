@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2, MessageCircle } from 'lucide-react';
+import { AppNav } from '../components/ui/AppNav';
 
 const CommunityChatPage = lazy(() =>
   import('./CommunityChat').then((m) => ({ default: m.CommunityChatPage }))
@@ -51,10 +52,13 @@ export const ChatHome: React.FC = () => {
 
   return (
     <div className="h-[100dvh] grid grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]">
-      <aside className="h-[100dvh] overflow-y-auto border-r border-gray-200 bg-white/60" aria-label="Chats">
-        <Suspense fallback={<Pending label="Loading chats…" />}>
-          <CommunityChatPage />
-        </Suspense>
+      <aside className="h-[100dvh] overflow-y-auto border-r border-gray-200 bg-white/60 flex flex-col" aria-label="Chats">
+        <div className="flex-1">
+          <Suspense fallback={<Pending label="Loading chats…" />}>
+            <CommunityChatPage />
+          </Suspense>
+        </div>
+        <AppNav desktopChat />
       </aside>
       <section className="h-[100dvh] overflow-y-auto flex flex-col" aria-label="Conversation">
         {channelId ? (

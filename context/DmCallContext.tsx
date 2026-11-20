@@ -32,6 +32,7 @@ import { setCallActive } from '../lib/staleBuild';
 import { reportIssue } from '../lib/issueReport';
 
 const DmCallScreen = lazy(() => import('../components/call/DmCallScreen').then((m) => ({ default: m.DmCallScreen })));
+const CallPip = lazy(() => import('../components/call/CallPip').then((m) => ({ default: m.CallPip })));
 
 export type DmCallState = {
   phase: CallPhase;
@@ -523,6 +524,12 @@ export const DmCallProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       {call.phase !== 'idle' ? (
         <Suspense fallback={null}>
           <DmCallScreen />
+        </Suspense>
+      ) : null}
+      {/* Floating window for using other apps during the call (stays mounted while minimized). */}
+      {['outgoing', 'connecting', 'connected', 'reconnecting'].includes(call.phase) ? (
+        <Suspense fallback={null}>
+          <CallPip />
         </Suspense>
       ) : null}
     </Ctx.Provider>
