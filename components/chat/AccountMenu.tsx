@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BellRing, ChevronDown, ExternalLink, Loader2, LogOut, X } from 'lucide-react';
+import { BellRing, ChevronDown, ChevronRight, ExternalLink, Loader2, LogOut, ShieldAlert, X } from 'lucide-react';
+import { canViewIssues } from '../../lib/issueReport';
 import { useAuth } from '../../context/AuthContext';
 import { CONNECT_URL, VAULT_URL } from '../../lib/appLinks';
 import {
@@ -103,7 +104,17 @@ const AlertsRow: React.FC = () => {
 export const AccountMenu: React.FC = () => {
   const { identity, signOut } = useAuth();
   const navigate = useNavigate();
+  // Church leaders only: Canaan decides; everyone else never sees this row.
+  const [leaderIssues, setLeaderIssues] = useState(false);
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open || leaderIssues) return;
+    let alive = true;
+    void canViewIssues().then((ok) => alive && setLeaderIssues(ok));
+    return () => {
+      alive = false;
+    };
+  }, [open, leaderIssues]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -169,6 +180,27 @@ export const AccountMenu: React.FC = () => {
             </div>
 
             <AlertsRow />
+
+            {leaderIssues ? (
+              <button
+                type="button"
+                className={linkRow}
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/issues');
+                }}
+                data-testid="account-issues"
+              >
+                <span className="flex items-center gap-2">
+                  <ShieldAlert size={18} className="text-burgundy" aria-hidden />
+                  <span>
+                    Issues
+                    <span className="block text-xs font-medium text-gray-500 text-left">Who had problems, why, and the fix</span>
+                  </span>
+                </span>
+                <ChevronRight size={18} className="text-gray-400" aria-hidden />
+              </button>
+            ) : null}
 
             <a href={CONNECT_URL} className={linkRow}>
               <span>Open Tribes</span>

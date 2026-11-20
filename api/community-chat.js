@@ -1,3 +1,11 @@
+import {
+  bridgeIssueCode,
+  issueAreaForResource,
+  issueChannelId,
+  sanitizeClientIssue,
+  sanitizeIssueRow,
+  shouldReportBridgeFailure,
+} from './_utils/issueReport.js';
 import { createHash } from 'node:crypto';
 import { parseBearerAuthorization } from './_utils/memberIdentity.js';
 import {
@@ -92,6 +100,8 @@ import {
 const UPSTREAM_TIMEOUT_MS = 15000;
 const TOKEN_UPSTREAM_TIMEOUT_MS = 20000;
 const ALLOWED_RESOURCES = new Set([
+  'issue-report',
+  'issues',
   'channels',
   'messages',
   'unread',
@@ -159,6 +169,8 @@ function setPrivateNoStore(res) {
 }
 
 function json(res, status, body) {
+  // Remember the failure so the handler wrapper can add it to Issues (Account → Issues).
+  if (status >= 400) res.__plccFail = { status, code: body && typeof body === 'object' ? body.code : null };
   setPrivateNoStore(res);
   res.status(status).json(body);
 }
@@ -351,6 +363,53 @@ async function handleHuddleTokenFallback(req, res) {
 }
 
 export default async function handler(req, res) {
+  try {
+    return await handleBridge(req, res);
+  } finally {
+    const fail = res.__plccFail;
+    const resource = String(req.query?.resource || '');
+    if (fail && shouldReportBridgeFailure(resource, fail.status, fail.code)) {
+      await reportBridgeIssue(req, resource, fail.status, fail.code);
+    }
+  }
+}
+
+/** Tell Canaan's Issues log a member hit a failure here, with the member's own sign-in. */
+async function reportBridgeIssue(req, resource, status, code) {
+  try {
+    const auth = parseBearerAuthorization(req.headers?.authorization);
+    if (!auth.ok) return;
+    const originResult = parseVaultApiOrigin(process.env.VAULT_API_ORIGIN, {
+      allowHttpLocal: process.env.NODE_ENV !== 'production',
+    });
+    if (!originResult.ok) return;
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 4000);
+    try {
+      await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'issue-report'), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify({
+          source: 'ka-link-server',
+          area: issueAreaForResource(resource),
+          code: bridgeIssueCode(resource, status, code),
+          status,
+          message: `Ka Link ${resource} answered ${status}${code ? ` (${code})` : ''}`,
+          channelId: issueChannelId(req),
+          path: `/api/community-chat?resource=${resource}`,
+        }),
+        signal: ctl.signal,
+        redirect: 'error',
+      });
+    } finally {
+      clearTimeout(t);
+    }
+  } catch (err) {
+    console.error('[community-chat] issue report failed', resource, status, err && err.name);
+  }
+}
+
+async function handleBridge(req, res) {
   setPrivateNoStore(res);
 
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -408,6 +467,51 @@ export default async function handler(req, res) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    if (resource === 'issue-report') {
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
+      }
+      const parsedBody = parseJsonBody(req);
+      if (!parsedBody.ok) return json(res, parsedBody.status || 400, { ok: false, code: parsedBody.code || 'invalid_body', message: 'Invalid report.' });
+      const report = sanitizeClientIssue(parsedBody.body);
+      if (!report) return json(res, 400, { ok: false, code: 'invalid_body', message: 'Invalid report.' });
+      const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'issue-report'), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body: JSON.stringify(report),
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      if (!upstream.ok) return mapUpstreamError(res, upstream.status);
+      return json(res, 200, { ok: true });
+    }
+    if (resource === 'issues') {
+      if (req.method !== 'GET') {
+        res.setHeader('Allow', 'GET');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only GET is supported.' });
+      }
+      const check = String(query.check || '') === '1';
+      const days = Math.min(Math.max(parseInt(String(query.days || '7'), 10) || 7, 1), 90);
+      const url = `${buildVaultCommunityChatSubUrl(originResult.origin, 'issues')}&${check ? 'check=1' : `days=${days}`}`;
+      const upstream = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${auth.token}` },
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      if (check) {
+        // Members just get allowed:false (the menu link stays hidden).
+        if (!upstream.ok) return json(res, 200, { ok: true, allowed: false });
+        const body = await upstream.json().catch(() => null);
+        return json(res, 200, { ok: true, allowed: body?.allowed === true });
+      }
+      if (!upstream.ok) return mapUpstreamError(res, upstream.status, 'Only church leaders can see Issues.');
+      const body = await upstream.json().catch(() => null);
+      const issues = Array.isArray(body?.issues) ? body.issues.map(sanitizeIssueRow).filter(Boolean) : [];
+      return json(res, 200, { ok: true, issues });
+    }
+
     if (resource === 'channels') {
       if (req.method !== 'GET') {
         res.setHeader('Allow', 'GET');

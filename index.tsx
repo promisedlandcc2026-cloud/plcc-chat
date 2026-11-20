@@ -6,6 +6,10 @@ import './prayer-room.css';
 import { reloadOnceForNewVersion } from './lib/staleBuild';
 import { initInstallPrompt } from './lib/installPrompt';
 import { registerAlertsWorker } from './lib/phoneAlerts';
+import { installCrashReporter } from './lib/issueReport';
+
+// Issues (Account → Issues): uncaught crashes are reported for church leaders.
+installCrashReporter();
 
 // Catch Chrome's install event early (it can fire before React mounts).
 initInstallPrompt();
