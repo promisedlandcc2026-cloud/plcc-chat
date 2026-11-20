@@ -1,4 +1,6 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { LazyChunkErrorBoundary } from '../routing/LazyChunkErrorBoundary.jsx';
+import { setCallActive } from '../../lib/staleBuild';
 import {
   onPageClosing,
   reportHuddleActivity,
@@ -1747,6 +1749,19 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     if (minimized && conn === 'prejoin') onClose();
   }, [conn, minimized, onClose]);
 
+  // In a call: an app update must not reload the page (it hung up the call the first time
+  // someone opened the Bible after a deploy). Load the Bible now, from this same version.
+  const inCall = conn === 'connected' || conn === 'reconnecting' || conn === 'connecting';
+  useEffect(() => {
+    if (!inCall) return;
+    setCallActive(true);
+    return () => setCallActive(false);
+  }, [inCall]);
+  useEffect(() => {
+    void import('../bible/BibleReader').catch(() => undefined);
+    void import('../../pages/BiblePage').catch(() => undefined);
+  }, []);
+
   const leave = useCallback(async () => {
     if (roomRef.current) logActivity('huddle_left');
     callStartedAtRef.current = 0;
@@ -2502,12 +2517,15 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       setNotice(`${s.label} shared in the room chat.`);
       window.setTimeout(() => setNotice((cur) => (cur && cur.endsWith('shared in the room chat.') ? null : cur)), 4000);
     };
+    // Its own error card: a failed Bible load never takes the call down with it.
     const bibleReader = (
-      <Suspense fallback={<p className="flex items-center gap-2 py-8 text-sm text-gray-500"><Loader2 className="animate-spin" size={18} aria-hidden /> Opening the Bible…</p>}>
-        <BibleReader
-          actions={connected ? [{ label: 'Share in room', primary: true, onShare: shareVerseInRoom }] : []}
-        />
-      </Suspense>
+      <LazyChunkErrorBoundary sectionLabel="the Bible">
+        <Suspense fallback={<p className="flex items-center gap-2 py-8 text-sm text-gray-500"><Loader2 className="animate-spin" size={18} aria-hidden /> Opening the Bible…</p>}>
+          <BibleReader
+            actions={connected ? [{ label: 'Share in room', primary: true, onShare: shareVerseInRoom }] : []}
+          />
+        </Suspense>
+      </LazyChunkErrorBoundary>
     );
     const micTileLabel = listenOnly ? 'Unmute' : micEnabled ? 'Mute' : 'Unmute';
 
