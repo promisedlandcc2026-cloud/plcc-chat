@@ -28,7 +28,17 @@ type BeforeInstallPromptEvent = Event & {
 
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 const listeners = new Set<() => void>();
-const notify = () => listeners.forEach((fn) => fn());
+let notifying = false;
+/** Never re-enter: a listener that changes the flag can't start the loop again. */
+const notify = () => {
+  if (notifying) return;
+  notifying = true;
+  try {
+    listeners.forEach((fn) => fn());
+  } finally {
+    notifying = false;
+  }
+};
 
 function readFlag(): string | null {
   try {
@@ -52,6 +62,16 @@ function readFlag(): string | null {
 }
 
 function writeFlag(value: 'dismissed' | 'installed') {
+  // Nov 20 2026: only tell listeners when something changed. Listeners re-check, and the
+  // check records "installed" again in the home-screen app — that looped until the app
+  // crashed ("Maximum call stack size exceeded" on Tribes Home).
+  let current: string | null = null;
+  try {
+    current = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    current = null;
+  }
+  if (current === value && value === 'installed') return;
   try {
     localStorage.setItem(STORAGE_KEY, value);
     if (value === 'dismissed') localStorage.setItem(DISMISSED_AT_KEY, String(Date.now()));
