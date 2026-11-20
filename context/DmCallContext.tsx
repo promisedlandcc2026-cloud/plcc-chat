@@ -375,7 +375,7 @@ export const DmCallProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Listen for incoming calls on my private call topic. Keeps retrying if the topic can't be
   // fetched or the live connection drops, and also asks "is anyone calling me?" when the app
-  // opens or comes back to the front (and every 20s while open), so a missed ping still rings.
+  // opens or comes back to the front (and every 30s while open), so a missed ping still rings.
   useEffect(() => {
     if (!selfId || memberAccessState !== 'approved_member') return;
     let alive = true;
@@ -471,7 +471,7 @@ export const DmCallProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const onOnline = () => void subscribe();
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', onOnline);
-    const poll = window.setInterval(() => void checkPending(), 20_000);
+    const poll = window.setInterval(() => void checkPending(), 30_000);
     return () => {
       alive = false;
       if (retryTimer) window.clearTimeout(retryTimer);

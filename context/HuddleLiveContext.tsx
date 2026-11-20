@@ -22,7 +22,13 @@ type HuddleLiveContextValue = {
 
 const HuddleLiveContext = createContext<HuddleLiveContextValue | null>(null);
 
-const POLL_MS = 10_000;
+/**
+ * Nov 20 2026 (load): this used to download the WHOLE chat list every 10s on every open app just
+ * to light the LIVE dots — the biggest source of database traffic. Now the list is downloaded once
+ * every 5 minutes (it rarely changes) and only the LIVE status is checked every 20s.
+ */
+const POLL_MS = 20_000;
+const CHANNEL_LIST_MS = 5 * 60_000;
 const MAX_CHANNELS = 50;
 
 async function loadHuddleClient() {
@@ -36,18 +42,24 @@ export const HuddleLiveProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const [byChannel, setByChannel] = useState<Record<string, HuddleChannelStatus>>({});
   const inFlightRef = useRef(false);
+  const channelIdsRef = useRef<{ ids: string[]; at: number; owner: string | null }>({ ids: [], at: 0, owner: null });
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
     if (!enabled || inFlightRef.current) return;
     inFlightRef.current = true;
     try {
       const { fetchChatChannels, fetchHuddleStatuses } = await loadHuddleClient();
-      const channels = await fetchChatChannels();
-      if (signal?.aborted) return;
-      const ids = channels
-        .filter((c) => !isDmChannel(c))
-        .map((c) => c.id)
-        .slice(0, MAX_CHANNELS);
+      const cached = channelIdsRef.current;
+      let ids = cached.ids;
+      if (cached.owner !== authUserId || Date.now() - cached.at > CHANNEL_LIST_MS) {
+        const channels = await fetchChatChannels();
+        if (signal?.aborted) return;
+        ids = channels
+          .filter((c) => !isDmChannel(c))
+          .map((c) => c.id)
+          .slice(0, MAX_CHANNELS);
+        channelIdsRef.current = { ids, at: Date.now(), owner: authUserId };
+      }
       if (ids.length === 0) {
         setByChannel({});
         return;
@@ -60,7 +72,7 @@ export const HuddleLiveProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } finally {
       inFlightRef.current = false;
     }
-  }, [enabled]);
+  }, [authUserId, enabled]);
 
   useEffect(() => {
     if (!enabled) {
