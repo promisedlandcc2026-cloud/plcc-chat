@@ -1,4 +1,11 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  onPageClosing,
+  reportHuddleActivity,
+  reportIssue,
+  type HuddleActivityCode,
+  type IssueExtra,
+} from '../../lib/issueReport';
 import type { BibleSelection } from '../bible/BibleReader';
 
 const BibleReader = lazy(() => import('../bible/BibleReader').then((m) => ({ default: m.BibleReader })));
@@ -594,6 +601,27 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   /** Rooms we gave up on: their late events must not touch the current call. */
   const retiredRoomsRef = useRef<WeakSet<Room>>(new WeakSet());
   const joinStallsRef = useRef(0);
+  /** Issues (Account → Issues): when this call started and when the connection last wobbled. */
+  const callStartedAtRef = useRef(0);
+  const wobbleAtRef = useRef(0);
+  const channelIdForLogRef = useRef(channelId);
+  channelIdForLogRef.current = channelId;
+  /** Tell church leaders' Issues page what happened (joined, left, dropped…). Never throws. */
+  const logActivity = useRef(
+    (code: HuddleActivityCode, extra?: IssueExtra, opts?: { immediate?: boolean }) => {
+      const started = callStartedAtRef.current;
+      reportHuddleActivity(
+        code,
+        channelIdForLogRef.current,
+        {
+          line: 'livekit',
+          ...(started ? { durationSec: Math.round((Date.now() - started) / 1000) } : {}),
+          ...(extra || {}),
+        },
+        opts
+      );
+    }
+  ).current;
   const canModerateRef = useRef(false);
   const translation = useHuddleTranslation(roomRef.current, conn === 'connected');
   const activeTabRef = useRef<HuddleMobileTabId | null>(null);
@@ -1062,6 +1090,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       if (!mountedRef.current || leaveIntentionalRef.current) return;
       lostConnectionRef.current = true;
       joinStallsRef.current += 1;
+      reportIssue({ area: 'huddle', code: 'huddle_join_stalled', channelId, extra: { attempt: joinStallsRef.current } });
       if (joinStallsRef.current === 1 && document.visibilityState === 'visible') {
         setConn('reconnecting');
         void joinRef.current();
@@ -1349,12 +1378,17 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         // LiveKit's own quick resume (network blip): show it, don't hang up.
         .on(RoomEvent.Reconnecting, () => {
           if (roomRef.current !== room) return;
+          wobbleAtRef.current = Date.now();
+          logActivity('huddle_reconnecting', { reason: 'signal' });
           if (mountedRef.current && !connectingRef.current) setConn('reconnecting');
         })
         .on(RoomEvent.Reconnected, () => {
           if (roomRef.current !== room) return;
           if (!mountedRef.current) return;
           setConn('connected');
+          logActivity('huddle_reconnected', {
+            outageSec: wobbleAtRef.current ? Math.round((Date.now() - wobbleAtRef.current) / 1000) : undefined,
+          });
           void resumeAudioRef.current();
         })
         // Phone blocked sound (autoplay rules, or audio paused by the system).
@@ -1378,11 +1412,22 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             return;
           }
           if (huddleDisconnectIsFinal(reason)) {
+            logActivity(
+              reason === DisconnectReason.DUPLICATE_IDENTITY
+                ? 'huddle_other_device'
+                : reason === DisconnectReason.PARTICIPANT_REMOVED
+                  ? 'huddle_removed'
+                  : 'huddle_ended_for_all'
+            );
+            callStartedAtRef.current = 0;
             lostConnectionRef.current = true;
             setError(huddleDisconnectMessage(reason));
             setConn('error');
             return;
           }
+          logActivity('huddle_dropped', {
+            reason: typeof reason === 'number' ? String((DisconnectReason as any)[reason] || reason) : undefined,
+          });
           // Phone has no network (weak data, or a phone call took the line):
           // wait for it to come back — the 'online' / return listener rejoins.
           if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -1393,6 +1438,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           const delay = kaLinkReconnectDelay(reconnectAttemptsRef.current);
           if (delay === null) {
             lostConnectionRef.current = true;
+            reportIssue({ area: 'huddle', code: 'huddle_disconnected', channelId });
             setError('Connection lost. Tap to rejoin the Ka Link.');
             setConn('error');
             return;
@@ -1460,6 +1506,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       reconnectAttemptsRef.current = 0;
       joinStallsRef.current = 0;
       lostConnectionRef.current = false;
+      if (!callStartedAtRef.current) callStartedAtRef.current = Date.now();
+      logActivity('huddle_joined', reconnecting ? { attempt: 1 } : undefined);
       setConn('connected');
 
       // 4. Record LiveKit as this channel's line. If someone already moved the
@@ -1502,6 +1550,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       }
       setNotice(null);
       if ((err instanceof CommunityChatError && err.code === 'huddle_room_full') || isRoomFullError(err)) {
+        reportIssue({ area: 'huddle', code: 'huddle_room_full', channelId });
         setError('This prayer room is full.');
         setRoomFull({ checking: true, overflow: null });
         setConn('error');
@@ -1510,6 +1559,13 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         });
         return;
       }
+      reportIssue({
+        area: 'huddle',
+        code: err instanceof CommunityChatError ? `huddle_join_${err.code}`.slice(0, 64) : 'huddle_connect_failed',
+        status: err instanceof CommunityChatError ? err.status : null,
+        message: err instanceof Error ? err.message.slice(0, 300) : null,
+        channelId,
+      });
       const message =
         err instanceof CommunityChatError
           ? err.message
@@ -1555,6 +1611,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       reconnectAttemptsRef.current = 0;
       setError(null);
       setConn('reconnecting');
+      logActivity('huddle_auto_rejoin');
       void joinRef.current();
     };
     document.addEventListener('visibilitychange', onBack);
@@ -1664,12 +1721,23 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     };
   }, []);
 
+  // App swiped away / phone closed the page during a call: note it for Issues.
+  useEffect(
+    () =>
+      onPageClosing(() => {
+        if (roomRef.current) logActivity('huddle_app_closed', undefined, { immediate: true });
+      }),
+    [logActivity]
+  );
+
   // Back pressed before joining: nothing to keep, so just close.
   useEffect(() => {
     if (minimized && conn === 'prejoin') onClose();
   }, [conn, minimized, onClose]);
 
   const leave = useCallback(async () => {
+    if (roomRef.current) logActivity('huddle_left');
+    callStartedAtRef.current = 0;
     leaveIntentionalRef.current = true;
     reconnectAttemptsRef.current = MAX_HUDDLE_RECONNECTS;
     await disconnectRoom();
@@ -1731,6 +1799,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       if (!micEnabledRef.current || roomRef.current !== room) return;
       micInterruptedRef.current = true;
       sendAwayRef.current('call');
+      logActivity('huddle_interrupted', { reason: 'mic_taken' });
       selfMuteIntentRef.current = true;
       void room.localParticipant
         .setMicrophoneEnabled(false)
