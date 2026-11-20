@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BellRing, ChevronDown, ChevronRight, ExternalLink, Loader2, LogOut, ShieldAlert, X } from 'lucide-react';
+import { BellRing, ChevronDown, ChevronRight, ExternalLink, Loader2, LogOut, Music, ShieldAlert, X } from 'lucide-react';
 import { canViewIssues } from '../../lib/issueReport';
+import { canUploadMusicCached } from '../../lib/kaLinkMusic';
 import { useAuth } from '../../context/AuthContext';
 import { CONNECT_URL, VAULT_URL } from '../../lib/appLinks';
 import {
@@ -106,11 +107,14 @@ export const AccountMenu: React.FC = () => {
   const navigate = useNavigate();
   // Church leaders only: Canaan decides; everyone else never sees this row.
   const [leaderIssues, setLeaderIssues] = useState(false);
+  // Music team + managers: upload songs the church bought (Nov 19).
+  const [musicTeam, setMusicTeam] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    if (!open || leaderIssues) return;
+    if (!open) return;
     let alive = true;
-    void canViewIssues().then((ok) => alive && setLeaderIssues(ok));
+    if (!leaderIssues) void canViewIssues().then((ok) => alive && setLeaderIssues(ok));
+    void canUploadMusicCached().then((ok) => alive && setMusicTeam(ok));
     return () => {
       alive = false;
     };
@@ -180,6 +184,27 @@ export const AccountMenu: React.FC = () => {
             </div>
 
             <AlertsRow />
+
+            {musicTeam ? (
+              <button
+                type="button"
+                className={linkRow}
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/music');
+                }}
+                data-testid="account-music"
+              >
+                <span className="flex items-center gap-2">
+                  <Music size={18} className="text-burgundy" aria-hidden />
+                  <span>
+                    Ka Link Music
+                    <span className="block text-xs font-medium text-gray-500 text-left">Upload songs you bought</span>
+                  </span>
+                </span>
+                <ChevronRight size={18} className="text-gray-400" aria-hidden />
+              </button>
+            ) : null}
 
             {leaderIssues ? (
               <button

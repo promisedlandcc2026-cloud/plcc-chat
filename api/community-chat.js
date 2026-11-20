@@ -1,3 +1,4 @@
+import { parseMusicCommand, sanitizeMusicAnswer } from './_utils/musicBridge.js';
 import {
   bridgeIssueCode,
   issueAreaForResource,
@@ -57,8 +58,6 @@ import {
   sanitizeArchives,
   parseHuddleModerateCommand,
   parseHuddleRecordingCommand,
-  parseHuddleSongsCommand,
-  sanitizeSongList,
   sanitizeRecordingList,
   sanitizeRecordingUrl,
 } from './_utils/communityChatSanitize.js';
@@ -1411,13 +1410,14 @@ async function handleBridge(req, res) {
     }
 
     if (resource === 'huddle-songs') {
-      // #12: the church's song library with play links (moderators of this room only get links).
+      // #12 song library: play links for this room's moderators; the music team (Nov 19)
+      // and managers also list, upload (bought music only) and delete. Canaan decides who may.
       if (req.method !== 'POST') {
         res.setHeader('Allow', 'POST');
         return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
       }
       const parsedBody = parseJsonBody(req);
-      const command = parseHuddleSongsCommand(parsedBody.ok ? parsedBody.body : null);
+      const command = parseMusicCommand(parsedBody.ok ? parsedBody.body : null);
       if (!command) return json(res, 400, { ok: false, code: 'invalid_body', message: 'That request was not valid.' });
       const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'ka-link-songs'), {
         method: 'POST',
@@ -1428,12 +1428,14 @@ async function handleBridge(req, res) {
       });
       const body = await upstream.json().catch(() => null);
       if (!upstream.ok) {
-        if (upstream.status === 503 && typeof body?.error === 'string') {
-          return json(res, 503, { ok: false, code: 'not_set_up', message: body.error.slice(0, 200) });
+        if ([400, 403, 503].includes(upstream.status) && typeof body?.error === 'string') {
+          return json(res, upstream.status, { ok: false, code: upstream.status === 503 ? 'not_set_up' : 'songs_refused', message: body.error.slice(0, 200) });
         }
         return mapUpstreamError(res, upstream.status);
       }
-      return json(res, 200, { ok: true, songs: sanitizeSongList(body?.songs) });
+      const answer = sanitizeMusicAnswer(command.action, body);
+      if (!answer) return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Could not start the upload. Please try again.' });
+      return json(res, 200, { ok: true, ...answer });
     }
 
     if (resource === 'huddle-recording') {
