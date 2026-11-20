@@ -9,6 +9,7 @@ import { DmCallProvider } from './context/DmCallContext';
 import { MemberGate } from './components/auth/MemberGate';
 import { LazyRoute } from './components/routing/LazyRoute';
 import { OpenInAppBanner } from './components/ui/OpenInAppBanner';
+import { UpdateBanner } from './components/ui/UpdateBanner';
 import { AppNav } from './components/ui/AppNav';
 
 /**
@@ -36,6 +37,8 @@ const KaLinkMusicPage = lazy(() => import('./pages/KaLinkMusicPage').then((m) =>
 const AppShell: React.FC = () => (
   <div className="min-h-screen max-w-[500px] lg:max-w-[1400px] mx-auto bg-eggshell shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_12px_40px_rgba(0,0,0,0.06)] flex flex-col relative">
     <OpenInAppBanner />
+    {/* "A new version is ready — Update" after each fix or upgrade. */}
+    <UpdateBanner appName="Ka Link" />
     <Routes>
       <Route path="/" element={<Navigate to="/community/chat" replace />} />
       <Route path="/community" element={<Navigate to="/community/chat" replace />} />
