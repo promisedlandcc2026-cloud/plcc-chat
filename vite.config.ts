@@ -2,6 +2,7 @@ import path from 'path';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { buildVersionPlugin } from './buildVersion.mjs';
 import communityChatHandler from './api/community-chat.js';
 import authPhoneHandler from './api/auth-phone.js';
 import memberSelfHandler from './api/member-self.js';
@@ -113,7 +114,7 @@ export default defineConfig(({ mode }) => {
   }
   return {
     server: { port: 3001, host: '0.0.0.0' },
-    plugins: [react(), chatApiDevBridge()],
+    plugins: [react(), chatApiDevBridge(), buildVersionPlugin('ka-link')],
     resolve: { alias: { '@': path.resolve(__dirname, '.') } },
     build: {
       rollupOptions: {

@@ -37,6 +37,15 @@ export function setCallActive(on: boolean): void {
   }
 }
 
+/** The Update button during a call: load the new version as soon as the call ends. */
+export function updateWhenCallEnds(): void {
+  if (!callActive) {
+    reloadOnceForNewVersion();
+    return;
+  }
+  reloadAfterCall = true;
+}
+
 /** Reload the page once to pick up the new version. Returns true if reloading. */
 export function reloadOnceForNewVersion(now = Date.now()): boolean {
   if (callActive) {
