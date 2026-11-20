@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ConductSheet } from '../components/conduct/ConductSheet';
 import { isConductTargetId, type ConductTarget } from '../lib/memberConduct';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArrowLeft, Ban, Bell, BellOff, ClipboardList, CornerUpLeft, Flag, Info, Loader2, Megaphone, MoreHorizontal, Pencil, Pin, Radio, Search, Send, X } from 'lucide-react';
+import { Archive, ArrowLeft, Ban, Bell, BellOff, ClipboardList, CornerUpLeft, Flag, Info, Loader2, Megaphone, MoreHorizontal, Pencil, Phone, Pin, Radio, Search, Send, Video, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   CommunityChatError,
@@ -45,6 +45,8 @@ import { CardPickerSheet } from '../components/chat/CardPickerSheet';
 import { PollComposerSheet } from '../components/chat/PollComposerSheet';
 import { dmDisplayName } from '../lib/dmRecents';
 import { useActiveKaLink } from '../context/ActiveKaLinkContext';
+import { useDmCall } from '../context/DmCallContext';
+import { wantsAnswerFromUrl } from '../lib/dmCall';
 import { HuddleRecordingsSheet } from '../components/huddle/HuddleRecordingsSheet';
 import { fetchDmList, listHuddleRecordings, setDmBlocked } from '../lib/communityChatClient';
 import { DmBlockSheet, DmReportSheet } from '../components/chat/DmSafetySheets';
@@ -188,6 +190,28 @@ export const CommunityChatRoomPage: React.FC = () => {
       alive = false;
     };
   }, [channelId, isDm, memberAccessState, validChannel]);
+
+  /** Private voice / video calls (DMs only, every member). */
+  const dmCall = useDmCall();
+  const callBusy = Boolean(dmCall && dmCall.call.phase !== 'idle' && dmCall.call.phase !== 'ended');
+  const placeCall = (video: boolean) => {
+    if (!dmCall || !validChannel) return;
+    if (youBlocked) {
+      notify(`You blocked ${roomTitle}. Unblock them to call.`);
+      return;
+    }
+    void dmCall.startCall({ channelId, partnerName: roomTitle, video });
+  };
+  // Opened from a "… is calling you" phone alert: show the ringing screen if it still rings.
+  const checkIncomingRef = useRef(dmCall?.checkIncoming);
+  checkIncomingRef.current = dmCall?.checkIncoming;
+  useEffect(() => {
+    if (!isDm || !validChannel || memberAccessState !== 'approved_member') return;
+    if (!wantsAnswerFromUrl(location.search)) return;
+    void checkIncomingRef.current?.(channelId, roomTitle);
+    navigate(location.pathname, { replace: true, state: location.state });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId, isDm, memberAccessState, validChannel, location.search]);
 
   const notify = (msg: string) => {
     setSafetyNotice(msg);
@@ -933,6 +957,32 @@ export const CommunityChatRoomPage: React.FC = () => {
           >
             <Archive size={18} />
           </button>
+          {isDm && dmCall ? (
+            <>
+              <button
+                type="button"
+                onClick={() => placeCall(false)}
+                disabled={callBusy}
+                className="min-h-[44px] min-w-[40px] flex items-center justify-center text-burgundy rounded-xl active:bg-burgundy/10 disabled:opacity-40"
+                aria-label={`Voice call ${roomTitle}`}
+                title="Voice call"
+                data-dm-call="voice"
+              >
+                <Phone size={19} aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => placeCall(true)}
+                disabled={callBusy}
+                className="min-h-[44px] min-w-[40px] flex items-center justify-center text-burgundy rounded-xl active:bg-burgundy/10 disabled:opacity-40"
+                aria-label={`Video call ${roomTitle}`}
+                title="Video call"
+                data-dm-call="video"
+              >
+                <Video size={20} aria-hidden />
+              </button>
+            </>
+          ) : null}
           <button
             type="button"
             onClick={() => void toggleMute()}

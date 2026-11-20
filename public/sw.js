@@ -33,12 +33,16 @@ self.addEventListener('push', (event) => {
         (c) => c.visibilityState === 'visible' && c.focused !== false && c.url.split('?')[0] === url.split('?')[0]
       );
       if (watching) return undefined;
+      // Incoming private call: the open app already rings on screen, so only alert when it isn't open.
+      const isCall = String(data.tag || '').startsWith('call:');
+      if (isCall && windows.some((c) => c.visibilityState === 'visible')) return undefined;
       return self.registration.showNotification(title, {
         body: String(data.body || '').slice(0, 200),
         icon: '/icon-192.png',
         badge: '/icon-192.png',
         tag: data.tag ? String(data.tag).slice(0, 100) : undefined,
         renotify: Boolean(data.tag),
+        ...(isCall ? { requireInteraction: true, vibrate: [400, 150, 400, 150, 400] } : {}),
         data: { url },
       });
     })()
