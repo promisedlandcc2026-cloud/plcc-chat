@@ -10,6 +10,7 @@ import type { BibleSelection } from '../bible/BibleReader';
 
 const BibleReader = lazy(() => import('../bible/BibleReader').then((m) => ({ default: m.BibleReader })));
 import {
+  ShieldBan,
   BookHeart,
   BookOpen,
   RefreshCw,
@@ -106,7 +107,7 @@ import {
 } from '../../lib/huddleStage';
 import { ModeratorRoomBar, PersonActionsSheet } from '../huddle/HuddleModeratorTools';
 import { ConductNoticeModal, ConductSheet } from '../conduct/ConductSheet';
-import { HUDDLE_CONDUCT_TOPIC, parseConductNotice, type ConductNotice, type ConductTarget } from '../../lib/memberConduct';
+import { HUDDLE_CONDUCT_TOPIC, isConductTargetId, parseConductNotice, type ConductNotice, type ConductTarget } from '../../lib/memberConduct';
 import { VAULT_URL } from '../../lib/appLinks';
 import { GuidelinesSheet, PrayerRequestSheet } from './PrayerRoomSheets';
 import { findSanctumOverflow, isRoomFullError, openSanctumOverflow, type SanctumOverflow } from '../../lib/sanctumOverflow';
@@ -3283,6 +3284,17 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                             <span className="pr-role is-weak" data-testid="ka-link-signal-badge"><SignalLow size={12} aria-hidden /> {signalLabel(tile.signal)}</span>
                           ) : null}
                           {tile.micOn ? <Mic size={17} className="pr-mic-on" aria-label="Microphone on" /> : <MicOff size={17} className="pr-mic-off" aria-label="Muted" />}
+                          {canModerate && !tile.isLocal && !tile.moderator && tile.team !== 'admin' && tile.team !== 'leader' && isConductTargetId(tile.identity) ? (
+                            <button
+                              type="button"
+                              onClick={() => setConductTarget({ userId: tile.identity, name: tile.name, place: 'call', channelId })}
+                              className="ml-1 min-h-[40px] min-w-[40px] rounded-full bg-white/10 text-amber-300 flex items-center justify-center"
+                              aria-label={`Warn or block ${tile.name}`}
+                              data-testid="huddle-warn-block"
+                            >
+                              <ShieldBan size={16} aria-hidden />
+                            </button>
+                          ) : null}
                         </li>
                       ))}
                       {!peopleList.length ? <li className="py-4 text-center text-sm text-white/60">No one matches that name.</li> : null}
