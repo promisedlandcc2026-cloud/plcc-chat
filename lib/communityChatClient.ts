@@ -942,7 +942,7 @@ export async function moderateHuddle(
   channelId: string,
   action: HuddleModerateAction,
   targetIdentity?: string
-): Promise<{ micLock: boolean; readerIds: string[] }> {
+): Promise<{ micLock: boolean; readerIds: string[]; asked: boolean }> {
   const res = await authedFetch('/api/community-chat?resource=huddle-moderate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -959,6 +959,8 @@ export async function moderateHuddle(
   return {
     micLock: b.micLock === true,
     readerIds: Array.isArray(b.readerIds) ? b.readerIds.filter((id: unknown) => typeof id === 'string') : [],
+    /** Unmute: LiveKit won't switch someone's mic on, so they were asked to (Nov 20 2026). */
+    asked: b.asked === true,
   };
 }
 

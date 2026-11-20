@@ -1566,6 +1566,7 @@ async function handleBridge(req, res) {
       return json(res, 200, {
         ok: true,
         action: command.action,
+        asked: body?.unmuteRequested === true,
         micLock: body?.micLock === true,
         readerIds: Array.isArray(body?.readerIds)
           ? body.readerIds.filter((id) => typeof id === 'string' && id.length <= 128).slice(0, 12)
