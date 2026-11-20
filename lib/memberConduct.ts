@@ -27,7 +27,7 @@ export type ConductTarget = {
 
 /** Live notice the call sends to the member (topic plcc.conduct). */
 export const HUDDLE_CONDUCT_TOPIC = 'plcc.conduct';
-export type ConductNotice = { t: 'warn' | 'block'; reason?: string | null; by?: string | null };
+export type ConductNotice = { t: 'warn' | 'block' | 'ask-unmute'; reason?: string | null; by?: string | null };
 
 /** Quick reasons — big buttons for moderators on phones. */
 export const WARN_REASONS = [
@@ -49,7 +49,7 @@ export function parseConductNotice(payload: Uint8Array | string): ConductNotice 
   try {
     const raw = typeof payload === 'string' ? payload : new TextDecoder().decode(payload);
     const v = JSON.parse(raw);
-    if (!v || (v.t !== 'warn' && v.t !== 'block')) return null;
+    if (!v || (v.t !== 'warn' && v.t !== 'block' && v.t !== 'ask-unmute')) return null;
     return {
       t: v.t,
       reason: typeof v.reason === 'string' ? v.reason.slice(0, 200) : null,

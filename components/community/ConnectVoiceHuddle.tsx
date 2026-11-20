@@ -108,7 +108,7 @@ import {
   type HuddleStageView,
 } from '../../lib/huddleStage';
 import { ModeratorRoomBar, PersonActionsSheet } from '../huddle/HuddleModeratorTools';
-import { ConductNoticeModal, ConductSheet } from '../conduct/ConductSheet';
+import { AskUnmuteCard, ConductNoticeModal, ConductSheet } from '../conduct/ConductSheet';
 import { HUDDLE_CONDUCT_TOPIC, isConductTargetId, parseConductNotice, type ConductNotice, type ConductTarget } from '../../lib/memberConduct';
 import { VAULT_URL } from '../../lib/appLinks';
 import { GuidelinesSheet, PrayerRequestSheet } from './PrayerRoomSheets';
@@ -450,6 +450,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   /** Warn / Block sheet (moderators) and the notice a warned/blocked member sees. */
   const [conductTarget, setConductTarget] = useState<ConductTarget | null>(null);
   const [conductNotice, setConductNotice] = useState<ConductNotice | null>(null);
+  /** A moderator tapped "Unmute their mic": I choose to unmute (Nov 20 2026). */
+  const [unmuteAsked, setUnmuteAsked] = useState(false);
   const [modBusy, setModBusy] = useState(false);
   const [modError, setModError] = useState<string | null>(null);
   /** Phase 3: "I'm ready" alerts moderators see, and when this leader last sent one. */
@@ -1256,7 +1258,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           // A moderator's warning / block comes from Canaan (no participant).
           if (topic === HUDDLE_CONDUCT_TOPIC) {
             const notice = parseConductNotice(payload);
-            if (notice && mountedRef.current && roomRef.current === room) setConductNotice(notice);
+            if (!notice || !mountedRef.current || roomRef.current !== room) return;
+            if (notice.t === 'ask-unmute') setUnmuteAsked(true);
+            else setConductNotice(notice);
             return;
           }
           if (!mountedRef.current || !participant) return;
@@ -2324,6 +2328,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       setModError(null);
       try {
         const result = await moderateHuddle(channelId, action, targetIdentity);
+        if (action === 'unmute' && result.asked) setNotice('Asked them to unmute. Their mic is unlocked; they tap Unmute when ready.');
         const next = { micLock: result.micLock, readerIds: result.readerIds };
         if (action !== 'mute' && action !== 'unmute' && action !== 'lower-hand') {
           stageRef.current = next;
@@ -2395,8 +2400,17 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const conductOverlays = (
     <>
       {conductTarget ? <ConductSheet target={conductTarget} onClose={() => setConductTarget(null)} /> : null}
-      {conductNotice ? (
+      {conductNotice && conductNotice.t !== 'ask-unmute' ? (
         <ConductNoticeModal kind={conductNotice.t} reason={conductNotice.reason} onClose={() => setConductNotice(null)} />
+      ) : null}
+      {unmuteAsked ? (
+        <AskUnmuteCard
+          onUnmute={() => {
+            setUnmuteAsked(false);
+            if (!micEnabledRef.current) void toggleMic();
+          }}
+          onClose={() => setUnmuteAsked(false)}
+        />
       ) : null}
     </>
   );

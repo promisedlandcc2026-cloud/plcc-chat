@@ -1,4 +1,4 @@
 {
-  "notes": "You will now see a message like this whenever there is a fix or upgrade. Tap Update to get it.",
+  "notes": "Moderators: \"Unmute their mic\" now asks the person to unmute (they tap Unmute) instead of showing an error.",
   "critical": false
 }
