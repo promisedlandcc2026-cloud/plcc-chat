@@ -76,7 +76,7 @@ export const AppNav: React.FC<{ desktopChat?: boolean }> = ({ desktopChat }) => 
               <Link
                 to={to}
                 aria-current={on ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 min-h-[58px] text-[11px] font-bold ${on ? 'text-burgundy' : 'text-gray-700'}`}
+                className="ka-link-nav-item flex flex-col items-center justify-center gap-0.5 min-h-[58px] text-[11px] font-bold"
               >
                 <span className={`flex items-center justify-center h-7 w-12 rounded-full ${on ? 'bg-gold/30' : ''}`}>
                   <Icon size={20} aria-hidden />
@@ -90,7 +90,7 @@ export const AppNav: React.FC<{ desktopChat?: boolean }> = ({ desktopChat }) => 
           <button
             type="button"
             onClick={() => setAppsOpen(true)}
-            className="w-full flex flex-col items-center justify-center gap-0.5 min-h-[58px] text-[11px] font-bold text-gray-700"
+            className="ka-link-nav-item w-full flex flex-col items-center justify-center gap-0.5 min-h-[58px] text-[11px] font-bold"
             aria-haspopup="dialog"
             data-testid="app-nav-apps"
           >

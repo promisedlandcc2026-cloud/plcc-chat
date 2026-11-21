@@ -1189,7 +1189,7 @@ export const CommunityChatPage: React.FC = () => {
       {/* Bible on the home screen (members asked for it here, not only inside a Ka Link). */}
       <Link
         to="/bible"
-        className="mb-4 flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#d9b45e]/60 bg-gradient-to-r from-[#0f3d2c] to-[#062a1d] px-4 py-3 text-[#f4ecdb] shadow-sm active:scale-[0.99] lg:mt-auto lg:min-h-[48px] lg:px-3 lg:py-2"
+        className="mt-4 mb-4 flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#d9b45e]/60 bg-gradient-to-r from-[#0f3d2c] to-[#062a1d] px-4 py-3 text-[#f4ecdb] shadow-sm active:scale-[0.99] lg:mt-auto lg:min-h-[48px] lg:px-3 lg:py-2"
         data-testid="home-bible-card"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d9b45e]/15 text-[#f1d58a]">
