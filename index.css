@@ -474,3 +474,11 @@ html.tribes-forest :is(button, a).bg-white:not(:is(.bg-white, .tribes-ticket, .p
   background-clip: text;
   color: transparent;
 }
+
+/* Ka Link chat uses a light reading surface; keep the heading legible there. */
+html.tribes-forest .ka-link-chat-surface .tribes-gold-text {
+  color: #173527;
+  background: none;
+  -webkit-text-fill-color: #173527;
+}
+html.tribes-forest .ka-link-chat-surface .bg-eggshell\/95 { background-color: rgba(247, 239, 221, .97); }

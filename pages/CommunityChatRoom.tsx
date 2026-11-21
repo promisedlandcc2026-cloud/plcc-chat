@@ -867,7 +867,7 @@ export const CommunityChatRoomPage: React.FC = () => {
 
   if (!validChannel) {
     return (
-      <main className="flex-1 px-5 pt-10 pb-28">
+      <main className="ka-link-chat-surface flex-1 bg-white px-5 pt-10 pb-28">
         <Link
           to="/community/chat"
           className="inline-flex items-center gap-2 text-burgundy text-sm font-bold min-h-[44px]"
@@ -881,7 +881,7 @@ export const CommunityChatRoomPage: React.FC = () => {
   }
 
   return (
-    <main className="flex-1 px-5 lg:px-8 pt-8 lg:pt-6 pb-2 flex flex-col min-h-[70vh] lg:min-h-0">
+    <main className="ka-link-chat-surface flex-1 bg-white px-5 lg:px-8 pt-8 lg:pt-6 pb-2 flex flex-col min-h-[70vh] lg:min-h-0">
       <div className="flex items-center justify-between gap-2 mb-4">
         <Link
           to="/community/chat"
