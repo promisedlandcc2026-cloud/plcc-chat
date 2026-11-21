@@ -149,7 +149,7 @@ export const ChatAttachButton: React.FC<{
         <Portal>
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end lg:items-center justify-center" onClick={() => setMenuOpen(false)}>
           <div
-            className={`w-full max-w-[500px] lg:max-w-[460px] rounded-t-3xl lg:rounded-3xl bg-white shadow-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] grid gap-3 ${
+            className={`chat-menu-surface w-full max-w-[500px] lg:max-w-[460px] rounded-t-3xl lg:rounded-3xl bg-white shadow-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] grid gap-3 ${
               [3, 5, 6].includes((hasCamera ? 3 : 2) + (onPoll ? 1 : 0) + (onShareCard ? 1 : 0) + (onRequest ? 1 : 0)) ? 'grid-cols-3' : 'grid-cols-2'
             }`}
             onClick={(e) => e.stopPropagation()}
@@ -179,11 +179,11 @@ export const ChatAttachButton: React.FC<{
                       else onShareCard?.();
                     }
                   }}
-                  className="min-h-[104px] rounded-2xl bg-eggshell flex flex-col items-center justify-center gap-1.5 px-2 text-center active:bg-gold/20 hover:bg-gold/10"
+                  className="chat-menu-card min-h-[104px] rounded-2xl bg-eggshell flex flex-col items-center justify-center gap-1.5 px-2 text-center active:bg-gold/20 hover:bg-gold/10"
                 >
                   <Icon size={28} className="text-burgundy" aria-hidden />
-                  <span className="text-sm font-bold text-[#1A1A1A]">{label}</span>
-                  <span className="text-xs text-gray-500">{hint}</span>
+                  <span className="chat-menu-label text-sm font-bold text-[#1A1A1A]">{label}</span>
+                  <span className="chat-menu-hint text-xs text-gray-500">{hint}</span>
                 </button>
               ))}
           </div>
