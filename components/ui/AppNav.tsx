@@ -64,7 +64,7 @@ export const AppNav: React.FC<{ desktopChat?: boolean }> = ({ desktopChat }) => 
     <nav
       aria-label="Ka Link"
       data-testid="app-nav"
-      className={`${
+      className={`ka-link-bottom-nav ${
         desktopChat ? 'sticky bottom-0' : 'fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] lg:max-w-[1400px]'
       } z-[460] bg-white/95 backdrop-blur border-t border-gray-200 pb-[env(safe-area-inset-bottom)]`}
     >
@@ -76,7 +76,7 @@ export const AppNav: React.FC<{ desktopChat?: boolean }> = ({ desktopChat }) => 
               <Link
                 to={to}
                 aria-current={on ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 min-h-[58px] text-[11px] font-bold ${on ? 'text-burgundy' : 'text-gray-500'}`}
+                className={`flex flex-col items-center justify-center gap-0.5 min-h-[58px] text-[11px] font-bold ${on ? 'text-burgundy' : 'text-gray-700'}`}
               >
                 <span className={`flex items-center justify-center h-7 w-12 rounded-full ${on ? 'bg-gold/30' : ''}`}>
                   <Icon size={20} aria-hidden />
@@ -90,7 +90,7 @@ export const AppNav: React.FC<{ desktopChat?: boolean }> = ({ desktopChat }) => 
           <button
             type="button"
             onClick={() => setAppsOpen(true)}
-            className="w-full flex flex-col items-center justify-center gap-0.5 min-h-[58px] text-[11px] font-bold text-gray-500"
+            className="w-full flex flex-col items-center justify-center gap-0.5 min-h-[58px] text-[11px] font-bold text-gray-700"
             aria-haspopup="dialog"
             data-testid="app-nav-apps"
           >

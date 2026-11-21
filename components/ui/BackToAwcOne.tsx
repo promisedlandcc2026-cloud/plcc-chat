@@ -1,3 +1,4 @@
+import { isCallActive } from '../../lib/staleBuild';
 import React from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { AWC_ONE_URL } from '../../lib/appLinks';
@@ -6,6 +7,7 @@ import { AWC_ONE_URL } from '../../lib/appLinks';
 export const BackToAwcOne: React.FC<{ className?: string }> = ({ className = '' }) => (
   <a
     href={AWC_ONE_URL}
+    onClick={e=>{if(isCallActive()){e.preventDefault();window.open(AWC_ONE_URL,'_blank','noopener')}}}
     aria-label="Back to PLCC ONE, all PLCC apps"
     className={`inline-flex items-center gap-1.5 h-11 rounded-full border-2 border-[#C9A35A] bg-[#15271f] pl-1.5 pr-3.5 text-[#FFE08A] text-sm font-black whitespace-nowrap shrink-0 shadow-[0_0_10px_rgba(201, 163, 90,0.35)] active:scale-95 transition-transform motion-reduce:transition-none ${className}`}
   >
