@@ -1,4 +1,4 @@
 {
-  "notes": "Message alerts now recheck permission when you return from your device settings.",
+  "notes": "Message alerts now show the result when you check notification permission again.",
   "critical": false
 }
