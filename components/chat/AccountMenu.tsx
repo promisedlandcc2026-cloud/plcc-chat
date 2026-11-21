@@ -9,10 +9,12 @@ import {
   type AlertsState,
   getAlertsState,
   onAlertsStateChange,
+  sendTestAlert,
   turnOffAlerts,
   turnOnAlerts,
 } from '../../lib/phoneAlerts';
 import { Portal } from './Portal';
+import { isCallActive } from '../../lib/staleBuild';
 
 function initials(name: string | null | undefined): string {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -96,6 +98,7 @@ const AlertsRow: React.FC = () => {
           </span>
         ) : null}
       </button>
+      {on && <div className="mt-2 flex gap-4 pl-8 text-sm"><button type="button" className="font-semibold text-burgundy underline" onClick={async()=>{try{const sent=await sendTestAlert();setNote(sent>0?'Test alert sent.':'No phones received it.')}catch{setNote('Could not send a test alert.')}}}>Send a test</button><button type="button" className="font-semibold text-burgundy underline" onClick={()=>void toggle()}>Turn off</button></div>}
       {note ? <p className="text-xs text-burgundy mt-1">{note}</p> : null}
     </div>
   );
@@ -227,11 +230,11 @@ export const AccountMenu: React.FC = () => {
               </button>
             ) : null}
 
-            <a href={CONNECT_URL} className={linkRow}>
+            <a href={CONNECT_URL} className={linkRow} onClick={e=>{if(isCallActive()){e.preventDefault();window.open(CONNECT_URL,'_blank','noopener')}}}>
               <span>Open Tribes</span>
               <ExternalLink size={18} className="text-burgundy" aria-hidden />
             </a>
-            <a href={VAULT_URL} className={linkRow}>
+            <a href={VAULT_URL} className={linkRow} onClick={e=>{if(isCallActive()){e.preventDefault();window.open(VAULT_URL,'_blank','noopener')}}}>
               <span>
                 Open the PLCC Canaan
                 <span className="block text-xs font-medium text-gray-500">Your profile and account settings</span>

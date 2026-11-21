@@ -27,6 +27,9 @@ describe('Ka Link private calls', () => {
     assert.match(room, /data-dm-call="voice"/);
     assert.match(room, /data-dm-call="video"/);
     assert.match(room, /placeCall\(true\)/);
+    assert.match(room, /placeCall\(false\)/);
+    assert.match(room, /aria-label=\{`Audio call \${roomTitle}`\}/);
+    assert.match(room, /aria-label=\{`Video call \${roomTitle}`\}/);
   });
 
   it('the call provider sits above the routes and rings anywhere in the app', () => {

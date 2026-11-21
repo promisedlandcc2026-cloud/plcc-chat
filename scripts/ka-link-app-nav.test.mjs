@@ -22,7 +22,9 @@ describe('Ka Link navigation bar', () => {
     assert.match(nav, /label: 'PLCC Canaan'/);
     assert.match(nav, /label: 'All PLCC apps'/);
     assert.match(read('App.tsx'), /<AppNav \/>/);
-    assert.match(read('pages/ChatHome.tsx'), /<AppNav desktopChat \/>/);
+    assert.doesNotMatch(read('pages/ChatHome.tsx'), /<AppNav desktopChat \/>/);
+    assert.match(read('pages/CommunityChat.tsx'), /data-testid="home-bible-card"/);
+    assert.match(read('components/chat/AccountMenu.tsx'), /Open Tribes/);
   });
 
   it('hides inside an open conversation on phones and under full-screen calls', () => {

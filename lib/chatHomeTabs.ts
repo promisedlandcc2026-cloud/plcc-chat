@@ -30,3 +30,8 @@ export function storeChatHomeTab(tab: ChatHomeTab): void {
     /* private mode */
   }
 }
+
+/** A known direct-message route owns the sidebar selection, even if a stale tab query remains. */
+export function resolveChatHomeTab(urlTab: string | null, stored: ChatHomeTab | null, isOpenDm: boolean): ChatHomeTab {
+  return isOpenDm ? 'messages' : urlTab ? parseChatHomeTab(urlTab) : stored ?? 'prayer';
+}

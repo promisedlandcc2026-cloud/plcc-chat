@@ -1,7 +1,6 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2, MessageCircle } from 'lucide-react';
-import { AppNav } from '../components/ui/AppNav';
 
 const CommunityChatPage = lazy(() =>
   import('./CommunityChat').then((m) => ({ default: m.CommunityChatPage }))
@@ -58,7 +57,6 @@ export const ChatHome: React.FC = () => {
             <CommunityChatPage />
           </Suspense>
         </div>
-        <AppNav desktopChat />
       </aside>
       <section className="h-[100dvh] min-w-0 overflow-hidden flex flex-col bg-[#f8f3eb]" aria-label="Conversation">
         {channelId ? (

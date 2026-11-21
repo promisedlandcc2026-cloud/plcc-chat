@@ -884,7 +884,7 @@ export const CommunityChatRoomPage: React.FC = () => {
     <main className="ka-link-chat-surface min-w-0 flex-1 bg-white px-4 lg:px-8 pt-4 lg:pt-5 pb-2 flex flex-col min-h-[70vh] lg:h-full lg:min-h-0 lg:overflow-hidden">
       <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-x-2 border-b border-[#ded8cb] pb-3">
         <Link
-          to="/community/chat"
+          to={isDm ? '/community/chat?tab=messages' : '/community/chat'}
           className="inline-flex shrink-0 items-center gap-1 text-burgundy text-sm font-bold min-h-[44px] lg:hidden"
         >
           <ArrowLeft size={18} aria-hidden />
@@ -1194,7 +1194,7 @@ export const CommunityChatRoomPage: React.FC = () => {
         <HuddleRecordingsSheet channelId={channelId} roomName={roomTitle} canDelete={false} onClose={() => setRecordingsOpen(false)} />
       ) : null}
 
-      <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto no-scrollbar pb-4">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto no-scrollbar pb-4"><div className="mx-auto w-full max-w-3xl space-y-3">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-500 gap-2">
             <Loader2 className="animate-spin" size={18} aria-hidden />
@@ -1238,7 +1238,7 @@ export const CommunityChatRoomPage: React.FC = () => {
         )}
         <TypingBubble typers={live.typers} label={live.typingText} isDm={isDm} />
         <div ref={bottomRef} />
-      </div>
+      </div></div>
 
       {/* Screen readers still hear "Ann is typing…" */}
       <p className="sr-only" aria-live="polite">

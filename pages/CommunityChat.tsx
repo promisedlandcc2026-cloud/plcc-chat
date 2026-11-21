@@ -55,7 +55,6 @@ import {
 } from '../lib/dmSwipeHint';
 import { Button } from '../components/ui/Button';
 import { MemberPageHeader } from '../components/member/MemberPageHeader';
-import { ChatAlertsCard } from '../components/chat/ChatAlertsCard';
 import { AccountMenu } from '../components/chat/AccountMenu';
 import { BackToAwcOne } from '../components/ui/BackToAwcOne';
 import { NewGroupSheet } from '../components/chat/NewGroupSheet';
@@ -72,7 +71,7 @@ import { Portal } from '../components/chat/Portal';
 import type { ChatSearchHit } from '../lib/communityChatTypes';
 import { ChatNavTabs } from '../components/chat/ChatNavTabs';
 import {
-  parseChatHomeTab,
+  resolveChatHomeTab,
   readStoredChatHomeTab,
   storeChatHomeTab,
   type ChatHomeTab,
@@ -159,12 +158,14 @@ export const CommunityChatPage: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [openingPartnerId, setOpeningPartnerId] = useState<string | null>(null);
-  /** Which home tab is showing (URL ?tab= wins, then this visit's last tab, then Prayer). */
+  /** An open DM selects Messages; otherwise use the URL or this visit’s last tab. */
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
-  const activeTab: ChatHomeTab = urlTab ? parseChatHomeTab(urlTab) : readStoredChatHomeTab() ?? 'prayer';
+  const openDm = Boolean(activeChannelId && ((location.state as {isDm?:boolean}|null)?.isDm || dmRecents.some(dm=>dm.channelId===activeChannelId) || channels.some(channel=>channel.id===activeChannelId && isDmChannel(channel))));
+  const activeTab: ChatHomeTab = resolveChatHomeTab(urlTab, readStoredChatHomeTab(), openDm);
   const setActiveTab = (tab: ChatHomeTab) => {
     storeChatHomeTab(tab);
+    if (activeChannelId) { navigate(`/community/chat?tab=${tab}`); return; }
     const next = new URLSearchParams(searchParams);
     next.set('tab', tab);
     setSearchParams(next, { replace: true });
@@ -302,7 +303,7 @@ export const CommunityChatPage: React.FC = () => {
       rememberDmRecent({ ownerId, channelId: channel.id, partner });
       setDmRecents(listDmRecents(ownerId));
       closeNewChat();
-      navigate(`/community/chat/${channel.id}`, {
+      navigate(`/community/chat/${channel.id}?tab=messages`, {
         state: { partnerName: partner.name, isDm: true },
       });
     } catch (err) {
@@ -474,7 +475,7 @@ export const CommunityChatPage: React.FC = () => {
     const live = isHuddleChannelLive(huddle) && !opts?.isDm;
     const row = (
         <Link
-          to={`/community/chat/${channel.id}`}
+          to={`/community/chat/${channel.id}${opts?.isDm ? '?tab=messages' : activeTab === 'ministries' ? '?tab=ministries' : ''}`}
           state={{
             channelName: title,
             partnerName: opts?.isDm ? title : undefined,
@@ -590,13 +591,11 @@ export const CommunityChatPage: React.FC = () => {
         </div>
       </div>
 
-      <MemberPageHeader
+      <div className="lg:hidden"><MemberPageHeader
         title="Chat"
         backTo={null}
         subtitle={`${identity?.name ? `Signed in as ${identity.name}. ` : ''}Prayer gatherings, ministry rooms, messages and Live Ka Links — each in its own tab.`}
-      />
-
-      <ChatAlertsCard />
+      /></div>
 
       <ChatNavTabs
         active={activeTab}
@@ -606,22 +605,6 @@ export const CommunityChatPage: React.FC = () => {
         messageUnread={messageUnread}
         liveCount={liveRows.length}
       />
-
-      {/* Bible on the home screen (members asked for it here, not only inside a Ka Link). */}
-      <Link
-        to="/bible"
-        className="mb-4 flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#d9b45e]/60 bg-gradient-to-r from-[#0f3d2c] to-[#062a1d] px-4 py-3 text-[#f4ecdb] shadow-sm active:scale-[0.99]"
-        data-testid="home-bible-card"
-      >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d9b45e]/15 text-[#f1d58a]">
-          <BookOpen size={20} aria-hidden />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-bold">Bible</span>
-          <span className="block text-xs text-[#f4ecdb]/75">Read in English and Luganda · share a verse to any chat</span>
-        </span>
-        <ChevronRight size={18} className="shrink-0 text-[#f1d58a]" aria-hidden />
-      </Link>
 
       <label className="relative block mb-5">
         <span className="sr-only">Search messages</span>
@@ -877,7 +860,7 @@ export const CommunityChatPage: React.FC = () => {
               {liveRows.length === 0 ? (
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500 space-y-2">
                   <p>No Live Ka Links right now.</p>
-                  <p>When a prayer gathering or ministry room goes live, it shows up here so you can join in one tap. To start one, open any room and tap Start Ka Link.</p>
+                  <p>Live prayer and ministry rooms appear here.</p>
                 </div>
               ) : (
                 <ul className="space-y-2">
@@ -1203,6 +1186,22 @@ export const CommunityChatPage: React.FC = () => {
           </div>
         </div>
       ) : null}
+      {/* Bible on the home screen (members asked for it here, not only inside a Ka Link). */}
+      <Link
+        to="/bible"
+        className="mb-4 flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#d9b45e]/60 bg-gradient-to-r from-[#0f3d2c] to-[#062a1d] px-4 py-3 text-[#f4ecdb] shadow-sm active:scale-[0.99] lg:min-h-[48px] lg:px-3 lg:py-2"
+        data-testid="home-bible-card"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d9b45e]/15 text-[#f1d58a]">
+          <BookOpen size={20} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-bold">Bible</span>
+          <span className="block text-xs text-[#f4ecdb]/75 lg:hidden">Read in English and Luganda · share a verse to any chat</span>
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-[#f1d58a]" aria-hidden />
+      </Link>
+
     </main>
   );
 };

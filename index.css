@@ -499,3 +499,9 @@ html.tribes-forest .ka-link-chat-surface .bg-eggshell\/95 { background-color: rg
   html.tribes-forest .chat-workspace-sidebar [role="tablist"] { background: #123f2c; border-color: #456554; box-shadow: none; }
   html.tribes-forest .chat-workspace-sidebar [role="tab"]:not([aria-selected="true"]) { color: #f4ecdb; }
 }
+
+/* Mobile bottom navigation uses dark ink on its warm ivory surface. */
+html.tribes-forest .ka-link-bottom-nav { background: #f7efdd; border-color: #cfc5ad; }
+html.tribes-forest .ka-link-bottom-nav a,
+html.tribes-forest .ka-link-bottom-nav button { color: #46564c; }
+html.tribes-forest .ka-link-bottom-nav a[aria-current="page"] { color: #0b4028; }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseChatHomeTab, CHAT_HOME_TAB_ORDER } from '../lib/chatHomeTabs.ts';
+import { parseChatHomeTab, resolveChatHomeTab, CHAT_HOME_TAB_ORDER } from '../lib/chatHomeTabs.ts';
 import { matchPrayerGatherings, prayerGatheringRoomIds, PRAYER_GATHERINGS } from '../lib/prayerGatherings.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -17,6 +17,13 @@ describe('Jordan home tabs', () => {
     assert.equal(parseChatHomeTab('live'), 'huddles');
     assert.equal(parseChatHomeTab('nope'), 'prayer');
     assert.deepEqual(CHAT_HOME_TAB_ORDER, ['prayer', 'ministries', 'messages', 'huddles']);
+  });
+
+  it('shows Messages for an open DM despite stale Live selection and preserves intentional Live elsewhere', () => {
+    assert.equal(resolveChatHomeTab('huddles','huddles',true),'messages');
+    assert.equal(resolveChatHomeTab('messages','huddles',true),'messages');
+    assert.equal(resolveChatHomeTab(null,'huddles',true),'messages');
+    assert.equal(resolveChatHomeTab('huddles','messages',false),'huddles');
   });
 
   it('lists the five gatherings in order', () => {

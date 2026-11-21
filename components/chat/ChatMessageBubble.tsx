@@ -148,7 +148,7 @@ export const ChatMessageBubble: React.FC<{
         onTouchCancel={onTouchEnd}
         style={dx ? { transform: `translateX(${dx}px)` } : undefined}
         className={`relative rounded-2xl px-4 py-3 transition-[box-shadow,transform] select-none lg:select-text ${
-          mine ? 'bg-burgundy text-white' : 'bg-white border border-gray-100 shadow-sm'
+          mine ? 'bg-burgundy text-white' : 'bg-white border border-gray-200'
         } ${highlighted ? 'ring-4 ring-gold/70' : ''} ${msg.isDeleted ? 'opacity-70' : ''}`}
       >
         {!msg.isDeleted ? (
@@ -209,7 +209,7 @@ export const ChatMessageBubble: React.FC<{
           )
         ) : null}
 
-        <div className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${mine ? 'text-white/70' : 'text-gray-500'}`}>
+        <div className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${mine ? 'text-white/85' : 'text-gray-600'}`}>
           {msg.editedAt && !msg.isDeleted ? <span>edited ·</span> : null}
           <time dateTime={msg.createdAt}>{formatTime(msg.createdAt)}</time>
           {mine && !msg.isDeleted ? (
