@@ -51,8 +51,8 @@ export const ChatHome: React.FC = () => {
   }
 
   return (
-    <div className="h-[100dvh] grid grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]">
-      <aside className="h-[100dvh] overflow-y-auto border-r border-gray-200 bg-white/60 flex flex-col" aria-label="Chats">
+    <div className="h-[100dvh] min-w-0 overflow-hidden grid grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
+      <aside className="chat-workspace-sidebar h-[100dvh] min-w-0 overflow-y-auto border-r border-[#345343] bg-[#082d1d] flex flex-col" aria-label="Chats">
         <div className="flex-1">
           <Suspense fallback={<Pending label="Loading chats…" />}>
             <CommunityChatPage />
@@ -60,7 +60,7 @@ export const ChatHome: React.FC = () => {
         </div>
         <AppNav desktopChat />
       </aside>
-      <section className="h-[100dvh] overflow-y-auto flex flex-col" aria-label="Conversation">
+      <section className="h-[100dvh] min-w-0 overflow-hidden flex flex-col bg-[#f8f3eb]" aria-label="Conversation">
         {channelId ? (
           <Suspense fallback={<Pending label="Opening chat…" />}>
             <CommunityChatRoomPage key={channelId} />

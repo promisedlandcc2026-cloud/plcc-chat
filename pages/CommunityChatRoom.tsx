@@ -881,16 +881,17 @@ export const CommunityChatRoomPage: React.FC = () => {
   }
 
   return (
-    <main className="ka-link-chat-surface flex-1 bg-white px-5 lg:px-8 pt-8 lg:pt-6 pb-2 flex flex-col min-h-[70vh] lg:min-h-0">
-      <div className="flex items-center justify-between gap-2 mb-4">
+    <main className="ka-link-chat-surface min-w-0 flex-1 bg-white px-4 lg:px-8 pt-4 lg:pt-5 pb-2 flex flex-col min-h-[70vh] lg:h-full lg:min-h-0 lg:overflow-hidden">
+      <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-x-2 border-b border-[#ded8cb] pb-3">
         <Link
           to="/community/chat"
-          className="inline-flex items-center gap-2 text-burgundy text-sm font-bold min-h-[44px] lg:invisible"
+          className="inline-flex shrink-0 items-center gap-1 text-burgundy text-sm font-bold min-h-[44px] lg:hidden"
         >
           <ArrowLeft size={18} aria-hidden />
           Channels
         </Link>
-        <div className="flex items-center gap-1">
+        <h1 className="min-w-0 flex-1 truncate text-base font-bold text-[#123527] lg:text-lg" title={roomTitle}>{announceOnly && <Megaphone size={16} className="mr-1 inline text-gold-ink" aria-label="Announcements"/>}{!isDm && <span aria-hidden="true" className="mr-2 text-gold-ink">#</span>}{roomTitle}{huddleLive && !isDm && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-emerald-500" role="status" aria-label="Live Ka Link"/>}</h1>
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-1">
           <button
             type="button"
             onClick={() => {
@@ -931,7 +932,7 @@ export const CommunityChatRoomPage: React.FC = () => {
             <button
               type="button"
               onClick={() => openHuddle('start')}
-              className="inline-flex items-center gap-1.5 text-burgundy text-sm font-bold min-h-[44px] px-2"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#d9ae50] text-[#123527] text-sm font-bold min-h-[44px] px-3"
             >
               <Radio size={16} aria-hidden />
               Start Ka Link
@@ -964,8 +965,8 @@ export const CommunityChatRoomPage: React.FC = () => {
                 onClick={() => placeCall(false)}
                 disabled={callBusy}
                 className="min-h-[44px] min-w-[40px] flex items-center justify-center text-burgundy rounded-xl active:bg-burgundy/10 disabled:opacity-40"
-                aria-label={`Voice call ${roomTitle}`}
-                title="Voice call"
+                aria-label={`Audio call ${roomTitle}`}
+                title="Audio call"
                 data-dm-call="voice"
               >
                 <Phone size={19} aria-hidden />
@@ -1021,17 +1022,7 @@ export const CommunityChatRoomPage: React.FC = () => {
         </a>
       ) : null}
 
-      <h1 className="text-lg font-bold text-[#1A1A1A] mb-3 truncate flex items-center gap-2">
-        {announceOnly ? <Megaphone size={18} className="text-gold-ink shrink-0" aria-label="Announcements" /> : null}
-        {roomTitle}
-        {huddleLive && !isDm ? (
-          <span
-            className="shrink-0 w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
-            role="status"
-            aria-label="Live Ka Link"
-          />
-        ) : null}
-      </h1>
+
 
       {isDm && youBlocked ? (
         <div className="mb-3 flex items-center gap-3 rounded-2xl bg-gray-50 border border-gray-200 pl-4 pr-1 py-1">
@@ -1203,7 +1194,7 @@ export const CommunityChatRoomPage: React.FC = () => {
         <HuddleRecordingsSheet channelId={channelId} roomName={roomTitle} canDelete={false} onClose={() => setRecordingsOpen(false)} />
       ) : null}
 
-      <div className="flex-1 space-y-3 overflow-y-auto no-scrollbar pb-4">
+      <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto no-scrollbar pb-4">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-500 gap-2">
             <Loader2 className="animate-spin" size={18} aria-hidden />

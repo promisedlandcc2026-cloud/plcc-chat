@@ -481,12 +481,12 @@ export const CommunityChatPage: React.FC = () => {
             isDm: Boolean(opts?.isDm),
           }}
           aria-current={active ? 'page' : undefined}
-          className={`flex items-center gap-3 rounded-2xl border shadow-sm p-4 transition-colors min-h-[64px] ${
+          className={`chat-channel-row flex items-center gap-3 rounded-2xl border shadow-sm p-4 transition-colors min-h-[64px] ${
             active ? 'bg-burgundy/5 border-burgundy/40' : 'bg-white border-gray-100 hover:border-burgundy/20'
           }`}
         >
           <div className="w-11 h-11 rounded-xl bg-burgundy/10 text-burgundy flex items-center justify-center shrink-0">
-            {opts?.isDm ? <User size={18} aria-hidden /> : <MessageCircle size={18} aria-hidden />}
+            {opts?.isDm ? <User size={18} aria-hidden /> : <><span className="hidden lg:inline text-lg font-bold" aria-hidden>#</span><MessageCircle className="lg:hidden" size={18} aria-hidden /></>}
           </div>
           <div className="min-w-0 flex-1 text-left">
             <div className="flex items-center gap-2 min-w-0">
@@ -555,7 +555,7 @@ export const CommunityChatPage: React.FC = () => {
         />
         <BackToAwcOne />
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-6">
+      <div className="chat-sidebar-actions flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-6">
         <AccountMenu />
         <div className="flex items-center">
           {canCreateGroups ? (
