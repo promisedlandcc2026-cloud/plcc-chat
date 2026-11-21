@@ -482,3 +482,20 @@ html.tribes-forest .ka-link-chat-surface .tribes-gold-text {
   -webkit-text-fill-color: #173527;
 }
 html.tribes-forest .ka-link-chat-surface .bg-eggshell\/95 { background-color: rgba(247, 239, 221, .97); }
+
+/* Desktop chat list: forest navigation with an ivory conversation beside it. */
+@media (min-width: 1024px) {
+  html.tribes-forest .chat-workspace-sidebar .ka-link-chat-surface { background-color: #082d1d; }
+  html.tribes-forest .chat-workspace-sidebar .ka-link-chat-surface .tribes-gold-text { color: #f3dfaa; -webkit-text-fill-color: #f3dfaa; }
+  html.tribes-forest .chat-workspace-sidebar .ka-link-chat-surface header p,
+  html.tribes-forest .chat-workspace-sidebar .chat-sidebar-actions > div button,
+  html.tribes-forest .chat-workspace-sidebar [role="tabpanel"] > h2,
+  html.tribes-forest .chat-workspace-sidebar [role="tabpanel"] > section > h2 { color: #f4ecdb; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row { min-height: 52px; padding: 8px 10px; border: 0; border-bottom: 1px solid #456554; border-radius: 0; background: transparent; box-shadow: none; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row:hover { background: #214c39; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row[aria-current="page"] { border-left: 4px solid #e4b756; border-radius: 6px; background: #315a44; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row p { color: #f8f3e8; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row > div:first-child { width: 26px; height: 32px; background: transparent; color: #e9d9ad; }
+  html.tribes-forest .chat-workspace-sidebar [role="tablist"] { background: #123f2c; border-color: #456554; box-shadow: none; }
+  html.tribes-forest .chat-workspace-sidebar [role="tab"]:not([aria-selected="true"]) { color: #f4ecdb; }
+}
