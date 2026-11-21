@@ -543,14 +543,14 @@ export const CommunityChatPage: React.FC = () => {
   };
 
   return (
-    <main className="flex-1 px-5 pt-6 pb-10">
-      <div className="flex items-center justify-between gap-3 mb-4">
+    <main className="ka-link-chat-surface flex-1 bg-white px-5 pt-6 pb-10">
+      <div className="-mx-5 -mt-6 mb-5 flex items-center justify-between gap-3 bg-[#0b2d1e] px-5 py-4">
         <img
-          src="/awc_chat_wordmark.png"
+          src="/ka-link-gold-logo.png"
           alt="PLCC Ka Link"
-          width={117}
-          height={32}
-          className="h-8 w-auto select-none"
+          width={168}
+          height={56}
+          className="h-auto w-[140px] max-w-[45%] select-none object-contain sm:w-[168px]"
           draggable={false}
         />
         <BackToAwcOne />
