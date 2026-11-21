@@ -30,13 +30,23 @@ const AlertsRow: React.FC = () => {
 
   useEffect(() => {
     let alive = true;
-    getAlertsState()
-      .then((s) => alive && setState(s))
-      .catch(() => alive && setState({ kind: 'off' }));
+    const refresh = () => {
+      if (document.visibilityState === 'hidden') return;
+      getAlertsState().then((s) => alive && setState(s)).catch(() => {
+        if (alive) setNote('Could not check alerts. Please try again.');
+      });
+    };
+    refresh();
     const stop = onAlertsStateChange((s) => alive && setState(s));
+    window.addEventListener('focus', refresh);
+    window.addEventListener('pageshow', refresh);
+    document.addEventListener('visibilitychange', refresh);
     return () => {
       alive = false;
       stop();
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('pageshow', refresh);
+      document.removeEventListener('visibilitychange', refresh);
     };
   }, []);
 
@@ -52,7 +62,7 @@ const AlertsRow: React.FC = () => {
       : state.kind === 'needs-install'
         ? 'On iPhone, add PLCC Ka Link to your Home Screen first, then turn this on there.'
         : state.kind === 'blocked'
-          ? 'Blocked. Allow notifications for this site in your phone or browser settings.'
+          ? 'Notifications are blocked on this device. Allow notifications for plcc-chat.vercel.app in your browser site settings and allow your browser’s notifications in phone settings. Then return here and check again.'
           : on
             ? 'You’ll get a notification for new messages on this device.'
             : 'Get a notification on this device when someone messages you.';
@@ -98,7 +108,8 @@ const AlertsRow: React.FC = () => {
           </span>
         ) : null}
       </button>
-      {on && <div className="mt-2 flex gap-4 pl-8 text-sm"><button type="button" className="font-semibold text-burgundy underline" onClick={async()=>{try{const sent=await sendTestAlert();setNote(sent>0?'Test alert sent.':'No phones received it.')}catch{setNote('Could not send a test alert.')}}}>Send a test</button><button type="button" className="font-semibold text-burgundy underline" onClick={()=>void toggle()}>Turn off</button></div>}
+      {on && <div className="mt-2 flex gap-4 pl-8 text-sm"><button type="button" className="font-semibold text-burgundy underline" onClick={async()=>{try{const sent=await sendTestAlert();setNote(sent>0?'Test sent to registered devices. Check this device for the notification.':'No test alerts were sent.')}catch{setNote('Could not send a test alert.')}}}>Send a test</button><button type="button" className="font-semibold text-burgundy underline" onClick={()=>void toggle()}>Turn off</button></div>}
+      {state?.kind === 'blocked' && <button type="button" className="mt-2 ml-8 min-h-[40px] text-sm font-semibold text-burgundy underline" onClick={async () => { setNote(null); try { setState(await getAlertsState()); } catch { setNote('Could not check alerts. Please try again.'); } }}>Check again</button>}
       {note ? <p className="text-xs text-burgundy mt-1">{note}</p> : null}
     </div>
   );
