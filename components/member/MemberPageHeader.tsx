@@ -44,7 +44,7 @@ export const MemberPageHeader: React.FC<MemberPageHeaderProps> = ({
     {eyebrow ? (
       <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-gold-ink">{eyebrow}</p>
     ) : null}
-    <h1 className={`${eyebrow ? 'mt-1' : 'mt-3'} font-display text-[30px] leading-tight font-bold text-ink`}>
+    <h1 className={`${eyebrow ? 'mt-1' : 'mt-3'} tribes-gold-text font-display text-[34px] leading-tight font-bold`}>
       {title}
     </h1>
     {subtitle ? <p className="mt-2 text-[15px] text-ink-muted leading-relaxed">{subtitle}</p> : null}
