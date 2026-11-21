@@ -544,7 +544,7 @@ export const CommunityChatPage: React.FC = () => {
   };
 
   return (
-    <main className="ka-link-chat-surface flex-1 bg-white px-5 pt-6 pb-10">
+    <main className="ka-link-chat-surface flex-1 bg-white px-5 pt-6 pb-10 lg:flex lg:min-h-full lg:flex-col lg:pb-4">
       <div className="-mx-5 -mt-6 mb-5 flex items-center justify-between gap-3 bg-[#0b2d1e] px-5 py-4">
         <img
           src="/ka-link-gold-logo.png"
@@ -606,7 +606,7 @@ export const CommunityChatPage: React.FC = () => {
         liveCount={liveRows.length}
       />
 
-      <label className="relative block mb-5">
+      <label className="chat-global-search relative block mb-5">
         <span className="sr-only">Search messages</span>
         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden />
         <input
@@ -1189,7 +1189,7 @@ export const CommunityChatPage: React.FC = () => {
       {/* Bible on the home screen (members asked for it here, not only inside a Ka Link). */}
       <Link
         to="/bible"
-        className="mb-4 flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#d9b45e]/60 bg-gradient-to-r from-[#0f3d2c] to-[#062a1d] px-4 py-3 text-[#f4ecdb] shadow-sm active:scale-[0.99] lg:min-h-[48px] lg:px-3 lg:py-2"
+        className="mb-4 flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#d9b45e]/60 bg-gradient-to-r from-[#0f3d2c] to-[#062a1d] px-4 py-3 text-[#f4ecdb] shadow-sm active:scale-[0.99] lg:mt-auto lg:min-h-[48px] lg:px-3 lg:py-2"
         data-testid="home-bible-card"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d9b45e]/15 text-[#f1d58a]">

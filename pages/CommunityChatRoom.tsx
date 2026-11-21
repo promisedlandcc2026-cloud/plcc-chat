@@ -881,7 +881,7 @@ export const CommunityChatRoomPage: React.FC = () => {
   }
 
   return (
-    <main className="ka-link-chat-surface min-w-0 flex-1 bg-white px-4 lg:px-8 pt-4 lg:pt-5 pb-2 flex flex-col min-h-[70vh] lg:h-full lg:min-h-0 lg:overflow-hidden">
+    <main className="ka-link-chat-surface chat-conversation min-w-0 flex-1 bg-white px-4 lg:px-8 pt-4 lg:pt-5 pb-2 flex flex-col min-h-[70vh] lg:h-full lg:min-h-0 lg:overflow-hidden">
       <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-x-2 border-b border-[#ded8cb] pb-3">
         <Link
           to={isDm ? '/community/chat?tab=messages' : '/community/chat'}
