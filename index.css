@@ -483,6 +483,22 @@ html.tribes-forest .ka-link-chat-surface .tribes-gold-text {
 }
 html.tribes-forest .ka-link-chat-surface .bg-eggshell\/95 { background-color: rgba(247, 239, 221, .97); }
 
+/* Ka Link's account and attachment menus use distinct cards on a warm surface. */
+html.tribes-forest .chat-menu-surface { background-color: #f6f1e8; color: #173b2a; }
+html.tribes-forest .chat-menu-surface .chat-menu-card {
+  background-color: #fff;
+  color: #173b2a;
+  border: 1px solid #e1e7e0;
+  box-shadow: 0 1px 3px rgba(16, 44, 28, .06);
+}
+html.tribes-forest .chat-menu-surface button.chat-menu-card:hover,
+html.tribes-forest .chat-menu-surface a.chat-menu-card:hover {
+  background-color: #f4f8f4;
+  border-color: #a8bcaa;
+}
+html.tribes-forest .chat-menu-surface .chat-menu-label { color: #173b2a; }
+html.tribes-forest .chat-menu-surface .chat-menu-hint { color: #50665a; }
+
 /* Desktop chat list: forest navigation with an ivory conversation beside it. */
 @media (min-width: 1024px) {
   html.tribes-forest .chat-workspace-sidebar .ka-link-chat-surface { background-color: #082d1d; }
