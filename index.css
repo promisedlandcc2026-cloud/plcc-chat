@@ -505,3 +505,17 @@ html.tribes-forest .ka-link-bottom-nav { background: #f7efdd; border-color: #cfc
 html.tribes-forest .ka-link-bottom-nav a,
 html.tribes-forest .ka-link-bottom-nav button { color: #46564c; }
 html.tribes-forest .ka-link-bottom-nav a[aria-current="page"] { color: #0b4028; }
+
+/* Pastoral green navigation and warm ivory chat, scoped to the desktop workspace. */
+@media (min-width: 1024px) {
+  html.tribes-forest .chat-workspace-sidebar [role="tablist"] { background: transparent; border: 0; border-bottom: 1px solid #6b8476; border-radius: 0; padding: 0 0 10px; }
+  html.tribes-forest .chat-workspace-sidebar [role="tab"] { min-height: 42px; padding: 8px 3px; }
+  html.tribes-forest .chat-workspace-sidebar [role="tab"][aria-selected="true"] { background: #cadcb7; color: #0b3525; box-shadow: none; }
+  html.tribes-forest .chat-workspace-sidebar .chat-global-search input { background: #17432e; border-color: #90a897; color: #fffaf0; border-radius: 10px; }
+  html.tribes-forest .chat-workspace-sidebar .chat-global-search input::placeholder { color: #e6e9dc; opacity: 1; }
+  html.tribes-forest .chat-workspace-sidebar .chat-global-search svg { color: #f7efdd; }
+  html.tribes-forest .chat-workspace-sidebar .chat-global-search button { color: #f7efdd; }
+  html.tribes-forest .chat-conversation { background: #f8f3eb; }
+  html.tribes-forest .chat-conversation .chat-message-incoming { background: #e3e9dc; border-color: #e3e9dc; }
+  html.tribes-forest .chat-conversation .chat-message-outgoing { background: #07452e; }
+}

@@ -68,13 +68,13 @@ export const ChatNavTabs: React.FC<{
               selected ? 'bg-burgundy text-white shadow-sm' : 'text-gray-600 hover:bg-burgundy/5 hover:text-burgundy'
             }`}
           >
-            <span className="relative inline-flex">
+            <span className="relative inline-flex lg:hidden">
               {tab.icon}
               {tab.live ? (
                 <span className="absolute -right-1.5 -top-1 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white animate-pulse" aria-hidden />
               ) : null}
             </span>
-            <span className="text-[12px] font-black leading-tight">{tab.label}</span>
+            <span className="text-[12px] font-black leading-tight">{tab.label}{tab.live && <span aria-hidden className="ml-1 hidden h-2 w-2 rounded-full bg-emerald-400 lg:inline-block"/>}</span>
             {tab.count && tab.count > 0 ? (
               <span
                 className={`absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black leading-[18px] text-center ${

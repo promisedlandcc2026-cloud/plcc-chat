@@ -127,13 +127,14 @@ export const ChatMessageBubble: React.FC<{
   return (
     <article
       id={`msg-${msg.id}`}
-      className={`group relative w-fit min-w-[140px] max-w-[88%] lg:max-w-[70%] ${mine ? 'ml-auto' : 'mr-auto'}`}
+      className={`group relative w-fit min-w-[140px] max-w-[88%] lg:max-w-[70%] ${mine ? 'ml-auto' : 'mr-auto lg:ml-11'}`}
       onContextMenu={(e) => {
         if (msg.isDeleted) return;
         e.preventDefault();
         onOpenActions(msg);
       }}
     >
+      {!mine && <span aria-hidden="true" className="absolute -left-11 top-0 hidden h-9 w-9 items-center justify-center rounded-full bg-[#d8e2cf] text-xs font-bold text-[#16442d] lg:flex">{String(msg.author.name || '?').trim().split(/\s+/).slice(0,2).map(part=>part[0]).join('').toUpperCase()}</span>}
       {dx > 10 ? (
         <CornerUpLeft
           size={20}
@@ -148,7 +149,7 @@ export const ChatMessageBubble: React.FC<{
         onTouchCancel={onTouchEnd}
         style={dx ? { transform: `translateX(${dx}px)` } : undefined}
         className={`relative rounded-2xl px-4 py-3 transition-[box-shadow,transform] select-none lg:select-text ${
-          mine ? 'bg-burgundy text-white' : 'bg-white border border-gray-200'
+          mine ? 'chat-message-outgoing bg-burgundy text-white' : 'chat-message-incoming bg-white border border-gray-200'
         } ${highlighted ? 'ring-4 ring-gold/70' : ''} ${msg.isDeleted ? 'opacity-70' : ''}`}
       >
         {!msg.isDeleted ? (
