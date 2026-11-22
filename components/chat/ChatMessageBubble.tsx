@@ -148,7 +148,7 @@ export const ChatMessageBubble: React.FC<{
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
         style={dx ? { transform: `translateX(${dx}px)` } : undefined}
-        className={`relative rounded-2xl px-4 py-3 transition-[box-shadow,transform] select-none lg:select-text ${
+        className={`relative rounded-2xl px-4 py-2.5 transition-[box-shadow,transform] select-none lg:select-text ${
           mine ? 'chat-message-outgoing bg-burgundy text-white' : 'chat-message-incoming bg-white border border-gray-200'
         } ${highlighted ? 'ring-4 ring-gold/70' : ''} ${msg.isDeleted ? 'opacity-70' : ''}`}
       >

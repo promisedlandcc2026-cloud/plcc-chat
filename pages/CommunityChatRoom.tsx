@@ -1194,7 +1194,7 @@ export const CommunityChatRoomPage: React.FC = () => {
         <HuddleRecordingsSheet channelId={channelId} roomName={roomTitle} canDelete={false} onClose={() => setRecordingsOpen(false)} />
       ) : null}
 
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto no-scrollbar pb-4"><div className="mx-auto w-full max-w-3xl space-y-3">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto no-scrollbar pb-5"><div className="mx-auto w-full max-w-3xl space-y-2.5 pt-2">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-gray-500 gap-2">
             <Loader2 className="animate-spin" size={18} aria-hidden />
@@ -1257,7 +1257,7 @@ export const CommunityChatRoomPage: React.FC = () => {
           </p>
         </div>
       ) : (
-      <div className="sticky bottom-0 z-10 bg-eggshell/95 backdrop-blur-sm pt-1">
+      <div className="chat-composer-area sticky bottom-0 z-10 mx-auto w-full max-w-3xl pt-2">
       {mentionQuery && mentionPeople.length ? (
         <ul
           className="mb-2 rounded-2xl bg-white border border-gray-200 shadow-lg overflow-hidden"
@@ -1322,7 +1322,7 @@ export const CommunityChatRoomPage: React.FC = () => {
       ) : null}
 
       <form
-        className="pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex gap-2 items-end"
+        className="chat-composer mb-[max(0.5rem,env(safe-area-inset-bottom))] flex gap-2 items-end rounded-2xl p-2"
         onSubmit={(e) => {
           e.preventDefault();
           void onSend();
@@ -1387,7 +1387,7 @@ export const CommunityChatRoomPage: React.FC = () => {
           }}
           rows={2}
           placeholder={editing ? 'Edit your message…' : 'Write a message…'}
-          className="flex-1 resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-burgundy/30"
+          className="chat-composer-input min-w-0 flex-1 resize-none rounded-xl border px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-burgundy/30"
           maxLength={4000}
           disabled={sending}
         />

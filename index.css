@@ -522,6 +522,12 @@ html.tribes-forest .ka-link-bottom-nav a,
 html.tribes-forest .ka-link-bottom-nav button { color: #46564c; }
 html.tribes-forest .ka-link-bottom-nav a[aria-current="page"] { color: #0b4028; }
 
+/* A quiet, defined composer keeps the message actions together. */
+html.tribes-forest .chat-conversation .chat-composer-area { background: #f8f3eb; }
+html.tribes-forest .chat-conversation .chat-composer { background: #fff; border: 1px solid #d6dfd6; box-shadow: 0 3px 14px rgba(16, 44, 28, .06); }
+html.tribes-forest .chat-conversation .chat-composer-input { background: #fff; border-color: transparent; color: #172d22; }
+html.tribes-forest .chat-conversation .chat-composer-input::placeholder { color: #697c70; opacity: 1; }
+
 /* Pastoral green navigation and warm ivory chat, scoped to the desktop workspace. */
 @media (min-width: 1024px) {
   html.tribes-forest .chat-workspace-sidebar [role="tablist"] { background: transparent; border: 0; border-bottom: 1px solid #6b8476; border-radius: 0; padding: 0 0 10px; }
