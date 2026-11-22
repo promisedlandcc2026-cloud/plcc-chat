@@ -544,7 +544,7 @@ export const CommunityChatPage: React.FC = () => {
   };
 
   return (
-    <main className="ka-link-chat-surface flex-1 bg-white px-5 pt-6 pb-10 lg:flex lg:min-h-full lg:flex-col lg:pb-4">
+    <main className="ka-link-chat-surface chat-home-surface flex-1 bg-white px-5 pt-6 pb-10 lg:flex lg:min-h-full lg:flex-col lg:pb-4">
       <div className="-mx-5 -mt-6 mb-5 flex items-center justify-between gap-3 bg-[#0b2d1e] px-5 py-4">
         <img
           src="/ka-link-gold-logo.png"
