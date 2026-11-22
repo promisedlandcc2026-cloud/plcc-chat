@@ -524,6 +524,19 @@ html.tribes-forest .ka-link-bottom-nav a,
 html.tribes-forest .ka-link-bottom-nav button { color: #46564c; }
 html.tribes-forest .ka-link-bottom-nav a[aria-current="page"] { color: #0b4028; }
 
+/* Mobile chat list: white cards on a soft neutral surface. */
+@media (max-width: 1023px) {
+  html.tribes-forest .chat-home-surface { background: #f4f7f3; }
+  html.tribes-forest .chat-home-surface .chat-channel-row,
+  html.tribes-forest .chat-home-surface [data-prayer-gathering] { background: #fff; border-color: #dce6dd; box-shadow: 0 2px 8px rgba(20, 54, 33, .07); }
+  html.tribes-forest .chat-home-surface .chat-channel-row[aria-current="page"] { border-color: #7ba38b; background: #f0f7f1; }
+  html.tribes-forest .chat-home-surface .chat-channel-row > div:first-child { background: #e8f0e9; color: #1a4932; }
+  html.tribes-forest .chat-home-surface [role="tablist"] { background: #fff; border-color: #dce6dd; box-shadow: 0 2px 8px rgba(20, 54, 33, .06); }
+  html.tribes-forest .chat-home-surface .chat-global-search input { background: #fff; border-color: #dce6dd; color: #173b2a; }
+  html.tribes-forest .chat-home-surface .chat-global-search input::placeholder { color: #667b6e; opacity: 1; }
+  html.tribes-forest .ka-link-bottom-nav { background: #fff; border-color: #dce6dd; }
+}
+
 /* A quiet, defined composer keeps the message actions together. */
 html.tribes-forest .chat-conversation .chat-composer-area { background: #f8f3eb; }
 html.tribes-forest .chat-conversation .chat-composer { background: #fff; border: 1px solid #d6dfd6; box-shadow: 0 3px 14px rgba(16, 44, 28, .06); }
