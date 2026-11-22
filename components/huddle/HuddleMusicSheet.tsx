@@ -61,14 +61,14 @@ export function HuddleMusicSheet({
             <X size={18} aria-hidden />
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-1">Everyone in the room hears it, softly under the voices.</p>
+        <p className="huddle-music-muted text-xs mt-1">Everyone in the room hears it, softly under the voices.</p>
 
         {playing ? (
           <div className="mt-4 rounded-2xl bg-burgundy/5 border border-burgundy/15 p-3 space-y-3">
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" aria-hidden />
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">Now playing</p>
+                <p className="huddle-music-muted text-[11px] font-black uppercase tracking-widest">Now playing</p>
                 <p className="text-sm font-bold truncate">{nowPlayingTitle || 'Waiting music'}</p>
               </div>
               {queueLength > 1 ? (
@@ -80,7 +80,7 @@ export function HuddleMusicSheet({
                 <Square size={12} aria-hidden /> Stop
               </button>
             </div>
-            <label className="flex items-center gap-3 text-xs font-semibold text-gray-600">
+            <label className="huddle-music-muted flex items-center gap-3 text-xs font-semibold">
               Volume
               <input
                 type="range"
@@ -113,12 +113,12 @@ export function HuddleMusicSheet({
           <li className="flex items-center gap-3 py-2.5">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold truncate">Waiting music</p>
-              <p className="text-xs text-gray-500">The church’s default loop</p>
+              <p className="huddle-music-muted text-xs">The church’s default loop</p>
             </div>
             <PlayButton active={playing && nowPlayingId === DEFAULT_SONG_ID} busy={busy} onClick={() => onPlay(DEFAULT_SONG_ID)} />
           </li>
           {loading ? (
-            <li className="py-4 flex items-center justify-center gap-2 text-sm text-gray-500">
+            <li className="huddle-music-muted py-4 flex items-center justify-center gap-2 text-sm">
               <Loader2 size={16} className="animate-spin" aria-hidden /> Loading songs…
             </li>
           ) : (
@@ -126,7 +126,7 @@ export function HuddleMusicSheet({
               <li key={s.id} className="flex items-center gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold truncate">{s.title}</p>
-                  <p className="text-xs text-gray-500 truncate">{[s.artist, mins(s.durationSeconds)].filter(Boolean).join(' · ')}</p>
+                  <p className="huddle-music-muted text-xs truncate">{[s.artist, mins(s.durationSeconds)].filter(Boolean).join(' · ')}</p>
                 </div>
                 {s.url ? <PlayButton active={playing && nowPlayingId === s.id} busy={busy} onClick={() => onPlay(s.id)} /> : null}
               </li>
@@ -134,7 +134,7 @@ export function HuddleMusicSheet({
           )}
         </ul>
         {!loading && songs && songs.length === 0 ? (
-          <p className="mt-2 text-xs text-gray-400 text-center">Add more songs in PLCC Canaan → More → Ka Link Music.</p>
+          <p className="huddle-music-muted mt-2 text-xs text-center">Add more songs in PLCC Canaan → More → Ka Link Music.</p>
         ) : null}
       </div>
     </div>
@@ -145,7 +145,7 @@ function PlayButton({ active, busy, onClick }: { active: boolean; busy: boolean;
   return active ? (
     <span className="min-h-[36px] px-3 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center">Playing</span>
   ) : (
-    <button type="button" onClick={onClick} disabled={busy} className="min-h-[36px] px-3 rounded-xl bg-burgundy/10 text-burgundy text-xs font-bold flex items-center gap-1 disabled:opacity-60">
+    <button type="button" onClick={onClick} disabled={busy} className="huddle-music-play min-h-[36px] px-3 rounded-xl text-xs font-bold flex items-center gap-1 disabled:opacity-60">
       <Play size={13} aria-hidden /> Play
     </button>
   );
