@@ -494,10 +494,10 @@ export const CommunityChatPage: React.FC = () => {
               {channel.announceOnly && !opts?.isDm ? (
                 <Megaphone size={14} className="text-gold-ink shrink-0" aria-label="Announcements" />
               ) : null}
-              <p className="text-sm font-bold text-[#1A1A1A] truncate">{title}</p>
+              <p className="chat-channel-title text-sm font-bold text-[#1A1A1A] truncate" title={title}>{title}</p>
               {live ? <HuddleLiveBadge count={huddle?.participantCount} /> : null}
             </div>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+            <p className={`chat-channel-meta text-xs font-bold uppercase tracking-wider text-gray-500 ${!opts?.isDm && !live && !channel.description && visibilityLabel(channel.visibility) === 'Open' ? 'lg:sr-only' : ''}`}>
               {visibilityLabel(opts?.isDm ? 'dm' : channel.visibility)}
               {opts?.isDm && blockedIds.has(channel.id) ? ' · Blocked' : ''}
               {live && huddle?.participantCount
