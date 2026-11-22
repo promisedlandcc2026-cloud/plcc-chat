@@ -375,6 +375,10 @@
 
 /* Sheets (prayer request, guidelines) */
 .pr-sheet-backdrop { position: fixed; inset: 0; z-index: 600; display: flex; align-items: flex-end; justify-content: center; background: rgba(6,20,14,.55); }
+.pr-sheet .huddle-music-muted { color: #52635a; }
+.pr-sheet .huddle-music-play { background: #e4ede5; color: #173b2a; }
+.pr-sheet .huddle-music-play:not(:disabled):hover { background: #cfdfd0; }
+.pr-sheet .huddle-music-play:focus-visible { outline: 2px solid #286647; outline-offset: 2px; }
 @media (min-width: 640px) { .pr-sheet-backdrop { align-items: center; padding: 1rem; } }
 .pr-sheet {
   width: 100%; max-width: 32rem; max-height: 90vh; overflow-y: auto;
