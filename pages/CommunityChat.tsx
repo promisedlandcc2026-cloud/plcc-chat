@@ -773,7 +773,7 @@ export const CommunityChatPage: React.FC = () => {
           ) : null}
 
           {activeTab === 'ministries' ? (
-            <section role="tabpanel" id="chat-panel-ministries" aria-labelledby="chat-tab-ministries">
+            <section role="tabpanel" id="chat-panel-ministries" aria-labelledby="chat-tab-ministries" className="chat-ministry-panel">
               <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2 px-1">
                 Ministry channels
               </h2>

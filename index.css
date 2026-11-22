@@ -553,6 +553,15 @@ html.tribes-forest .chat-conversation .chat-composer-input::placeholder { color:
   html.tribes-forest .chat-workspace-sidebar .chat-global-search input::placeholder { color: #e6e9dc; opacity: 1; }
   html.tribes-forest .chat-workspace-sidebar .chat-global-search svg { color: #f7efdd; }
   html.tribes-forest .chat-workspace-sidebar .chat-global-search button { color: #f7efdd; }
+  /* A light channel list balances the forest navigation above it. */
+  html.tribes-forest .chat-workspace-sidebar .chat-ministry-panel { background: #f1f5f0; border: 1px solid #dbe7dd; border-radius: 16px; padding: 14px 10px; }
+  html.tribes-forest .chat-workspace-sidebar .chat-ministry-panel > h2 { color: #425d4c; margin: 2px 4px 12px; }
+  html.tribes-forest .chat-workspace-sidebar .chat-ministry-panel .chat-channel-row { background: #fff; border: 1px solid #e0e9e1; box-shadow: 0 1px 4px rgba(20, 54, 33, .05); }
+  html.tribes-forest .chat-workspace-sidebar .chat-ministry-panel .chat-channel-row:hover { background: #f7fbf7; border-color: #aac4af; }
+  html.tribes-forest .chat-workspace-sidebar .chat-ministry-panel .chat-channel-row[aria-current="page"] { background: #e5f0e5; border-color: #b3cbb6; border-left: 4px solid #c99d3f; }
+  html.tribes-forest .chat-workspace-sidebar .chat-ministry-panel .chat-channel-row .chat-channel-title { color: #173b2a; }
+  html.tribes-forest .chat-workspace-sidebar .chat-ministry-panel .chat-channel-row .chat-channel-meta { color: #536a5a; }
+  html.tribes-forest .chat-workspace-sidebar .chat-ministry-panel .chat-channel-row > div:first-child { background: #e8f0e9; color: #315a40; }
   html.tribes-forest .chat-conversation { background: #f8f3eb; }
   html.tribes-forest .chat-conversation .chat-message-incoming { background: #e3e9dc; border-color: #e3e9dc; }
   html.tribes-forest .chat-conversation .chat-message-outgoing { background: #07452e; }
