@@ -507,11 +507,13 @@ html.tribes-forest .chat-menu-surface .chat-menu-hint { color: #50665a; }
   html.tribes-forest .chat-workspace-sidebar .chat-sidebar-actions > div button,
   html.tribes-forest .chat-workspace-sidebar [role="tabpanel"] > h2,
   html.tribes-forest .chat-workspace-sidebar [role="tabpanel"] > section > h2 { color: #f4ecdb; }
-  html.tribes-forest .chat-workspace-sidebar .chat-channel-row { min-height: 52px; padding: 8px 10px; border: 0; border-bottom: 1px solid #456554; border-radius: 0; background: transparent; box-shadow: none; }
-  html.tribes-forest .chat-workspace-sidebar .chat-channel-row:hover { background: #214c39; }
-  html.tribes-forest .chat-workspace-sidebar .chat-channel-row[aria-current="page"] { border-left: 4px solid #e4b756; border-radius: 6px; background: #315a44; }
-  html.tribes-forest .chat-workspace-sidebar .chat-channel-row p { color: #f8f3e8; }
-  html.tribes-forest .chat-workspace-sidebar .chat-channel-row > div:first-child { width: 26px; height: 32px; background: transparent; color: #e9d9ad; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row { min-height: 48px; padding: 9px 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; box-shadow: none; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row:hover { background: #174431; border-color: #355e49; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row:focus-visible { outline: 2px solid #e4b756; outline-offset: 2px; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row[aria-current="page"] { border-left: 4px solid #e4b756; background: #28533d; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row .chat-channel-title { color: #fbf8ef; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row .chat-channel-meta { color: #bdcdbd; font-size: 10px; line-height: 1.4; }
+  html.tribes-forest .chat-workspace-sidebar .chat-channel-row > div:first-child { width: 28px; height: 28px; border-radius: 8px; background: #194a33; color: #ecd396; }
   html.tribes-forest .chat-workspace-sidebar [role="tablist"] { background: #123f2c; border-color: #456554; box-shadow: none; }
   html.tribes-forest .chat-workspace-sidebar [role="tab"]:not([aria-selected="true"]) { color: #f4ecdb; }
 }
@@ -533,6 +535,7 @@ html.tribes-forest .chat-conversation .chat-composer-input::placeholder { color:
   html.tribes-forest .chat-workspace-sidebar [role="tablist"] { background: transparent; border: 0; border-bottom: 1px solid #6b8476; border-radius: 0; padding: 0 0 10px; }
   html.tribes-forest .chat-workspace-sidebar [role="tab"] { min-height: 42px; padding: 8px 3px; }
   html.tribes-forest .chat-workspace-sidebar [role="tab"][aria-selected="true"] { background: #cadcb7; color: #0b3525; box-shadow: none; }
+  html.tribes-forest .chat-workspace-sidebar .chat-sidebar-actions { margin-bottom: 18px; }
   html.tribes-forest .chat-workspace-sidebar .chat-global-search input { background: #17432e; border-color: #90a897; color: #fffaf0; border-radius: 10px; }
   html.tribes-forest .chat-workspace-sidebar .chat-global-search input::placeholder { color: #e6e9dc; opacity: 1; }
   html.tribes-forest .chat-workspace-sidebar .chat-global-search svg { color: #f7efdd; }
