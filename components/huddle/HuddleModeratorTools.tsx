@@ -23,12 +23,16 @@ export function ModeratorRoomBar({
   busy,
   onToggleLock,
   onLowerAll,
+  onMuteAll,
+  onUnmuteAll,
 }: {
   micLock: boolean;
   handsCount: number;
   busy: boolean;
   onToggleLock: () => void;
   onLowerAll: () => void;
+  onMuteAll: () => void;
+  onUnmuteAll: () => void;
 }) {
   return (
     <div className="pr-mod-bar" role="group" aria-label="Moderator controls" data-testid="huddle-moderator-bar">
@@ -44,6 +48,12 @@ export function ModeratorRoomBar({
       </button>
       <button type="button" onClick={onLowerAll} disabled={busy || handsCount === 0} className="pr-tool">
         <Hand size={16} aria-hidden /> Lower all hands{handsCount ? ` (${handsCount})` : ''}
+      </button>
+      <button type="button" onClick={onMuteAll} disabled={busy} className="pr-tool">
+        <MicOff size={16} aria-hidden /> Mute all
+      </button>
+      <button type="button" onClick={onUnmuteAll} disabled={busy || micLock} className="pr-tool">
+        <Mic size={16} aria-hidden /> Ask all to unmute
       </button>
       {micLock ? (
         <p className="pr-mod-hint">Mics are locked. Members raise a hand; tap a name to let them speak.</p>

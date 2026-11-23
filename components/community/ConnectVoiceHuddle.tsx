@@ -286,8 +286,8 @@ function participantTeam(p: Participant): 'admin' | 'leader' | 'reader' | null {
   return t === 'admin' || t === 'leader' || t === 'reader' ? t : null;
 }
 
-/** Video is for the Ka Link team's admins and leaders (Pr. Grace), not standing Bible readers. */
-function teamMayUseVideo(team: 'admin' | 'leader' | 'reader' | null | undefined): boolean {
+/** Only Ka Link team admins and leaders can send the ready signal. */
+function teamMaySendReady(team: 'admin' | 'leader' | 'reader' | null | undefined): boolean {
   return team === 'admin' || team === 'leader';
 }
 
@@ -695,8 +695,15 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     track.attach(el);
     const play = el.play();
     if (play && typeof play.then === 'function') {
-      play.catch(() => {
-        if (mountedRef.current) setNeedSoundTap(true);
+      play.catch((error: unknown) => {
+        if (
+          mountedRef.current &&
+          audioElsRef.current.get(key) === el &&
+          error instanceof DOMException &&
+          error.name === 'NotAllowedError'
+        ) {
+          setNeedSoundTap(true);
+        }
       });
     }
   }, []);
@@ -1195,6 +1202,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           onChange();
         })
         .on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
+          if (roomRef.current !== room) return;
           awayRef.current.delete(p.identity);
           const prefix = `${p.identity}:`;
           for (const key of Array.from(audioElsRef.current.keys()) as string[]) {
@@ -1274,7 +1282,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           }
           if (topic === HUDDLE_READY_TOPIC) {
             // Only moderators see it, and only from a real team member (role is in the signed token).
-            if (!canModerateRef.current || !teamMayUseVideo(participantTeam(participant))) return;
+            if (!canModerateRef.current || !teamMaySendReady(participantTeam(participant))) return;
             const alert: ReadyAlert = { identity: participant.identity, name: displayName(participant), at: Date.now() };
             setReadyAlerts((prev) => [...prev.filter((a) => a.identity !== alert.identity), alert].slice(-5));
             try {
@@ -1342,12 +1350,14 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           }
         })
         .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub, participant) => {
+          if (roomRef.current !== room) return;
           if (track.kind === Track.Kind.Audio) {
             attachRemoteAudio(huddleRemoteAudioKey(participant.identity, pub?.trackSid), track);
           }
           onChange();
         })
         .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, pub, participant) => {
+          if (roomRef.current !== room) return;
           if (track.kind === Track.Kind.Audio) {
             try {
               track.detach();
@@ -1489,7 +1499,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       setMicEnabled(false);
       micEnabledRef.current = false;
       // Video only for moderators and the Ka Link team (Pr. Grace); members join audio-only.
-      const mayUseCamera = Boolean(tokenPayload.canModerate) || teamMayUseVideo(participantTeam(room.localParticipant));
+      const mayUseCamera = Boolean(tokenPayload.canModerate);
       if (camEnabled && mayUseCamera) {
         try {
           await room.localParticipant.setCameraEnabled(true);
@@ -2126,10 +2136,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 
   const toggleCam = useCallback(async () => {
     const room = roomRef.current;
-    if (!room) {
-      setCamEnabled((v) => !v);
-      return;
-    }
+    if (!room || (!canModerateRef.current && !camEnabled)) return;
     const next = !camEnabled;
     try {
       await room.localParticipant.setCameraEnabled(next);
@@ -2329,6 +2336,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       try {
         const result = await moderateHuddle(channelId, action, targetIdentity);
         if (action === 'unmute' && result.asked) setNotice('Asked them to unmute. Their mic is unlocked; they tap Unmute when ready.');
+        if (action === 'unmute-all') setNotice('Asked muted participants to unmute when ready.');
         const next = { micLock: result.micLock, readerIds: result.readerIds };
         if (action !== 'mute' && action !== 'unmute' && action !== 'lower-hand') {
           stageRef.current = next;
@@ -2435,7 +2443,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   if (!embedded) {
     const localTile = tiles.find((t) => t.isLocal);
     // Video is for Pr. Grace, the Ka Link team and moderators (Canaan enforces it too).
-    const canUseCamera = canModerate || teamMayUseVideo(localTile?.team);
+    const canUseCamera = canModerate;
     const speakingNow = tiles.filter((t) => t.speaking && t.micOn).map((t) => (t.isLocal ? 'You' : t.name));
     const anyVideo = tiles.some((t) => t.camOn);
     const connected = conn === 'connected';
@@ -2893,12 +2901,6 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                         {mode === 'start' ? 'Start Ka Link' : 'Join prayer room'}
                       </button>
                       <div className="flex items-center justify-center gap-2">
-                        {!audioOnly ? (
-                          <button type="button" onClick={() => setCamEnabled((v) => !v)} className="pr-tool" aria-pressed={camEnabled}>
-                            {camEnabled ? <Video size={16} aria-hidden /> : <VideoOff size={16} aria-hidden />}
-                            {camEnabled ? 'Camera on' : 'Camera off'}
-                          </button>
-                        ) : null}
                         <button type="button" onClick={() => void leave()} className="pr-tool">
                           Not now
                         </button>
@@ -3269,6 +3271,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                         handsCount={raisedEntries.length}
                         busy={modBusy}
                         onToggleLock={() => void moderate(stage.micLock ? 'mic-unlock' : 'mic-lock')}
+                        onMuteAll={() => void moderate('mute-all')}
+                        onUnmuteAll={() => void moderate('unmute-all')}
                         onLowerAll={() => void moderate('lower-all-hands')}
                       />
                     ) : null}
@@ -3586,19 +3590,6 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               >
                 {micEnabled ? <Mic size={22} /> : <MicOff size={22} />}
               </button>
-              {!audioOnly && (
-              <button
-                type="button"
-                onClick={() => setCamEnabled((v) => !v)}
-                className={`min-h-[44px] min-w-[44px] sm:min-h-[52px] sm:min-w-[52px] rounded-2xl flex items-center justify-center ${
-                  camEnabled ? 'bg-white/15' : 'bg-white/5'
-                }`}
-                aria-label={camEnabled ? 'Camera on at join' : 'Camera off at join'}
-                aria-pressed={camEnabled}
-              >
-                {camEnabled ? <Video size={22} /> : <VideoOff size={22} />}
-              </button>
-              )}
             </div>
             <button
               type="button"
@@ -3811,7 +3802,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             >
               {micEnabled ? <Mic size={22} /> : <MicOff size={22} />}
             </button>
-            {!audioOnly && (canModerate || camEnabled || tiles.some((t) => t.isLocal && teamMayUseVideo(t.team))) && (
+            {!audioOnly && (canModerate || camEnabled) && (
             <button
               type="button"
               onClick={() => void toggleCam()}

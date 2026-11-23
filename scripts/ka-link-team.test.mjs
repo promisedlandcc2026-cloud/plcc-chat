@@ -17,7 +17,7 @@ describe("I'm ready (#18)", () => {
     assert.match(huddle, /localTile\?\.team === 'leader'[\s\S]*huddle-ready-button/);
   });
   it('only moderators get the alert, and only from a team admin or leader', () => {
-    assert.match(huddle, /topic === HUDDLE_READY_TOPIC\)[\s\S]*if \(!canModerateRef\.current \|\| !teamMayUseVideo\(participantTeam\(participant\)\)\) return;/);
+    assert.match(huddle, /topic === HUDDLE_READY_TOPIC\)[\s\S]*if \(!canModerateRef\.current \|\| !teamMaySendReady\(participantTeam\(participant\)\)\) return;/);
   });
   it('the team role comes from the signed token attribute', () => {
     assert.match(huddle, /p\.attributes\?\.\['plcc\.team'\]/);
