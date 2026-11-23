@@ -2702,6 +2702,21 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   </span>
                 ) : null}
               </div>
+              {connected && localTile?.team === 'leader' ? (
+                <section className="pr-ready-bar" aria-label="Moderator handoff">
+                  <p>Let the moderators know you’re ready to begin.</p>
+                  <button
+                    type="button"
+                    onClick={() => void sendReady()}
+                    disabled={Boolean(readySentAt)}
+                    className="pr-ready-btn"
+                    data-testid="huddle-ready-button"
+                  >
+                    <HandHeart size={18} aria-hidden />
+                    {readySentAt ? 'Moderators notified' : 'I’m ready'}
+                  </button>
+                </section>
+              ) : null}
               {/* Phase 4 (#9): on phones everyone in the room shows right under the title — no scrolling. */}
               {connected ? (
                 <aside className="pr-rail" aria-label={`People in the room, ${peopleCount}`} data-testid="huddle-people-rail">
@@ -2977,18 +2992,6 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                       {reactionError ? <p className="text-center text-xs text-[#f1d58a]" role="status">{reactionError}</p> : null}
                       {musicError ? <p className="text-center text-xs text-[#f1d58a]" role="status" data-huddle-music-error="true">{musicError}</p> : null}
 
-                      {connected && localTile?.team === 'leader' ? (
-                        <button
-                          type="button"
-                          onClick={() => void sendReady()}
-                          disabled={Boolean(readySentAt)}
-                          className="pr-ready-btn"
-                          data-testid="huddle-ready-button"
-                        >
-                          <HandHeart size={18} aria-hidden />
-                          {readySentAt ? 'Moderators notified' : 'I’m ready'}
-                        </button>
-                      ) : null}
                       <div className="pr-controls">
                         {!prayerWatch ? (
                           <button type="button" onClick={() => void toggleHand()} aria-pressed={handRaised} className={`pr-ctl is-gold ${handRaised ? 'is-on' : ''}`}>

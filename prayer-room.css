@@ -419,7 +419,19 @@
 .pr-person-btn { display: flex; flex: 1; min-width: 0; align-items: center; gap: 0.6rem; text-align: left; }
 
 /* Ka Link Phase 3: "I'm ready" (Pr. Grace / altar leaders → moderators). */
-.pr-ready-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; min-height: 48px; margin: 0.4rem 0 0.6rem; border-radius: 9999px; font-weight: 800; font-size: 0.9rem; background: linear-gradient(180deg, var(--pr-gold-light, #f1d58f), var(--pr-gold, #d9b45e)); color: #1d2414; }
+.pr-ready-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 0.5rem 1rem; flex-shrink: 0; padding: 0.55rem 0.65rem; border-radius: 1rem;
+  background: #172d20; border: 1px solid var(--pr-gold, #d9b45e);
+}
+.pr-ready-bar p { margin: 0; flex: 1 1 12rem; color: #f5ebd5; font-size: 0.875rem; }
+.pr-ready-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 44px; padding: 0.55rem 1rem; border-radius: 0.7rem;
+  background: var(--pr-gold-light, #f1d58f); color: #1d2414; font-weight: 800; font-size: 0.9rem;
+}
+.pr-ready-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+@media (max-width: 480px) { .pr-ready-btn { width: 100%; } }
 .pr-ready-btn:disabled { opacity: 0.7; }
 .pr-ready-alert { display: flex; align-items: center; gap: 0.6rem; margin: 0.4rem 0; padding: 0.7rem 0.9rem; border-radius: 1rem; background: linear-gradient(180deg, #1f8a4c, #11633a); color: #fff; font-size: 0.9rem; animation: pr-drop .25s ease-out; }
 .pr-ready-ok { min-height: 36px; padding: 0 0.9rem; border-radius: 9999px; background: rgba(255,255,255,.18); font-weight: 800; font-size: 0.8rem; }
