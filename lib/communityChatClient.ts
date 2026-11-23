@@ -926,6 +926,8 @@ export async function submitPrayerRequest(input: {
 export type HuddleModerateAction =
   | 'mute'
   | 'unmute'
+  | 'mute-all'
+  | 'unmute-all'
   | 'lower-hand'
   | 'lower-all-hands'
   | 'mic-lock'

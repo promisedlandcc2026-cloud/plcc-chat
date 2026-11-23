@@ -78,6 +78,16 @@ describe('huddle-moderate bridge command', () => {
     assert.deepEqual(parseHuddleModerateCommand({ channelId: CH, action: 'mic-lock' }).forward, { channelId: CH, action: 'mic-lock' });
     assert.equal(parseHuddleModerateCommand({ channelId: CH, action: 'block', targetIdentity: 'u1' }).subResource, 'voice-huddle-stage');
   });
+  it('routes bulk microphone actions without accepting a participant identity', () => {
+    for (const action of ['mute-all', 'unmute-all']) {
+      assert.deepEqual(parseHuddleModerateCommand({ channelId: CH, action }), {
+        action,
+        subResource: 'voice-huddle-stage',
+        forward: { channelId: CH, action },
+      });
+      assert.equal(parseHuddleModerateCommand({ channelId: CH, action, targetIdentity: 'u1' }), null);
+    }
+  });
   it('rejects bad input', () => {
     assert.equal(parseHuddleModerateCommand({ channelId: 'x', action: 'mute', targetIdentity: 'u1' }), null);
     assert.equal(parseHuddleModerateCommand({ channelId: CH, action: 'nuke' }), null);

@@ -1257,6 +1257,8 @@ export function sanitizeChatRequest(raw) {
 const HUDDLE_MODERATE_ACTIONS = new Set([
   'mute',
   'unmute',
+  'mute-all',
+  'unmute-all',
   'lower-hand',
   'lower-all-hands',
   'mic-lock',
@@ -1268,7 +1270,7 @@ const HUDDLE_MODERATE_ACTIONS = new Set([
   'remove',
   'block',
 ]);
-const HUDDLE_ROOM_ACTIONS = new Set(['lower-all-hands', 'mic-lock', 'mic-unlock']);
+const HUDDLE_ROOM_ACTIONS = new Set(['lower-all-hands', 'mic-lock', 'mic-unlock', 'mute-all', 'unmute-all']);
 const LIVEKIT_IDENTITY_RE = /^[A-Za-z0-9._:@-]{1,128}$/;
 
 /**
