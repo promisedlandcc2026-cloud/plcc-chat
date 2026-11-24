@@ -112,7 +112,7 @@ import { AskUnmuteCard, ConductNoticeModal, ConductSheet } from '../conduct/Cond
 import { HUDDLE_CONDUCT_TOPIC, isConductTargetId, parseConductNotice, type ConductNotice, type ConductTarget } from '../../lib/memberConduct';
 import { VAULT_URL } from '../../lib/appLinks';
 import { GuidelinesSheet, PrayerRequestSheet } from './PrayerRoomSheets';
-import { findSanctumOverflow, isRoomFullError, openSanctumOverflow, type SanctumOverflow } from '../../lib/sanctumOverflow';
+import { findSanctumOverflow, isRoomFullError, OVERFLOW_DASHBOARD_URL, type SanctumOverflow } from '../../lib/sanctumOverflow';
 import {
   claimHuddleLine,
   fetchDailyCredentials,
@@ -2846,19 +2846,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                     <p className="pr-full-text inline-flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Looking for the overflow room…
                     </p>
-                  ) : roomFull.overflow?.available && roomFull.overflow.joinUrl ? (
-                    <>
-                      <button type="button" onClick={() => openSanctumOverflow(roomFull.overflow!.joinUrl!)} className="pr-full-go">
-                        <Headphones className="h-6 w-6" aria-hidden />
-                        Join the overflow room
-                      </button>
-                      <p className="pr-full-text">
-                        <strong>{roomFull.overflow.roomName}</strong> in PLCC Sanctum
-                        {roomFull.overflow.hearsJordan
-                          ? ' — you will hear the same live prayer.'
-                          : ' — led by its own prayer leaders.'}
-                      </p>
-                    </>
+                  ) : roomFull.overflow?.available ? (
+                    <a href={roomFull.overflow.joinUrl} target="_blank" rel="noopener noreferrer" className="pr-full-go">
+                      <Headphones className="h-6 w-6" aria-hidden />
+                      Join Overflow
+                    </a>
                   ) : (
                     <p className="pr-full-text">
                       The overflow room isn&apos;t open yet. We&apos;ll show it here as soon as a moderator opens it — or try again in a moment.
@@ -3182,6 +3174,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                               <>
                                 <p className="pr-more-label">Host tools</p>
                                 <div className="pr-more-grid">
+                                  {connected && !prayerWatch ? (
+                                    <a href={OVERFLOW_DASHBOARD_URL} target="_blank" rel="noopener noreferrer" className="pr-more-item">
+                                      <Headphones size={20} aria-hidden /> <span>Manage Overflow</span>
+                                    </a>
+                                  ) : null}
                                   {connected && canModerate ? (
                                     <button
                                       type="button"
