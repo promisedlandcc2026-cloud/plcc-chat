@@ -23,7 +23,7 @@ describe('tidy call tools', () => {
   });
   it('host tools are in More, only for moderators; REC stays visible while recording', () => {
     assert.match(huddle, /\{canModerate \? \([\s\S]*Host tools[\s\S]*End for everyone/);
-    assert.match(toolbar, /isRecording && canModerate \?[\s\S]*huddle-recording-chip/);
+    assert.match(toolbar, /isRecording && canRecord \?[\s\S]*huddle-recording-chip/);
   });
   it('phones get 44px targets and Prayer Request in More', () => {
     assert.match(read('prayer-room.css'), /\.pr-tools \.pr-tool\.is-icon \{ width: 44px; \}/);

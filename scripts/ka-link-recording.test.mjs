@@ -48,7 +48,9 @@ describe('recording UI', () => {
   it('everyone sees REC; only moderators get the Record button', () => {
     assert.match(huddle, /RoomEvent\.RecordingStatusChanged/);
     assert.match(huddle, /className="pr-rec"/);
-    assert.match(huddle, /connected && canModerate \? \([\s\S]*huddle-record-toggle/);
+    assert.match(huddle, /connected && canRecord \? \([\s\S]*huddle-record-toggle/);
+    // PLCC ONE rights: Record needs moderator AND the recording right (when the server sends it).
+    assert.match(huddle, /const canRecord = canModerate && canRecordRight !== false;/);
   });
   it('past recordings from the call and the chat room', () => {
     assert.match(huddle, /<HuddleRecordingsSheet/);

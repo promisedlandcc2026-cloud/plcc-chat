@@ -548,6 +548,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [chatSending, setChatSending] = useState(false);
   const [title, setTitle] = useState(channelName || 'Live Ka Link');
   const [canModerate, setCanModerate] = useState(false);
+  // PLCC ONE rights: only the recording team sees Record (server enforces it too).
+  const [canRecordRight, setCanRecordRight] = useState<boolean | null>(null);
+  const canRecord = canModerate && canRecordRight !== false;
   const [ending, setEnding] = useState(false);
   const [shareDone, setShareDone] = useState<string | null>(null);
   /** Full-screen prayer room: listen-only mode, sheets and participant search. */
@@ -1164,6 +1167,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       );
       setTitle(tokenPayload.channelName || channelName || 'Live Ka Link');
       setCanModerate(Boolean(tokenPayload.canModerate));
+      setCanRecordRight(typeof tokenPayload.canRecord === 'boolean' ? tokenPayload.canRecord : null);
 
       // Phase 5: lighter video for mobile data — 360p camera with a 180p layer for weak signals.
       const room = new Room({
@@ -3187,7 +3191,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                             {camEnabled ? <Video size={18} /> : <VideoOff size={18} />}
                           </button>
                         ) : null}
-                        {isRecording && canModerate ? (
+                        {isRecording && canRecord ? (
                           <button type="button" onClick={() => void toggleRecording()} disabled={recordBusy} className="pr-tool is-recording" aria-label="Stop recording" data-testid="huddle-recording-chip">
                             <CircleDot size={16} aria-hidden /> <span>REC · Stop</span>
                           </button>
@@ -3253,7 +3257,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                                       <Headphones size={20} aria-hidden /> <span>Manage Overflow</span>
                                     </a>
                                   ) : null}
-                                  {connected && canModerate ? (
+                                  {connected && canRecord ? (
                                     <button
                                       type="button"
                                       onClick={() => { setMoreOpen(false); void toggleRecording(); }}
@@ -3485,7 +3489,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           />
         ) : null}
         {recordingsOpen ? (
-          <HuddleRecordingsSheet channelId={channelId} roomName={title} canDelete={canModerate} onClose={() => setRecordingsOpen(false)} />
+          <HuddleRecordingsSheet channelId={channelId} roomName={title} canDelete={canRecord} onClose={() => setRecordingsOpen(false)} />
         ) : null}
         {sheet === 'guidelines' ? <GuidelinesSheet onClose={() => setSheet(null)} /> : null}
 

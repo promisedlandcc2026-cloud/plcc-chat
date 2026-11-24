@@ -110,6 +110,8 @@ export type HuddleJoinToken = {
   roomName: string;
   expiresIn: number;
   canModerate: boolean;
+  /** PLCC ONE "Recording button" right. Missing on older servers / fallback tokens → follow canModerate. */
+  canRecord?: boolean;
   channelId: string;
   channelName: string;
   /** Vault-signed 12h permission to reopen this huddle while Supabase is down. */

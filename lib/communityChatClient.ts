@@ -664,6 +664,7 @@ export async function fetchHuddleToken(
     roomName: body.roomName,
     expiresIn: typeof body.expiresIn === 'number' ? body.expiresIn : 0,
     canModerate: Boolean(body.canModerate),
+    ...(typeof body.canRecord === 'boolean' ? { canRecord: body.canRecord } : {}),
     channelId: body.channelId,
     channelName:
       typeof body.channelName === 'string' && body.channelName.trim()
