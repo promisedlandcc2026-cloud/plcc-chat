@@ -521,10 +521,14 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     },
     [onMinimizedChange]
   );
-  /** Side panel tab in the prayer room: who is here, or the room's information. */
+  /** The inline panel for people, scripture, and room information. */
   const [sideTab, setSideTab] = useState<'people' | 'bible' | 'info'>('people');
-  /** Phones: the Bible opens as a tall sheet over the prayer room. */
-  const [bibleSheetOpen, setBibleSheetOpen] = useState(false);
+  const bibleTabRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (sideTab === 'bible' && !minimized && window.matchMedia('(max-width: 1023px)').matches) {
+      bibleTabRef.current?.focus({ preventScroll: true });
+    }
+  }, [sideTab, minimized]);
   /** Computers: the side panel's width, set by dragging the handle between room and panel (remembered). */
   const [sideWidth, setSideWidth] = useState<number | null>(() => {
     try {
@@ -2531,17 +2535,13 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       setSideWidth(next);
       saveSideWidth(next);
     };
-    const openBible = () => {
-      if (typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches) setSideTab('bible');
-      else setBibleSheetOpen(true);
-    };
+    const openBible = () => setSideTab('bible');
     /** Posts the selected verses in the prayer room's chat for everyone in the room. */
     const shareVerseInRoom = async (s: BibleSelection) => {
       const head = `📖 ${s.label} · ${s.translationShort}\n`;
       const room = 500 - head.length - 2;
       const quote = s.text.length > room ? `${s.text.slice(0, room - 1).replace(/\s+\S*$/, '')}…` : s.text;
       await sendChat(`${head}“${quote}”`);
-      setBibleSheetOpen(false);
       setNotice(`${s.label} shared in the room chat.`);
       window.setTimeout(() => setNotice((cur) => (cur && cur.endsWith('shared in the room chat.') ? null : cur)), 4000);
     };
@@ -2556,6 +2556,42 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       </LazyChunkErrorBoundary>
     );
     const micTileLabel = listenOnly ? 'Unmute' : micEnabled ? 'Mute' : 'Unmute';
+
+    const callControls = (
+      <div className="pr-controls">
+        {!prayerWatch ? (
+          <button type="button" onClick={() => void toggleHand()} aria-pressed={handRaised} className={`pr-ctl is-gold ${handRaised ? 'is-on' : ''}`}>
+            <Hand aria-hidden />
+            <span>{handLabel}</span>
+          </button>
+        ) : (
+          <button type="button" onClick={() => setActiveTab('chat')} className="pr-ctl">
+            <MessageCircle aria-hidden />
+            <span>Chat</span>
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => (listenOnly ? undefined : void toggleMic())}
+          aria-pressed={micEnabled}
+          aria-disabled={listenOnly || undefined}
+          title={listenOnly ? 'Listen only is on' : undefined}
+          className={`pr-ctl ${micEnabled && !listenOnly ? 'is-live' : ''} ${listenOnly ? 'is-disabled' : ''}`}
+        >
+          {micEnabled && !listenOnly ? <Mic aria-hidden /> : <MicOff aria-hidden />}
+          <span>{micTileLabel}</span>
+        </button>
+        <button type="button" onClick={() => void toggleListenOnly()} aria-pressed={listenOnly} className={`pr-ctl ${listenOnly ? 'is-on' : ''}`}>
+          <Volume2 aria-hidden />
+          <span>Listen Only</span>
+        </button>
+        <span className="pr-ctl-gap" aria-hidden />
+        <button type="button" onClick={() => void leave()} className="pr-ctl is-leave" aria-label="Leave Ka Link">
+          <LogOut aria-hidden />
+          <span>Leave Room</span>
+        </button>
+      </div>
+    );
 
     // Minimized: a small floating bar; the chat underneath stays usable and the call keeps going.
     if (minimized) {
@@ -2992,43 +3028,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                       {reactionError ? <p className="text-center text-xs text-[#f1d58a]" role="status">{reactionError}</p> : null}
                       {musicError ? <p className="text-center text-xs text-[#f1d58a]" role="status" data-huddle-music-error="true">{musicError}</p> : null}
 
-                      <div className="pr-controls">
-                        {!prayerWatch ? (
-                          <button type="button" onClick={() => void toggleHand()} aria-pressed={handRaised} className={`pr-ctl is-gold ${handRaised ? 'is-on' : ''}`}>
-                            <Hand aria-hidden />
-                            <span>{handLabel}</span>
-                          </button>
-                        ) : (
-                          <button type="button" onClick={() => setActiveTab('chat')} className="pr-ctl">
-                            <MessageCircle aria-hidden />
-                            <span>Chat</span>
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => (listenOnly ? undefined : void toggleMic())}
-                          aria-pressed={micEnabled}
-                          aria-disabled={listenOnly || undefined}
-                          title={listenOnly ? 'Listen only is on' : undefined}
-                          className={`pr-ctl ${micEnabled && !listenOnly ? 'is-live' : ''} ${listenOnly ? 'is-disabled' : ''}`}
-                        >
-                          {micEnabled && !listenOnly ? <Mic aria-hidden /> : <MicOff aria-hidden />}
-                          <span>{micTileLabel}</span>
-                        </button>
-                        <button type="button" onClick={() => void toggleListenOnly()} aria-pressed={listenOnly} className={`pr-ctl ${listenOnly ? 'is-on' : ''}`}>
-                          <Volume2 aria-hidden />
-                          <span>Listen Only</span>
-                        </button>
-                        <span className="pr-ctl-gap" aria-hidden />
-                        <button type="button" onClick={() => void leave()} className="pr-ctl is-leave" aria-label="Leave Ka Link">
-                          <LogOut aria-hidden />
-                          <span>Leave Room</span>
-                        </button>
-                      </div>
+                      {callControls}
 
                       <div className="pr-tools" role="toolbar" aria-label="Ka Link tools">
-                        {/* Bible stays on the bar: on phones the left menu is hidden and the Bible tab sits below the room. */}
-                        <button type="button" onClick={openBible} className={`pr-tool ${sideTab === 'bible' || bibleSheetOpen ? 'is-on' : ''}`} title="Read the Bible" aria-label="Open the Bible">
+                        {/* Bible stays on the bar: it switches to the inline reading panel. */}
+                        <button type="button" onClick={openBible} className={`pr-tool ${sideTab === 'bible' ? 'is-on' : ''}`} title="Read the Bible" aria-label="Open the Bible">
                           <BookOpen size={17} aria-hidden /> <span>Bible</span>
                         </button>
                         {!prayerWatch ? (
@@ -3232,7 +3236,20 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               )}
             </main>
 
-            <aside className="pr-side" aria-label="Who is here and room information">
+            <aside className="pr-side" aria-label="Prayer room details">
+              {sideTab === 'bible' ? (
+                <div className="pr-reading-controls">
+                  <div className="pr-reading-summary">
+                    <p className="pr-room-title">{title}</p>
+                    {connected && isRecording ? <span className="pr-rec" aria-label="This prayer is being recorded"><i aria-hidden /> REC</span> : null}
+                    {!isRecording && connected ? <span className="pr-live"><i aria-hidden /> LIVE</span> : null}
+                    {conn === 'reconnecting' ? <span role="status" className="pr-reading-status">Reconnecting…</span> : null}
+                  </div>
+                  {connected ? callControls : null}
+                  {notice ? <p className="pr-notice" role="status">{notice}</p> : null}
+                  {error ? <p className="text-xs text-[#ffb4a8]" role="alert">{error}</p> : null}
+                </div>
+              ) : null}
               <div
                 className={`pr-resize ${resizing ? 'is-dragging' : ''}`}
                 role="separator"
@@ -3251,7 +3268,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                 <button type="button" role="tab" aria-selected={sideTab === 'people'} onClick={() => setSideTab('people')} className={`pr-tab ${sideTab === 'people' ? 'is-active' : ''}`}>
                   <Users size={16} aria-hidden /> People{connected ? ` (${peopleCount})` : ''}
                 </button>
-                <button type="button" role="tab" aria-selected={sideTab === 'bible'} onClick={openBible} className={`pr-tab ${sideTab === 'bible' ? 'is-active' : ''}`}>
+                <button ref={bibleTabRef} type="button" role="tab" aria-controls={sideTab === 'bible' ? 'huddle-bible-panel' : undefined} id="huddle-bible-tab" aria-selected={sideTab === 'bible'} onClick={openBible} className={`pr-tab ${sideTab === 'bible' ? 'is-active' : ''}`}>
                   <BookOpen size={16} aria-hidden /> Bible
                 </button>
                 <button type="button" role="tab" aria-selected={sideTab === 'info'} onClick={() => setSideTab('info')} className={`pr-tab ${sideTab === 'info' ? 'is-active' : ''}`}>
@@ -3260,7 +3277,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               </div>
 
               {sideTab === 'bible' ? (
-                <div className="pr-bible">{bibleReader}</div>
+                <div id="huddle-bible-panel" role="tabpanel" aria-labelledby="huddle-bible-tab" tabIndex={0} className="pr-bible">{bibleReader}</div>
               ) : sideTab === 'people' ? (
                 connected ? (
                   <>
@@ -3400,19 +3417,6 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           <HuddleRecordingsSheet channelId={channelId} roomName={title} canDelete={canModerate} onClose={() => setRecordingsOpen(false)} />
         ) : null}
         {sheet === 'guidelines' ? <GuidelinesSheet onClose={() => setSheet(null)} /> : null}
-
-        {bibleSheetOpen ? (
-          <div className="pr-bible-sheet" role="dialog" aria-modal="true" aria-label="Bible">
-            <div className="pr-bible-sheet-head">
-              <p><BookOpen size={18} aria-hidden /> Bible</p>
-              <span className="pr-bible-sheet-sub">{connected ? 'The prayer keeps going while you read' : ''}</span>
-              <button type="button" onClick={() => setBibleSheetOpen(false)} className="pr-icon-btn" aria-label="Close the Bible">
-                <X size={20} aria-hidden />
-              </button>
-            </div>
-            <div className="pr-bible pr-bible-sheet-body">{bibleReader}</div>
-          </div>
-        ) : null}
 
         <HuddleTabSheet tab={activeTab} onClose={() => setActiveTab(null)}>
           {activeTab === 'hands' && !prayerWatch ? (
