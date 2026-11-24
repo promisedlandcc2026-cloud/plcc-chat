@@ -398,7 +398,8 @@ describe('Connect Ka Link bridge + UI wiring', () => {
       'utf8'
     );
     assert.ok(list.includes('useHuddleLive'));
-    assert.ok(list.includes('HuddleLiveBadge'));
+    // Nov 24 2026 home redesign: live rooms show a green "Live ·" lead-in (LiveMark) instead of the badge.
+    assert.ok(list.includes('<LiveMark />'));
     assert.ok(list.includes('New chat') || list.includes('New'));
     assert.ok(list.includes('searchChatDirectory'));
     assert.ok(list.includes('openDirectMessage'));

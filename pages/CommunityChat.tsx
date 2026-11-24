@@ -16,10 +16,10 @@ import {
   Sunrise,
   Loader2,
   Megaphone,
-  MessageCircle,
   Users,
   BookOpen,
   ChevronRight,
+  Hash,
   Plus,
   RefreshCcw,
   Search,
@@ -42,7 +42,6 @@ import {
   openDirectMessage,
   searchChatDirectory,
 } from '../lib/communityChatClient';
-import { HuddleLiveBadge } from '../components/huddle/HuddleLiveDot';
 import { dmDisplayName, forgetDmRecent, listDmRecents, rememberDmRecent, replaceDmRecents } from '../lib/dmRecents';
 import { SwipeToDelete } from '../components/chat/SwipeToDelete';
 import { DmBlockSheet, DmReportSheet } from '../components/chat/DmSafetySheets';
@@ -54,7 +53,6 @@ import {
   markSwipePeekSeen,
 } from '../lib/dmSwipeHint';
 import { Button } from '../components/ui/Button';
-import { MemberPageHeader } from '../components/member/MemberPageHeader';
 import { AccountMenu } from '../components/chat/AccountMenu';
 import { BackToAwcOne } from '../components/ui/BackToAwcOne';
 import { NewGroupSheet } from '../components/chat/NewGroupSheet';
@@ -95,6 +93,57 @@ const GATHERING_ICONS: Record<PrayerGatheringKey, React.ReactNode> = {
 
 const SEARCH_DEBOUNCE_MS = 280;
 
+/** Small green "Live ·" lead-in for a row's second line. */
+const LiveMark: React.FC = () => (
+  <span className="kl-live-mark">
+    <span className="kl-live-dot" aria-hidden />
+    Live ·{' '}
+  </span>
+);
+
+const TAB_TITLES: Record<ChatHomeTab, string> = {
+  prayer: 'Prayer Gatherings',
+  ministries: 'Ministry Channels',
+  messages: 'Messages',
+  huddles: 'Live Ka Links',
+};
+
+function greeting(d = new Date()): string {
+  const h = d.getHours();
+  if (h < 12) return 'Good morning,';
+  if (h < 17) return 'Good afternoon,';
+  return 'Good evening,';
+}
+
+function firstName(name: string | null | undefined): string {
+  return String(name || '').trim().split(/\s+/)[0] || '';
+}
+
+function initialsOf(name: string): string {
+  const parts = String(name || '').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+const AVATAR_TINTS = ['#1f5b40', '#7a5a1e', '#2f4f6b', '#6b3a3a', '#46602a', '#5a3f6b', '#2d6363'];
+function avatarTint(name: string): string {
+  let h = 0;
+  for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_TINTS[h % AVATAR_TINTS.length];
+}
+
+/** "14:05" today, "Mon" this week, otherwise "24 Nov". */
+function shortWhen(iso: string): string {
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return '';
+  const now = new Date();
+  if (t.toDateString() === now.toDateString()) return t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const days = (now.getTime() - t.getTime()) / 864e5;
+  if (days < 6) return t.toLocaleDateString([], { weekday: 'short' });
+  return t.toLocaleDateString([], { day: 'numeric', month: 'short' });
+}
+
+
 function visibilityLabel(visibility: string | null): string {
   const v = String(visibility || '').toLowerCase();
   if (v === 'dm') return 'Direct';
@@ -117,6 +166,8 @@ export const CommunityChatPage: React.FC = () => {
   const navigate = useNavigate();
   const [channels, setChannels] = useState<CommunityChatChannel[]>([]);
   const [unreadByChannel, setUnreadByChannel] = useState<Record<string, number>>({});
+  /** Last message + time per direct chat, for the list preview. */
+  const [dmPreview, setDmPreview] = useState<Record<string, { text: string | null; at: string | null }>>({});
   const { byChannel: huddleByChannel } = useHuddleLive();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,6 +239,7 @@ export const CommunityChatPage: React.FC = () => {
       setChannels(list);
       setUnreadByChannel(unread.byChannel);
       if (dms) setBlockedIds(new Set(dms.filter((d) => d.blocked).map((d) => d.channelId)));
+      if (dms) setDmPreview(Object.fromEntries(dms.map((d) => [d.channelId, { text: d.lastMessage, at: d.lastMessageAt }])));
       if (dms && ownerId) {
         // The Vault's list wins; keep this device's copy in step for room titles.
         replaceDmRecents(
@@ -473,6 +525,15 @@ export const CommunityChatPage: React.FC = () => {
     const huddle = huddleByChannel[channel.id];
     const active = activeChannelId === channel.id;
     const live = isHuddleChannelLive(huddle) && !opts?.isDm;
+    const preview = opts?.isDm ? dmPreview[channel.id] : undefined;
+    const blocked = Boolean(opts?.isDm && blockedIds.has(channel.id));
+    const meta = opts?.isDm
+      ? blocked
+        ? 'Blocked'
+        : preview?.text || 'Direct message'
+      : live && huddle?.participantCount
+        ? `${huddle.participantCount} in Ka Link`
+        : channel.description || visibilityLabel(channel.visibility);
     const row = (
         <Link
           to={`/community/chat/${channel.id}${opts?.isDm ? '?tab=messages' : activeTab === 'ministries' ? '?tab=ministries' : ''}`}
@@ -482,36 +543,34 @@ export const CommunityChatPage: React.FC = () => {
             isDm: Boolean(opts?.isDm),
           }}
           aria-current={active ? 'page' : undefined}
-          className={`chat-channel-row flex items-center gap-3 rounded-2xl border shadow-sm p-4 transition-colors min-h-[64px] ${
-            active ? 'bg-burgundy/5 border-burgundy/40' : 'bg-white border-gray-100 hover:border-burgundy/20'
-          }`}
+          className={`kl-row chat-channel-row ${active ? 'kl-row-active' : ''}`}
         >
-          <div className="w-11 h-11 rounded-xl bg-burgundy/10 text-burgundy flex items-center justify-center shrink-0">
-            {opts?.isDm ? <User size={18} aria-hidden /> : <><span className="hidden lg:inline text-lg font-bold" aria-hidden>#</span><MessageCircle className="lg:hidden" size={18} aria-hidden /></>}
-          </div>
-          <div className="min-w-0 flex-1 text-left">
-            <div className="flex items-center gap-2 min-w-0">
-              {channel.announceOnly && !opts?.isDm ? (
-                <Megaphone size={14} className="text-gold-ink shrink-0" aria-label="Announcements" />
-              ) : null}
-              <p className="chat-channel-title text-sm font-bold text-[#1A1A1A] truncate" title={title}>{title}</p>
-              {live ? <HuddleLiveBadge count={huddle?.participantCount} /> : null}
-            </div>
-            <p className={`chat-channel-meta text-xs font-bold uppercase tracking-wider text-gray-500 ${!opts?.isDm && !live && !channel.description && visibilityLabel(channel.visibility) === 'Open' ? 'lg:sr-only' : ''}`}>
-              {visibilityLabel(opts?.isDm ? 'dm' : channel.visibility)}
-              {opts?.isDm && blockedIds.has(channel.id) ? ' · Blocked' : ''}
-              {live && huddle?.participantCount
-                ? ` · ${huddle.participantCount} in Ka Link`
-                : ''}
-              {!live && !opts?.isDm && channel.description
-                ? ` · ${channel.description}`
-                : ''}
-            </p>
-          </div>
+          {opts?.isDm ? (
+            <span className="kl-avatar" style={{ background: avatarTint(title) }} aria-hidden>
+              {initialsOf(title)}
+            </span>
+          ) : (
+            <span className="kl-tile" aria-hidden>
+              {channel.announceOnly ? <Megaphone size={18} /> : <Hash size={18} />}
+            </span>
+          )}
+          <span className="min-w-0 flex-1 text-left">
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="kl-row-title chat-channel-title" title={title}>{title}</span>
+              {opts?.isDm && preview?.at ? <span className="kl-row-time">{shortWhen(preview.at)}</span> : null}
+            </span>
+            <span className={`kl-row-meta chat-channel-meta ${unread > 0 ? 'kl-row-meta-unread' : ''}`}>
+              {live ? <LiveMark /> : null}
+              {meta}
+              {blocked ? <span className="sr-only"> · Blocked</span> : null}
+            </span>
+          </span>
           {unread > 0 ? (
-            <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-burgundy text-white text-xs font-black leading-[22px] text-center">
+            <span className="kl-count" aria-label={`${unread} unread`}>
               {unread > 99 ? '99+' : unread}
             </span>
+          ) : live ? (
+            <span className="kl-join">Join</span>
           ) : null}
         </Link>
     );
@@ -544,59 +603,44 @@ export const CommunityChatPage: React.FC = () => {
   };
 
   return (
-    <main className="ka-link-chat-surface chat-home-surface flex-1 bg-white px-5 pt-6 pb-10 lg:flex lg:min-h-full lg:flex-col lg:pb-4">
-      <div className="-mx-5 -mt-6 mb-5 flex items-center justify-between gap-3 bg-[#0b2d1e] px-5 py-4">
-        <img
-          src="/ka-link-gold-logo.png"
-          alt="PLCC Ka Link"
-          width={168}
-          height={56}
-          className="h-auto w-[140px] max-w-[45%] select-none object-contain sm:w-[168px]"
-          draggable={false}
-        />
-        <BackToAwcOne />
-      </div>
-      <div className="chat-sidebar-actions flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-6">
-        <AccountMenu />
-        <div className="flex items-center">
-          {canCreateGroups ? (
-            <button
-              type="button"
-              onClick={() => setNewGroupOpen(true)}
-              className="inline-flex items-center gap-1 text-burgundy text-sm font-bold min-h-[44px] px-1.5"
-              aria-label="New group"
-            >
-              <Users size={16} aria-hidden />
-              Group
+    <main className="kl-home ka-link-chat-surface flex-1 lg:flex lg:min-h-full lg:flex-col">
+      <header className="kl-header">
+        <div className="flex items-center justify-between gap-3">
+          <img
+            src="/ka-link-gold-logo.png"
+            alt="PLCC Ka Link"
+            width={168}
+            height={56}
+            className="h-auto w-[124px] select-none object-contain"
+            draggable={false}
+          />
+          <BackToAwcOne className="kl-one" />
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="kl-greeting">{greeting()}</p>
+            <h1 className="kl-name" title={identity?.name || undefined}>{firstName(identity?.name) || 'Welcome'}</h1>
+          </div>
+          <div className="kl-account shrink-0"><AccountMenu /></div>
+        </div>
+        <label className="kl-search chat-global-search">
+          <span className="sr-only">Search messages</span>
+          <Search size={18} className="kl-search-icon" aria-hidden />
+          <input
+            value={msgQ}
+            onChange={(e) => setMsgQ(e.target.value)}
+            placeholder="Search all messages…"
+            type="search"
+          />
+          {msgQ ? (
+            <button type="button" onClick={() => setMsgQ('')} className="kl-search-clear" aria-label="Clear search">
+              <X size={16} />
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={() => setNewChatOpen(true)}
-            className="inline-flex items-center gap-1 text-burgundy text-sm font-bold min-h-[44px] px-1.5"
-            aria-label="New chat"
-          >
-            <Plus size={16} aria-hidden />
-            New
-          </button>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="inline-flex items-center justify-center text-burgundy min-h-[44px] min-w-[44px] rounded-full hover:bg-burgundy/5"
-            aria-label="Refresh chats"
-            title="Refresh"
-          >
-            <RefreshCcw size={18} aria-hidden />
-          </button>
-        </div>
-      </div>
+        </label>
+      </header>
 
-      <div className="lg:hidden"><MemberPageHeader
-        title="Chat"
-        backTo={null}
-        subtitle={`${identity?.name ? `Signed in as ${identity.name}. ` : ''}Prayer gatherings, ministry rooms, messages and Live Ka Links — each in its own tab.`}
-      /></div>
-
+      <div className="kl-body lg:flex lg:flex-1 lg:flex-col">
       <ChatNavTabs
         active={activeTab}
         onChange={setActiveTab}
@@ -606,54 +650,60 @@ export const CommunityChatPage: React.FC = () => {
         liveCount={liveRows.length}
       />
 
-      <label className="chat-global-search relative block mb-5">
-        <span className="sr-only">Search messages</span>
-        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden />
-        <input
-          value={msgQ}
-          onChange={(e) => setMsgQ(e.target.value)}
-          placeholder="Search all messages…"
-          className="w-full min-h-[48px] rounded-2xl border border-gray-200 bg-white pl-10 pr-10 text-base focus:outline-none focus:ring-2 focus:ring-burgundy/30"
-        />
-        {msgQ ? (
+      <div className="kl-toolbar chat-sidebar-actions">
+        <h2 className="kl-section-title">{TAB_TITLES[activeTab]}</h2>
+        <div className="flex items-center gap-1">
+          {activeTab === 'ministries' && canCreateGroups ? (
+            <button type="button" onClick={() => setNewGroupOpen(true)} className="kl-ghost-btn" aria-label="New group">
+              <Users size={16} aria-hidden /> Group
+            </button>
+          ) : null}
+          {activeTab === 'messages' ? (
+            <button type="button" onClick={() => setNewChatOpen(true)} className="kl-primary-btn" aria-label="New chat">
+              <Plus size={16} aria-hidden /> New message
+            </button>
+          ) : null}
           <button
             type="button"
-            onClick={() => setMsgQ('')}
-            className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[40px] min-w-[40px] flex items-center justify-center text-gray-500"
-            aria-label="Clear search"
+            onClick={() => void load()}
+            className="kl-icon-btn"
+            aria-label="Refresh chats"
+            title="Refresh"
           >
-            <X size={16} />
+            <RefreshCcw size={17} aria-hidden />
           </button>
-        ) : null}
-      </label>
+        </div>
+      </div>
 
       {msgQ.trim().length >= 2 ? (
-        <section className="mb-8" aria-label="Search results">
-          <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2 px-1">Messages</h2>
+        <section className="mb-6" aria-label="Search results">
+          <h3 className="kl-eyebrow">Search results</h3>
           {msgHits === null || (msgSearching && !msgHits.length) ? (
-            <p className="text-sm text-gray-500 flex items-center gap-2 px-1">
+            <p className="kl-empty flex items-center gap-2">
               <Loader2 className="animate-spin" size={16} /> Searching…
             </p>
           ) : msgHits.length ? (
-            <ul className="rounded-2xl bg-white border border-gray-100 divide-y divide-gray-100">
+            <ul className="kl-list">
               {msgHits.map((h) => (
                 <li key={h.id}>
                   <Link
                     to={`/community/chat/${h.channelId}?m=${h.id}`}
                     state={{ channelName: h.channelName || undefined }}
-                    className="block px-4 py-3 hover:bg-gray-50 active:bg-gray-50"
+                    className="kl-row items-start"
                   >
-                    <span className="block text-xs font-bold text-burgundy">
-                      {h.channelName || 'Chat'} · {h.authorName}
-                      {h.createdAt ? ` · ${new Date(h.createdAt).toLocaleDateString()}` : ''}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-semibold text-[#8a6a22]">
+                        {h.channelName || 'Chat'} · {h.authorName}
+                        {h.createdAt ? ` · ${new Date(h.createdAt).toLocaleDateString()}` : ''}
+                      </span>
+                      <span className="mt-0.5 block text-sm text-[#14261c] line-clamp-2">{h.content}</span>
                     </span>
-                    <span className="block text-sm text-[#1A1A1A] line-clamp-2">{h.content}</span>
                   </Link>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-gray-500 px-1">No messages found.</p>
+            <p className="kl-empty">No messages found.</p>
           )}
         </section>
       ) : null}
@@ -670,31 +720,36 @@ export const CommunityChatPage: React.FC = () => {
       ) : null}
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-500 gap-2">
-          <Loader2 className="animate-spin" size={18} aria-hidden />
-          Loading channels…
-        </div>
+        <ul className="kl-list" aria-label="Loading chats" role="status">
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i} className="kl-row kl-skeleton" aria-hidden>
+              <span className="kl-tile" />
+              <span className="flex-1 space-y-2">
+                <span className="block h-3 w-2/5 rounded bg-[#e8e4da]" />
+                <span className="block h-2.5 w-3/5 rounded bg-[#efece4]" />
+              </span>
+            </li>
+          ))}
+          <li className="sr-only">Loading channels…</li>
+        </ul>
       ) : error ? (
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-4">
-          <p className="text-sm text-burgundy font-medium">{error}</p>
+        <div className="kl-card space-y-4">
+          <p className="text-sm text-[#9b2c2c] font-medium">{error}</p>
           <Button type="button" onClick={() => void load()}>
             Try again
           </Button>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {toast ? (
-            <p className="rounded-2xl bg-wine text-cream text-sm px-4 py-3" role="status">
+            <p className="kl-toast" role="status">
               {toast}
             </p>
           ) : null}
           {activeTab === 'prayer' ? (
-            <div role="tabpanel" id="chat-panel-prayer" aria-labelledby="chat-tab-prayer" className="space-y-3">
-              <div className="px-1">
-                <h2 className="text-lg font-bold text-[#1A1A1A]">Prayer Gathering</h2>
-                <p className="text-sm text-gray-500">Tap a gathering to open its room. A green Live mark means people are praying now.</p>
-              </div>
-              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-1">
+            <div role="tabpanel" id="chat-panel-prayer" aria-labelledby="chat-tab-prayer">
+              <p className="kl-hint">Tap a gathering to open its room. <span className="kl-live-word">Live</span> means people are praying now.</p>
+              <ul className="kl-list">
                 {PRAYER_GATHERINGS.map((g) => {
                   const room = gatherings[g.key];
                   const huddle = room ? huddleByChannel[room.id] : undefined;
@@ -703,21 +758,17 @@ export const CommunityChatPage: React.FC = () => {
                   const lockedIntercessors = g.key === 'intercessors' && !room && intercessors && !intercessors.allowed;
                   const body = (
                     <>
-                      <span
-                        className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center ${
-                          room ? 'bg-gradient-to-br from-burgundy to-wine text-gold' : 'bg-gray-100 text-gray-400'
-                        }`}
-                      >
+                      <span className={`kl-tile kl-tile-lg ${room ? 'kl-tile-gold' : 'kl-tile-muted'}`} aria-hidden>
                         {GATHERING_ICONS[g.key]}
                       </span>
                       <span className="min-w-0 flex-1 text-left">
                         <span className="flex items-center gap-2 min-w-0">
-                          <span className={`text-base font-bold truncate ${room ? 'text-[#1A1A1A]' : 'text-gray-500'}`}>{g.name}</span>
-                          {live ? <HuddleLiveBadge /> : null}
+                          <span className={`kl-row-title ${room ? '' : 'text-[#7d877f]'}`}>{g.name}</span>
                         </span>
-                        <span className="block text-xs text-gray-500 mt-0.5">
+                        <span className="kl-row-meta">
+                          {live ? <LiveMark /> : null}
                           {live && huddle?.participantCount
-                            ? `${huddle.participantCount} praying now · tap to join`
+                            ? `${huddle.participantCount} praying now`
                             : room
                               ? g.blurb
                               : lockedIntercessors
@@ -726,15 +777,15 @@ export const CommunityChatPage: React.FC = () => {
                         </span>
                       </span>
                       {unread > 0 ? (
-                        <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-burgundy text-white text-xs font-black leading-[22px] text-center">
+                        <span className="kl-count" aria-label={`${unread} unread`}>
                           {unread > 99 ? '99+' : unread}
                         </span>
                       ) : null}
-                      {lockedIntercessors ? <Lock size={16} className="text-gray-400 shrink-0" aria-hidden /> : null}
+                      {lockedIntercessors ? <Lock size={16} className="text-[#9aa39c] shrink-0" aria-hidden /> : null}
                       {room && live ? (
-                        <span className="shrink-0 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-wider px-3 py-2">
-                          Join
-                        </span>
+                        <span className="kl-join">Join</span>
+                      ) : room ? (
+                        <ChevronRight size={18} className="kl-chevron" aria-hidden />
                       ) : null}
                     </>
                   );
@@ -746,22 +797,12 @@ export const CommunityChatPage: React.FC = () => {
                           state={{ channelName: room.name }}
                           aria-current={activeChannelId === room.id ? 'page' : undefined}
                           data-prayer-gathering={g.key}
-                          className={`flex items-center gap-3 rounded-2xl border shadow-sm p-4 min-h-[76px] transition-colors ${
-                            activeChannelId === room.id
-                              ? 'bg-burgundy/5 border-burgundy/40'
-                              : live
-                                ? 'bg-emerald-50/60 border-emerald-200 hover:border-emerald-300'
-                                : 'bg-white border-gray-100 hover:border-burgundy/25'
-                          }`}
+                          className={`kl-row kl-row-tall ${activeChannelId === room.id ? 'kl-row-active' : ''} ${live ? 'kl-row-live' : ''}`}
                         >
                           {body}
                         </Link>
                       ) : (
-                        <div
-                          className="flex items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-white/60 p-4 min-h-[76px]"
-                          data-prayer-gathering={g.key}
-                          aria-disabled="true"
-                        >
+                        <div className="kl-row kl-row-tall kl-row-disabled" data-prayer-gathering={g.key} aria-disabled="true">
                           {body}
                         </div>
                       )}
@@ -773,16 +814,11 @@ export const CommunityChatPage: React.FC = () => {
           ) : null}
 
           {activeTab === 'ministries' ? (
-            <section role="tabpanel" id="chat-panel-ministries" aria-labelledby="chat-tab-ministries" className="chat-ministry-panel">
-              <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2 px-1">
-                Ministry channels
-              </h2>
+            <section role="tabpanel" id="chat-panel-ministries" aria-labelledby="chat-tab-ministries">
               {activeGroups.length === 0 ? (
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500">
-                  No ministry channels are available yet.
-                </div>
+                <div className="kl-card kl-empty">No ministry channels are available yet.</div>
               ) : (
-                <ul className="space-y-2">
+                <ul className="kl-list">
                   {activeGroups.map((channel) =>
                     renderChannelRow(
                       channel,
@@ -796,42 +832,28 @@ export const CommunityChatPage: React.FC = () => {
 
           {activeTab === 'messages' ? (
             <section role="tabpanel" id="chat-panel-messages" aria-labelledby="chat-tab-messages">
-              <div className="flex items-center justify-between gap-2 mb-2 px-1">
-                <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">Messages</h2>
-                <button
-                  type="button"
-                  onClick={() => setNewChatOpen(true)}
-                  className="inline-flex items-center gap-1 rounded-xl bg-burgundy text-white text-sm font-bold min-h-[44px] px-3"
-                >
-                  <Plus size={16} aria-hidden /> New message
-                </button>
-              </div>
               {activeDms.length === 0 ? (
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500">
-                  No private messages yet. Tap New message to write to a member.
+                <div className="kl-card kl-empty">
+                  No private messages yet. Tap <strong>New message</strong> to write to a member.
                 </div>
               ) : (
                 <>
                 {showSwipeTip ? (
-                  <div className="mb-2 flex items-center gap-3 rounded-2xl bg-burgundy/5 border border-burgundy/10 pl-4 pr-1 py-1">
-                    <span className="text-burgundy shrink-0 inline-flex" aria-hidden>
+                  <div className="kl-tip">
+                    <span className="text-[#8a6a22] shrink-0 inline-flex" aria-hidden>
                       <ChevronsLeft size={18} className="animate-pulse" />
                     </span>
-                    <p className="flex-1 text-xs text-gray-600 leading-snug">
+                    <p className="flex-1 text-xs text-[#4b5a50] leading-snug">
                       {touch
                         ? 'Tip: swipe a chat left to archive or delete it. Press and hold to block or report.'
                         : 'Tip: right-click a chat to archive, delete, block or report.'}
                     </p>
-                    <button
-                      type="button"
-                      onClick={hideSwipeTip}
-                      className="shrink-0 min-h-[40px] px-3 rounded-xl text-xs font-bold text-burgundy active:bg-burgundy/10"
-                    >
+                    <button type="button" onClick={hideSwipeTip} className="kl-tip-btn">
                       Got it
                     </button>
                   </div>
                 ) : null}
-                <ul className="space-y-2">
+                <ul className="kl-list">
                   {activeDms.map((dm) =>
                     renderChannelRow(
                       {
@@ -853,39 +875,35 @@ export const CommunityChatPage: React.FC = () => {
           ) : null}
 
           {activeTab === 'huddles' ? (
-            <section role="tabpanel" id="chat-panel-huddles" aria-labelledby="chat-tab-huddles" className="space-y-3">
-              <h2 className="text-xs font-black uppercase tracking-widest text-gray-500 px-1 flex items-center gap-2">
-                <Radio size={14} className="text-emerald-600" aria-hidden /> Live Ka Links now
-              </h2>
+            <section role="tabpanel" id="chat-panel-huddles" aria-labelledby="chat-tab-huddles">
               {liveRows.length === 0 ? (
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500 space-y-2">
-                  <p>No Live Ka Links right now.</p>
-                  <p>Live prayer and ministry rooms appear here.</p>
+                <div className="kl-card kl-empty-state">
+                  <span className="kl-tile kl-tile-lg kl-tile-muted mx-auto" aria-hidden><Radio size={22} /></span>
+                  <p className="mt-3 font-semibold text-[#14261c]">No Live Ka Links right now.</p>
+                  <p className="mt-1">Live prayer and ministry rooms appear here.</p>
                 </div>
               ) : (
-                <ul className="space-y-2">
+                <ul className="kl-list">
                   {liveRows.map((row) => (
                     <li key={row.id}>
                       <Link
                         to={huddleRoomPath(row.id, 'join')}
                         state={{ channelName: row.name }}
-                        className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 shadow-sm p-4 transition-colors min-h-[64px] hover:border-emerald-300"
+                        className="kl-row kl-row-tall kl-row-live"
                       >
-                        <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                          <Radio size={18} aria-hidden />
-                        </div>
-                        <div className="min-w-0 flex-1 text-left">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <p className="text-sm font-bold text-[#1A1A1A] truncate">{row.name}</p>
-                            <HuddleLiveBadge count={row.count} />
-                          </div>
-                          <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                            {row.count > 0 ? `${row.count} in Ka Link · Tap to join` : 'Tap to join'}
-                          </p>
-                        </div>
-                        <span className="shrink-0 rounded-xl bg-emerald-600 text-white text-xs font-black uppercase tracking-wider px-3 py-2">
-                          Join
+                        <span className="kl-tile kl-tile-lg kl-tile-live" aria-hidden>
+                          <Radio size={20} />
                         </span>
+                        <span className="min-w-0 flex-1 text-left">
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span className="kl-row-title">{row.name}</span>
+                          </span>
+                          <span className="kl-row-meta">
+                            <LiveMark />
+                            {row.count > 0 ? `${row.count} in Ka Link` : 'Open now'}
+                          </span>
+                        </span>
+                        <span className="kl-join">Join</span>
                       </Link>
                     </li>
                   ))}
@@ -899,7 +917,7 @@ export const CommunityChatPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowArchived((v) => !v)}
-                className="w-full min-h-[48px] flex items-center justify-between px-1 text-xs font-black uppercase tracking-widest text-gray-500"
+                className="kl-archived-toggle"
                 aria-expanded={showArchived}
               >
                 <span className="inline-flex items-center gap-2">
@@ -908,7 +926,7 @@ export const CommunityChatPage: React.FC = () => {
                 <ChevronDown size={16} className={showArchived ? 'rotate-180' : ''} aria-hidden />
               </button>
               {showArchived ? (
-                <ul className="space-y-2 opacity-80">
+                <ul className="kl-list opacity-80">
                   {activeTab === 'messages' && archivedDms.map((dm) =>
                     renderChannelRow(
                       { id: dm.channelId, name: dm.partnerName, description: null, visibility: 'dm', type: 'private', ministryId: null },
@@ -1187,20 +1205,17 @@ export const CommunityChatPage: React.FC = () => {
         </div>
       ) : null}
       {/* Bible on the home screen (members asked for it here, not only inside a Ka Link). */}
-      <Link
-        to="/bible"
-        className="mt-4 mb-4 flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#d9b45e]/60 bg-gradient-to-r from-[#0f3d2c] to-[#062a1d] px-4 py-3 text-[#f4ecdb] shadow-sm active:scale-[0.99] lg:mt-auto lg:min-h-[48px] lg:px-3 lg:py-2"
-        data-testid="home-bible-card"
-      >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d9b45e]/15 text-[#f1d58a]">
+      <Link to="/bible" className="kl-bible" data-testid="home-bible-card">
+        <span className="kl-bible-icon">
           <BookOpen size={20} aria-hidden />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-bold">Bible</span>
-          <span className="block text-xs text-[#f4ecdb]/75 lg:hidden">Read in English and Luganda · share a verse to any chat</span>
+          <span className="block text-[15px] font-semibold">Bible</span>
+          <span className="block text-xs text-[#f4ecdb]/75">English &amp; Luganda · share verses</span>
         </span>
         <ChevronRight size={18} className="shrink-0 text-[#f1d58a]" aria-hidden />
       </Link>
+      </div>
 
     </main>
   );

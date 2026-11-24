@@ -32,14 +32,10 @@ export const ChatNavTabs: React.FC<{
   const order = CHAT_HOME_TAB_ORDER;
 
   return (
-    <div
-      role="tablist"
-      aria-label="PLCC Ka Link sections"
-      className="mb-5 grid grid-cols-4 gap-1 rounded-2xl bg-white border border-gray-200 p-1 shadow-sm"
-      data-testid="jordan-home-tabs"
-    >
+    <div role="tablist" aria-label="PLCC Ka Link sections" className="kl-tabs" data-testid="jordan-home-tabs">
       {tabs.map((tab) => {
         const selected = active === tab.id;
+        const count = tab.count && tab.count > 0 ? tab.count : 0;
         return (
           <button
             key={tab.id}
@@ -64,27 +60,19 @@ export const ChatNavTabs: React.FC<{
                 document.getElementById(`chat-tab-${next}`)?.focus();
               }
             }}
-            className={`relative min-h-[56px] rounded-xl px-1 py-2 flex flex-col items-center justify-center gap-1 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-burgundy/40 ${
-              selected ? 'bg-burgundy text-white shadow-sm' : 'text-gray-600 hover:bg-burgundy/5 hover:text-burgundy'
-            }`}
+            className={`kl-tab ${selected ? 'kl-tab-on' : ''}`}
           >
-            <span className="relative inline-flex lg:hidden">
+            <span className="kl-tab-icon">
               {tab.icon}
-              {tab.live ? (
-                <span className="absolute -right-1.5 -top-1 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white animate-pulse" aria-hidden />
-              ) : null}
+              {tab.live ? <span className="kl-tab-live" aria-hidden /> : null}
             </span>
-            <span className="text-[12px] font-black leading-tight">{tab.label}{tab.live && <span aria-hidden className="ml-1 hidden h-2 w-2 rounded-full bg-emerald-400 lg:inline-block"/>}</span>
-            {tab.count && tab.count > 0 ? (
+            <span className="kl-tab-label">{tab.label}</span>
+            {count ? (
               <span
-                className={`absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black leading-[18px] text-center ${
-                  selected ? 'bg-gold text-burgundy' : tab.id === 'huddles' ? 'bg-emerald-600 text-white' : 'bg-burgundy text-white'
-                }`}
-                aria-label={
-                  tab.id === 'huddles' ? `${tab.count} live Ka Link${tab.count === 1 ? '' : 's'}` : `${tab.count} unread`
-                }
+                className={`kl-tab-count ${tab.id === 'huddles' ? 'kl-tab-count-live' : ''}`}
+                aria-label={tab.id === 'huddles' ? `${count} live Ka Link${count === 1 ? '' : 's'}` : `${count} unread`}
               >
-                {tab.count > 99 ? '99+' : tab.count}
+                {count > 99 ? '99+' : count}
               </span>
             ) : null}
           </button>

@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2, MessageCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const CommunityChatPage = lazy(() =>
   import('./CommunityChat').then((m) => ({ default: m.CommunityChatPage }))
@@ -51,7 +51,7 @@ export const ChatHome: React.FC = () => {
 
   return (
     <div className="h-[100dvh] min-w-0 overflow-hidden grid grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
-      <aside className="chat-workspace-sidebar h-[100dvh] min-w-0 overflow-y-auto border-r border-[#345343] bg-[#082d1d] flex flex-col" aria-label="Chats">
+      <aside className="kl-sidebar chat-workspace-sidebar h-[100dvh] min-w-0 overflow-y-auto flex flex-col" aria-label="Chats">
         <div className="flex-1">
           <Suspense fallback={<Pending label="Loading chats…" />}>
             <CommunityChatPage />
@@ -64,11 +64,11 @@ export const ChatHome: React.FC = () => {
             <CommunityChatRoomPage key={channelId} />
           </Suspense>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-10 text-gray-500">
-            <MessageCircle size={48} className="text-burgundy/40 mb-4" aria-hidden />
-            <p className="text-lg font-bold text-[#1A1A1A]">PLCC Ka Link</p>
-            <p className="text-sm mt-1 max-w-sm">
-              Pick a room or a person on the left to start chatting. Live Ka Links open right here.
+          <div className="kl-empty-pane flex-1 flex flex-col items-center justify-center text-center px-10">
+            <img src="/ka-link-gold-logo.png" alt="" width={168} height={56} className="kl-empty-logo" draggable={false} />
+            <p className="mt-6 text-xl font-semibold text-[#14261c]">Welcome to PLCC Ka Link</p>
+            <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#5f6f64]">
+              Choose a prayer gathering, ministry channel or person on the left. Live Ka Links open right here.
             </p>
           </div>
         )}
