@@ -40,8 +40,10 @@ describe('Ka Link navigation bar', () => {
     assert.match(nav, /if \(isCallActive\(\)\) \{\s*e\.preventDefault\(\);\s*window\.open\(a\.href, '_blank', 'noopener'\);/);
   });
 
-  it('full-screen pages leave room for the bar', () => {
-    assert.match(read('prayer-room.css'), /body\.has-app-nav \.pr-bible-sheet-body/);
+  it('the prayer room Bible scrolls inside its panel and respects the phone safe area', () => {
+    const css = read('prayer-room.css');
+    assert.match(css, /\.pr-content\.is-reading > \.pr-side \{[^}]*padding-bottom: max\(0\.6rem, env\(safe-area-inset-bottom\)\)/);
+    assert.match(css, /\.pr-bible \{[^}]*overflow-y: auto/);
   });
 });
 
