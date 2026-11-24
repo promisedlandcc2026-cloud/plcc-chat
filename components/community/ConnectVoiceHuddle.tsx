@@ -437,6 +437,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 }) => {
   const shellClass = embedded ? 'relative h-full w-full z-0 overflow-hidden rounded-3xl' : 'fixed inset-0 z-[400]';
   const [conn, setConn] = useState<ConnState>('prejoin');
+  const [showReconnectRetry, setShowReconnectRetry] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Set when this huddle is on the backup line (Daily) — renders DailyBackupHuddle. */
   const [dailyCreds, setDailyCreds] = useState<DailyCredentials | null>(null);
@@ -475,6 +476,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const hostMuteNoticeRef = useRef<string | null>(null);
   hostMuteNoticeRef.current = hostMuteNotice;
   const [micEnabled, setMicEnabled] = useState(false);
+  const [micBusy, setMicBusy] = useState(false);
+  const micOperation = useRef<Room | null>(null);
   const [camEnabled, setCamEnabled] = useState(false);
   /** Phase 5 Data Saver: skip downloading other people's camera video (on by default). */
   const [dataSaver, setDataSaverState] = useState<boolean>(() => readDataSaver());
@@ -836,7 +839,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     await stopHuddleMusic();
     const room = roomRef.current;
     roomRef.current = null;
+    micOperation.current = null;
+    selfMuteIntentRef.current = false;
     if (mountedRef.current) {
+      setMicBusy(false);
       setMusicActive(false);
       setMusicError(null);
     }
@@ -1414,7 +1420,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         .on(RoomEvent.Reconnected, () => {
           if (roomRef.current !== room) return;
-          if (!mountedRef.current) return;
+          if (!mountedRef.current || retiredRoomsRef.current.has(room)) return;
+          const micOn = room.localParticipant.isMicrophoneEnabled;
+          setMicEnabled(micOn);
+          micEnabledRef.current = micOn;
           setConn('connected');
           logActivity('huddle_reconnected', {
             outageSec: wobbleAtRef.current ? Math.round((Date.now() - wobbleAtRef.current) / 1000) : undefined,
@@ -1432,6 +1441,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           if (connectingRef.current) return;
           clearRemoteAudio();
           roomRef.current = null;
+          micOperation.current = null;
+          selfMuteIntentRef.current = false;
+          setMicBusy(false);
           setTiles([]);
           if (leaveIntentionalRef.current) {
             setRoster([]);
@@ -1622,6 +1634,27 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   useEffect(() => {
     joinRef.current = () => join({ reconnect: true });
   }, [join]);
+
+  useEffect(() => {
+    if (conn !== 'reconnecting') {
+      setShowReconnectRetry(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setShowReconnectRetry(true), 10_000);
+    return () => window.clearTimeout(timer);
+  }, [conn]);
+
+  const retryConnection = useCallback(async () => {
+    const room = roomRef.current;
+    if (joinInFlightRef.current || !room || retiredRoomsRef.current.has(room) || room.state === ConnectionState.Connected) return;
+    setShowReconnectRetry(false);
+    retiredRoomsRef.current.add(room);
+    lostConnectionRef.current = false;
+    await disconnectRoom();
+    if (!mountedRef.current || leaveIntentionalRef.current) return;
+    reconnectAttemptsRef.current = 0;
+    await joinRef.current();
+  }, [disconnectRoom]);
 
   // Phones drop the call when the screen sleeps or the member switches tabs.
   // When they come back, rejoin on their own instead of leaving them kicked out.
@@ -1976,19 +2009,39 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const toggleMic = useCallback(async () => {
     const room = roomRef.current;
     if (!room) {
-      setMicEnabled((v) => !v);
+      if (conn === 'prejoin' || conn === 'error') setMicEnabled((enabled) => !enabled);
       return;
     }
-    const next = !micEnabled;
+    if (room.state !== ConnectionState.Connected || connectingRef.current) {
+      setNotice('Ka Link is reconnecting. Tap Unmute once you’re back in the room.');
+      return;
+    }
+    if (micOperation.current === room) return;
+
+    const next = !room.localParticipant.isMicrophoneEnabled;
+    if (next && listenOnly) {
+      setNotice('Turn off Listen Only before you unmute.');
+      return;
+    }
     if (next && !huddleMicrophonePublishAllowed(room.localParticipant.permissions)) {
       setMicEnabled(false);
       micEnabledRef.current = false;
       setHostMuteNotice(stageRef.current.micLock ? HUDDLE_MIC_LOCKED_NOTICE : HUDDLE_HOST_MUTE_NOTICE);
       return;
     }
+    micOperation.current = room;
+    setMicBusy(true);
+    const started = Date.now();
+    const slowTimer = next ? window.setTimeout(() => {
+      if (roomRef.current !== room || micOperation.current !== room) return;
+      setNotice('Still turning on your microphone. If Chrome is asking for access, allow it to continue.');
+      reportIssue({ area: 'huddle', code: 'huddle_mic_enable_slow', channelId, extra: { durationSec: 5 } });
+    }, 5_000) : undefined;
     selfMuteIntentRef.current = true;
     try {
       await room.localParticipant.setMicrophoneEnabled(next);
+      if (roomRef.current !== room) return;
+      if (next && !room.localParticipant.isMicrophoneEnabled) throw new Error('Microphone did not publish');
       setMicEnabled(next);
       micEnabledRef.current = next;
       if (next) {
@@ -1998,6 +2051,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       }
       refreshTiles(room);
     } catch (micError) {
+      if (roomRef.current !== room) return;
       if (next) {
         setMicEnabled(false);
         micEnabledRef.current = false;
@@ -2006,15 +2060,23 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         } else {
           const failure = huddleMicrophoneFailure(micError);
           setHostMuteNotice(failure.message);
-          reportIssue({ area: 'huddle', code: 'huddle_mic_enable_failed', channelId, extra: { reason: failure.reason } });
+          reportIssue({ area: 'huddle', code: 'huddle_mic_enable_failed', channelId, extra: { reason: failure.reason, durationSec: Math.round((Date.now() - started) / 1000) } });
         }
       } else {
         setError('Could not change microphone.');
       }
     } finally {
-      selfMuteIntentRef.current = false;
+      window.clearTimeout(slowTimer);
+      if (micOperation.current === room) {
+        micOperation.current = null;
+        selfMuteIntentRef.current = false;
+        if (mountedRef.current) setMicBusy(false);
+      }
+      if (mountedRef.current && roomRef.current === room) {
+        setNotice((current) => current?.startsWith('Still turning on your microphone.') ? null : current);
+      }
     }
-  }, [channelId, micEnabled, refreshTiles]);
+  }, [channelId, conn, listenOnly, refreshTiles]);
   toggleMicRef.current = () => void toggleMic();
 
   useEffect(() => {
@@ -2161,6 +2223,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 
   /** Listen only: turn my mic (and camera) off and keep them off until I switch it back. */
   const toggleListenOnly = useCallback(async () => {
+    if (micOperation.current) return;
     if (listenOnly) {
       setListenOnly(false);
       return;
@@ -2563,7 +2626,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         </Suspense>
       </LazyChunkErrorBoundary>
     );
-    const micTileLabel = listenOnly ? 'Unmute' : micEnabled ? 'Mute' : 'Unmute';
+    const micTileLabel = micBusy ? (micEnabled ? 'Muting…' : 'Turning mic on…') : micEnabled && !listenOnly ? 'Mute' : 'Unmute';
 
     const callControls = (
       <div className="pr-controls">
@@ -2580,16 +2643,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         )}
         <button
           type="button"
-          onClick={() => (listenOnly ? undefined : void toggleMic())}
+          onClick={() => (listenOnly || micBusy ? undefined : void toggleMic())}
           aria-pressed={micEnabled}
-          aria-disabled={listenOnly || undefined}
+          aria-disabled={listenOnly || micBusy || undefined}
           title={listenOnly ? 'Listen only is on' : undefined}
           className={`pr-ctl ${micEnabled && !listenOnly ? 'is-live' : ''} ${listenOnly ? 'is-disabled' : ''}`}
         >
           {micEnabled && !listenOnly ? <Mic aria-hidden /> : <MicOff aria-hidden />}
           <span>{micTileLabel}</span>
         </button>
-        <button type="button" onClick={() => void toggleListenOnly()} aria-pressed={listenOnly} className={`pr-ctl ${listenOnly ? 'is-on' : ''}`}>
+        <button type="button" onClick={() => void toggleListenOnly()} disabled={micBusy} aria-pressed={listenOnly} className={`pr-ctl ${listenOnly ? 'is-on' : ''}`}>
           <Volume2 aria-hidden />
           <span>Listen Only</span>
         </button>
@@ -2842,6 +2905,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   <p className="pr-hint">
                     {conn === 'reconnecting' ? 'Reconnecting…' : mode === 'start' ? 'Starting Ka Link…' : 'Joining Ka Link…'}
                   </p>
+                  {conn === 'reconnecting' && showReconnectRetry && roomRef.current && !joinInFlightRef.current ? (
+                    <button type="button" className="pr-tool" onClick={() => void retryConnection()}>Retry connection</button>
+                  ) : null}
                 </div>
               ) : roomFull ? (
                 <div className="pr-full" role="status" aria-live="polite">
@@ -2906,7 +2972,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                         </span>
                         <button
                           type="button"
-                          onClick={() => (listenOnly ? undefined : void toggleMic())}
+                          onClick={() => (listenOnly || micBusy ? undefined : void toggleMic())}
                           className={`pr-orb ${orbState === 'open' ? 'is-open' : ''} ${orbState === 'speaking' ? 'is-open is-speaking' : ''} ${listenOnly ? 'is-locked' : ''}`}
                           aria-label={listenOnly ? 'Listening only' : micEnabled ? 'Mute microphone' : 'Unmute microphone'}
                           aria-pressed={micEnabled}
@@ -3630,6 +3696,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   ? 'Starting Ka Link…'
                   : 'Joining Ka Link…'}
             </p>
+            {conn === 'reconnecting' && showReconnectRetry && roomRef.current && !joinInFlightRef.current ? (
+              <button type="button" className="pr-tool" onClick={() => void retryConnection()}>Retry connection</button>
+            ) : null}
           </div>
         ) : null}
 
