@@ -3,20 +3,17 @@ const env = (import.meta as { env?: Record<string, string | undefined> }).env ??
 
 export const SANCTUM_ORIGIN = String(env.VITE_SANCTUM_ORIGIN || 'https://plcc-sanctum.onrender.com').replace(/\/+$/, '');
 
-export interface SanctumOverflow {
-  available: boolean;
-  roomName?: string;
-  joinUrl?: string;
-  /** The overflow room is relaying this PLCC Ka Link room's live audio. */
-  hearsJordan?: boolean;
-}
+const OVERFLOW_ORIGIN = env.VITE_PLCC_OVERFLOW_ORIGIN || 'https://plcc-overflow.vercel.app';
+export const OVERFLOW_DASHBOARD_URL = new URL('/dashboard', SANCTUM_ORIGIN).href;
+
+export type SanctumOverflow = { available: false } | { available: true; joinUrl: string };
 
 /** Only follow links back to PLCC Sanctum itself. */
 function safeJoinUrl(url: unknown): string | undefined {
   if (typeof url !== 'string') return undefined;
   try {
     const parsed = new URL(url);
-    return parsed.origin === new URL(SANCTUM_ORIGIN).origin && parsed.pathname.startsWith('/join/') ? parsed.toString() : undefined;
+    return parsed.origin === new URL(SANCTUM_ORIGIN).origin && /^\/join\/[^/]+$/.test(parsed.pathname) ? parsed.toString() : undefined;
   } catch {
     return undefined;
   }
@@ -29,14 +26,12 @@ export async function findSanctumOverflow(jordanChannelId: string): Promise<Sanc
     });
     if (!res.ok) return { available: false };
     const body = (await res.json()) as Record<string, unknown>;
-    const joinUrl = safeJoinUrl(body.joinUrl);
-    if (body.available !== true || !joinUrl) return { available: false };
-    return {
-      available: true,
-      joinUrl,
-      roomName: typeof body.roomName === 'string' ? body.roomName.slice(0, 120) : 'Overflow prayer room',
-      hearsJordan: body.hearsJordan === true,
-    };
+    if (body.available !== true || body.hearsJordan !== true || !safeJoinUrl(body.joinUrl)) {
+      return { available: false };
+    }
+    const entrance = new URL('/', OVERFLOW_ORIGIN);
+    entrance.searchParams.set('channel', jordanChannelId);
+    return { available: true, joinUrl: entrance.href };
   } catch {
     return { available: false };
   }
@@ -46,11 +41,4 @@ export async function findSanctumOverflow(jordanChannelId: string): Promise<Sanc
 export function isRoomFullError(err: unknown): boolean {
   const msg = String((err as { message?: unknown })?.message || err || '').toLowerCase();
   return /max(imum)? participants|room is full|room full|exceeded its max/.test(msg);
-}
-
-/** Open the overflow in a new tab so PLCC Ka Link stays open; same tab if the browser blocks it. */
-export function openSanctumOverflow(joinUrl: string) {
-  const tab = window.open(joinUrl, '_blank');
-  if (tab) tab.opener = null;
-  else window.location.assign(joinUrl);
 }
