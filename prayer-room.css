@@ -433,7 +433,20 @@
 .pr-ready-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 @media (max-width: 480px) { .pr-ready-btn { width: 100%; } }
 .pr-ready-btn:disabled { opacity: 0.7; }
-.pr-ready-alert { display: flex; align-items: center; gap: 0.6rem; margin: 0.4rem 0; padding: 0.7rem 0.9rem; border-radius: 1rem; background: linear-gradient(180deg, #1f8a4c, #11633a); color: #fff; font-size: 0.9rem; animation: pr-drop .25s ease-out; }
+.pr-ready-alert {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin: 0.4rem 0; padding: 0.7rem 0.9rem; border-radius: 1rem;
+  background: linear-gradient(180deg, #aa252e, #79151f);
+  color: #fff; font-size: 0.9rem;
+  animation: pr-drop .25s ease-out, pr-ready-pulse 1.5s ease-in-out .25s 3;
+}
+@keyframes pr-ready-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(255 105 109 / 0%); }
+  50% { box-shadow: 0 0 0 3px rgb(255 105 109 / 72%), 0 0 16px rgb(255 80 87 / 32%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pr-ready-alert { animation: none; }
+}
 .pr-ready-ok { min-height: 36px; padding: 0 0.9rem; border-radius: 9999px; background: rgba(255,255,255,.18); font-weight: 800; font-size: 0.8rem; }
 
 /* Ka Link Phase 4 (#9): on phones, a clean row of faces under the room title (no scrolling). */
