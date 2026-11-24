@@ -172,6 +172,7 @@ import {
 } from '../../lib/huddleChat';
 import {
   HUDDLE_HOST_MUTE_NOTICE,
+  huddleMicrophoneFailure,
   huddleMicrophonePublishAllowed,
   mergeHandMetadata,
   nextHandNo,
@@ -1995,18 +1996,24 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         sendAwayRef.current(null);
       }
       refreshTiles(room);
-    } catch {
+    } catch (micError) {
       if (next) {
         setMicEnabled(false);
         micEnabledRef.current = false;
-        setHostMuteNotice(HUDDLE_HOST_MUTE_NOTICE);
+        if (!huddleMicrophonePublishAllowed(room.localParticipant.permissions)) {
+          setHostMuteNotice(stageRef.current.micLock ? HUDDLE_MIC_LOCKED_NOTICE : HUDDLE_HOST_MUTE_NOTICE);
+        } else {
+          const failure = huddleMicrophoneFailure(micError);
+          setHostMuteNotice(failure.message);
+          reportIssue({ area: 'huddle', code: 'huddle_mic_enable_failed', channelId, extra: { reason: failure.reason } });
+        }
       } else {
         setError('Could not change microphone.');
       }
     } finally {
       selfMuteIntentRef.current = false;
     }
-  }, [micEnabled, refreshTiles]);
+  }, [channelId, micEnabled, refreshTiles]);
   toggleMicRef.current = () => void toggleMic();
 
   useEffect(() => {

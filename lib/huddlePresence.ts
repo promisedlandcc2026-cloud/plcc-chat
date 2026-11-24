@@ -3,6 +3,27 @@
 /** Shown when Vault (or a huddle host) server-mutes this member. */
 export const HUDDLE_HOST_MUTE_NOTICE = 'A Ka Link host muted your microphone.';
 
+/** Classify only recognized device failures. Never copy raw browser errors into issue reports. */
+export function huddleMicrophoneFailure(error: unknown) {
+  const name = error instanceof Error ? error.name : '';
+  switch (name) {
+    case 'NotAllowedError':
+    case 'PermissionDeniedError':
+    case 'SecurityError':
+      return { reason: 'permission_denied', message: 'Microphone access is blocked. Allow microphone access for Ka Link in your browser and phone settings, then try Unmute again.' };
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return { reason: 'device_not_found', message: 'No microphone was found. Check that your microphone is connected, then try Unmute again.' };
+    case 'NotReadableError':
+    case 'TrackStartError':
+    case 'AbortError':
+      return { reason: 'device_unavailable', message: 'Ka Link could not start your microphone. End any other call using it, then try Unmute again.' };
+    default:
+      return { reason: 'unknown', message: 'Ka Link could not turn on your microphone. Try Unmute again, or leave and rejoin the room.' };
+  }
+}
+
+
 /**
  * LiveKit canPublishSources empty/missing = all sources allowed.
  * After a host mute, Vault removes MICROPHONE from the list.
