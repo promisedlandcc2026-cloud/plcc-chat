@@ -9,7 +9,8 @@ const env = (import.meta as { env?: Record<string, string | undefined> }).env ??
 
 export const SANCTUM_ORIGIN = String(env.VITE_SANCTUM_ORIGIN || 'https://plcc-sanctum.onrender.com').replace(/\/+$/, '');
 
-export const OVERFLOW_DASHBOARD_URL = new URL('/dashboard', SANCTUM_ORIGIN).href;
+/** Moderators: the Moderator Control Room (Ka Link look), where they open the overflow. */
+export const OVERFLOW_DASHBOARD_URL = new URL('/dashboard/prayer-rooms', SANCTUM_ORIGIN).href;
 
 export type SanctumOverflow = { available: false } | { available: true; joinUrl: string };
 
