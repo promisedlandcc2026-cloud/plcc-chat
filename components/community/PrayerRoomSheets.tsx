@@ -155,7 +155,7 @@ export function GuidelinesSheet({ onClose, overflow = false }: { onClose: () => 
     'Never share private details about other people.',
     overflow
       ? 'This overflow room opens when the main PLCC Ka Link room is full.'
-      : 'When this room is full, PLCC Sanctum opens an overflow room.',
+      : 'When this room is full, new members are taken to its overflow room.',
     'Moderators may mute or remove anyone to keep the room safe.',
   ];
   return (

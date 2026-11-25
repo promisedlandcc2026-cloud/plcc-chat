@@ -112,7 +112,8 @@ import { AskUnmuteCard, ConductNoticeModal, ConductSheet } from '../conduct/Cond
 import { HUDDLE_CONDUCT_TOPIC, isConductTargetId, parseConductNotice, type ConductNotice, type ConductTarget } from '../../lib/memberConduct';
 import { VAULT_URL } from '../../lib/appLinks';
 import { GuidelinesSheet, PrayerRequestSheet } from './PrayerRoomSheets';
-import { findSanctumOverflow, isRoomFullError, OVERFLOW_DASHBOARD_URL, type SanctumOverflow } from '../../lib/sanctumOverflow';
+import { findSanctumOverflow, isRoomFullError, OVERFLOW_DASHBOARD_URL, overflowMoveHref, type SanctumOverflow } from '../../lib/sanctumOverflow';
+import { useAuth } from '../../context/AuthContext';
 import {
   claimHuddleLine,
   fetchDailyCredentials,
@@ -436,6 +437,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   onMinimizedChange,
 }) => {
   const shellClass = embedded ? 'relative h-full w-full z-0 overflow-hidden rounded-3xl' : 'fixed inset-0 z-[400]';
+  const { identity: me } = useAuth();
   const [conn, setConn] = useState<ConnState>('prejoin');
   const [showReconnectRetry, setShowReconnectRetry] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2237,16 +2239,27 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     setListenOnly(true);
   }, [listenOnly, micEnabled, camEnabled, toggleMic, toggleCam]);
 
-  // While the room is full and no overflow is open yet, look again every 15 seconds.
+  // While the room is full and no overflow is open yet, look again every 10 seconds.
   useEffect(() => {
     if (!roomFull || roomFull.checking || roomFull.overflow?.available) return;
     const timer = window.setInterval(() => {
       void findSanctumOverflow(channelId).then((overflow) => {
         if (mountedRef.current && overflow.available) setRoomFull({ checking: false, overflow });
       });
-    }, 15_000);
+    }, 10_000);
     return () => window.clearInterval(timer);
   }, [roomFull, channelId]);
+
+  // Nov 25 2026: once the overflow room is open, take the member straight in (same tab,
+  // their name carried over). They only ever see "PLCC Ka Link · Overflow".
+  const overflowHref = roomFull?.overflow?.available ? overflowMoveHref(roomFull.overflow.joinUrl, me?.name) : null;
+  useEffect(() => {
+    if (!overflowHref) return;
+    const timer = window.setTimeout(() => {
+      if (mountedRef.current) window.location.assign(overflowHref);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [overflowHref]);
 
   const toggleHand = useCallback(async () => {
     const room = roomRef.current;
@@ -2916,22 +2929,33 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
               ) : roomFull ? (
                 <div className="pr-full" role="status" aria-live="polite">
                   <span className="pr-full-icon"><Users className="h-8 w-8" aria-hidden /></span>
-                  <p className="pr-full-title">This prayer room is full</p>
+                  <p className="pr-full-title">
+                    {overflowHref ? 'Taking you to the overflow room…' : 'This prayer room is full'}
+                  </p>
                   <p className="pr-full-text">
-                    All 50 seats in <strong>{title}</strong> are taken right now.
+                    {overflowHref ? (
+                      <>
+                        <strong>{title}</strong> is full, so you&apos;ll join its overflow room. You&apos;ll hear the same prayer.
+                      </>
+                    ) : (
+                      <>
+                        Every seat in <strong>{title}</strong> is taken right now.
+                      </>
+                    )}
                   </p>
                   {roomFull.checking ? (
                     <p className="pr-full-text inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Looking for the overflow room…
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Finding the overflow room…
                     </p>
-                  ) : roomFull.overflow?.available ? (
-                    <a href={roomFull.overflow.joinUrl} target="_blank" rel="noopener noreferrer" className="pr-full-go">
-                      <Headphones className="h-6 w-6" aria-hidden />
-                      Join Overflow
+                  ) : overflowHref ? (
+                    <a href={overflowHref} className="pr-full-go" data-testid="overflow-go">
+                      <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
+                      Joining overflow…
                     </a>
                   ) : (
-                    <p className="pr-full-text">
-                      The overflow room isn&apos;t open yet. We&apos;ll show it here as soon as a moderator opens it — or try again in a moment.
+                    <p className="pr-full-text inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      Waiting for the overflow room to open. Stay here and we&apos;ll take you in automatically.
                     </p>
                   )}
                   <div className="flex flex-wrap justify-center gap-2.5">
@@ -3447,7 +3471,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   <p className="pr-card-text">
                     {prayerWatch
                       ? 'A voice prayer call for the Intercessors.'
-                      : 'The main prayer room for our worldwide family. When it fills up, PLCC Sanctum opens an overflow room.'}
+                      : 'The main prayer room for our worldwide family. When it fills up, new members are taken to its overflow room.'}
                   </p>
                   <ul className="pr-rules">
                     <li><Headphones size={18} aria-hidden />{audioOnly || prayerWatch ? 'Audio only (no video)' : 'Audio first (camera optional)'}</li>
