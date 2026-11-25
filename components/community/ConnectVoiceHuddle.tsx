@@ -425,6 +425,11 @@ function ScreenShareStage({ participant, sharer }: { participant: Participant; s
   );
 }
 
+/** Member seats per Ka Link room (keep in step with VOICE_ROOM_MEMBER_SEATS on the server). */
+const ROOM_MEMBER_SEATS = 50;
+/** Moderators get the "open the overflow" warning from this many people. */
+const ROOM_FULL_WARN_AT = 40;
+
 export const ConnectVoiceHuddle: React.FC<Props> = ({
   channelId,
   channelName,
@@ -2821,11 +2826,29 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   <span className="pr-live"><i aria-hidden /> LIVE</span>
                 ) : null}
                 {connected ? (
-                  <span className="pr-count" aria-label={`${peopleCount} in the room`}>
+                  <span
+                    className={`pr-count ${canModerate && !prayerWatch && peopleCount >= ROOM_FULL_WARN_AT ? 'is-filling' : ''}`}
+                    aria-label={canModerate && !prayerWatch ? `${peopleCount} of ${ROOM_MEMBER_SEATS} seats taken` : `${peopleCount} in the room`}
+                  >
                     <Users aria-hidden /> {peopleCount}
+                    {canModerate && !prayerWatch ? <span className="pr-count-cap">/{ROOM_MEMBER_SEATS}</span> : null}
                   </span>
                 ) : null}
               </div>
+              {connected && canModerate && !prayerWatch && peopleCount >= ROOM_FULL_WARN_AT ? (
+                <section className={`pr-fill-bar ${peopleCount >= ROOM_MEMBER_SEATS ? 'is-full' : ''}`} role="status" aria-live="polite" data-testid="room-filling">
+                  <p>
+                    {peopleCount >= ROOM_MEMBER_SEATS ? (
+                      <><strong>The room is full ({peopleCount} of {ROOM_MEMBER_SEATS}).</strong> New members are waiting for the overflow. Open it now.</>
+                    ) : (
+                      <><strong>The room is almost full ({peopleCount} of {ROOM_MEMBER_SEATS}).</strong> Open the overflow now so nobody waits.</>
+                    )}
+                  </p>
+                  <a href={OVERFLOW_DASHBOARD_URL} target="_blank" rel="noopener noreferrer" className="pr-fill-btn">
+                    <Headphones size={16} aria-hidden /> Open overflow
+                  </a>
+                </section>
+              ) : null}
               {connected && localTile?.team === 'leader' ? (
                 <section className="pr-ready-bar" aria-label="Moderator handoff">
                   <p>Let the moderators know you’re ready to begin.</p>

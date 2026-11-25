@@ -513,3 +513,19 @@
 .pr-rail-status.is-away { color: #c6d7ff; }
 .pr-datasaver { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 0.6rem; border-radius: 0.9rem; padding: 0.5rem 0.6rem 0.5rem 0.85rem; font-size: 0.82rem; line-height: 1.35; background: var(--pr-soft); color: var(--pr-text); }
 .pr-datasaver button { flex-shrink: 0; min-height: 36px; padding: 0 0.8rem; border-radius: 9999px; font-weight: 800; font-size: 0.8rem; background: linear-gradient(180deg, var(--pr-gold-light, #f1d58f), var(--pr-gold, #d9b45e)); color: #1d2414; }
+
+/* Moderators: seats used out of 50, and the "open the overflow" warning (Nov 25 2026) */
+.pr-count-cap { opacity: .6; font-weight: 700; }
+.pr-count.is-filling { color: var(--pr-gold-light, #f1d58f); }
+.pr-fill-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 0.5rem 1rem; flex-shrink: 0; padding: 0.6rem 0.7rem; border-radius: 1rem;
+  background: rgba(217, 180, 94, 0.14); border: 1px solid var(--pr-gold, #d9b45e);
+}
+.pr-fill-bar p { margin: 0; flex: 1 1 14rem; color: #f5ebd5; font-size: 0.875rem; line-height: 1.4; }
+.pr-fill-bar.is-full { background: rgba(179, 38, 30, 0.22); border-color: #e0574e; }
+.pr-fill-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem; min-height: 40px; padding: 0 0.95rem; border-radius: 9999px;
+  background: linear-gradient(180deg, var(--pr-gold-light, #f1d58f), var(--pr-gold, #d9b45e)); color: #1d2414;
+  font-size: 0.82rem; font-weight: 900; text-decoration: none;
+}
