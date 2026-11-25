@@ -179,6 +179,33 @@ export const ConductNoticeModal: React.FC<{ kind: 'warn' | 'block'; reason?: str
 );
 
 /** A moderator asked me to unmute (LiveKit never switches on someone's mic for them). */
+/** Nov 25 2026: the host's friendly "please mute your mic" reminder. Nothing is forced. */
+export const AskMuteCard: React.FC<{ by?: string | null; onMute: () => void; onClose: () => void }> = ({ by, onMute, onClose }) => (
+  <div
+    className="fixed left-1/2 -translate-x-1/2 bottom-[max(6rem,calc(env(safe-area-inset-bottom)+6rem))] z-[700] w-[calc(100%-1.5rem)] max-w-[420px] rounded-2xl bg-[#12231c] text-white shadow-2xl border border-[#C9A35A]/50 p-4"
+    role="alertdialog"
+    aria-label="Please mute your mic"
+    data-testid="ask-mute"
+  >
+    <p className="font-bold">Please mute your mic</p>
+    <p className="mt-1 text-sm text-white/75">
+      {by ? `${by} asked everyone with an open mic to mute.` : 'The moderator asked everyone with an open mic to mute.'} You can unmute again when it&apos;s your turn to speak.
+    </p>
+    <div className="mt-3 flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onMute}
+        className="min-h-[44px] px-5 rounded-full bg-[#C9A35A] text-[#12231c] font-black active:opacity-80"
+      >
+        Mute my mic
+      </button>
+      <button type="button" onClick={onClose} className="min-h-[44px] px-4 rounded-full text-white/75 font-bold active:bg-white/10">
+        Not now
+      </button>
+    </div>
+  </div>
+);
+
 export const AskUnmuteCard: React.FC<{ onUnmute: () => void; onClose: () => void }> = ({ onUnmute, onClose }) => (
   <div
     className="fixed left-1/2 -translate-x-1/2 bottom-[max(6rem,calc(env(safe-area-inset-bottom)+6rem))] z-[700] w-[calc(100%-1.5rem)] max-w-[420px] rounded-2xl bg-[#12231c] text-white shadow-2xl border border-white/10 p-4"

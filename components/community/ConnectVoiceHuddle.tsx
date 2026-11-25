@@ -98,7 +98,7 @@ import {
 } from '../../lib/communityChatClient';
 import { DEFAULT_SONG_ID, HuddleMusicSheet } from '../huddle/HuddleMusicSheet';
 import { HuddleRecordingsSheet } from '../huddle/HuddleRecordingsSheet';
-import {
+import { parseHuddleHostId,
   EMPTY_HUDDLE_STAGE,
   HUDDLE_MIC_ALLOWED_NOTICE,
   HUDDLE_MIC_LOCKED_NOTICE,
@@ -108,7 +108,7 @@ import {
   type HuddleStageView,
 } from '../../lib/huddleStage';
 import { ModeratorRoomBar, PersonActionsSheet } from '../huddle/HuddleModeratorTools';
-import { AskUnmuteCard, ConductNoticeModal, ConductSheet } from '../conduct/ConductSheet';
+import { AskMuteCard, AskUnmuteCard, ConductNoticeModal, ConductSheet } from '../conduct/ConductSheet';
 import { HUDDLE_CONDUCT_TOPIC, isConductTargetId, parseConductNotice, type ConductNotice, type ConductTarget } from '../../lib/memberConduct';
 import { VAULT_URL } from '../../lib/appLinks';
 import { GuidelinesSheet, PrayerRequestSheet } from './PrayerRoomSheets';
@@ -461,6 +461,11 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const [conductNotice, setConductNotice] = useState<ConductNotice | null>(null);
   /** A moderator tapped "Unmute their mic": I choose to unmute (Nov 20 2026). */
   const [unmuteAsked, setUnmuteAsked] = useState(false);
+  /** Nov 25 2026: the host's "please mute your mic" reminder (who sent it). */
+  const [muteAsked, setMuteAsked] = useState<{ by: string | null } | null>(null);
+  /** Who opened this Ka Link (session host); only they send mute reminders. */
+  const [hostId, setHostId] = useState<string | null>(null);
+  const [myIdentity, setMyIdentity] = useState<string | null>(null);
   const [modBusy, setModBusy] = useState(false);
   const [modError, setModError] = useState<string | null>(null);
   /** Phase 3: "I'm ready" alerts moderators see, and when this leader last sent one. */
@@ -558,6 +563,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   // PLCC ONE rights: only the recording team sees Record (server enforces it too).
   const [canRecordRight, setCanRecordRight] = useState<boolean | null>(null);
   const canRecord = canModerate && canRecordRight !== false;
+  // Only the moderator who opened the room sends mute reminders (if no host is recorded, any moderator).
+  const isHost = canModerate && (!hostId || (myIdentity !== null && hostId === myIdentity));
   const [ending, setEnding] = useState(false);
   const [shareDone, setShareDone] = useState<string | null>(null);
   /** Full-screen prayer room: listen-only mode, sheets and participant search. */
@@ -1290,7 +1297,10 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
             const notice = parseConductNotice(payload);
             if (!notice || !mountedRef.current || roomRef.current !== room) return;
             if (notice.t === 'ask-unmute') setUnmuteAsked(true);
-            else setConductNotice(notice);
+            else if (notice.t === 'ask-mute') {
+              // Already muted: nothing to ask.
+              if (micEnabledRef.current) setMuteAsked({ by: notice.by ?? null });
+            } else setConductNotice(notice);
             return;
           }
           if (!mountedRef.current || !participant) return;
@@ -1417,6 +1427,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         })
         // Phase 2: moderators locked/unlocked mics or changed Bible readers.
         .on(RoomEvent.RoomMetadataChanged, (metadata: string) => {
+          if (mountedRef.current) setHostId(parseHuddleHostId(metadata));
           const next = parseHuddleStageView(metadata);
           stageRef.current = next;
           if (mountedRef.current) setStage(next);
@@ -1551,6 +1562,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 
       setIsRecording(Boolean(room.isRecording));
       const joinedStage = parseHuddleStageView(room.metadata);
+      setHostId(parseHuddleHostId(room.metadata));
+      setMyIdentity(room.localParticipant.identity || null);
       stageRef.current = joinedStage;
       setStage(joinedStage);
       if (!huddleMicrophonePublishAllowed(room.localParticipant.permissions) && joinedStage.micLock) {
@@ -2434,8 +2447,14 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         const result = await moderateHuddle(channelId, action, targetIdentity);
         if (action === 'unmute' && result.asked) setNotice('Asked them to unmute. Their mic is unlocked; they tap Unmute when ready.');
         if (action === 'unmute-all') setNotice('Asked muted participants to unmute when ready.');
+        if (action === 'remind-mute-all') {
+          setNotice(result.reminded > 0
+            ? `Reminded ${result.reminded} ${result.reminded === 1 ? 'person' : 'people'} with an open mic to mute.`
+            : 'Nobody has an open mic right now.');
+        }
+        if (action === 'ask-mute') setNotice('Asked them to mute their mic.');
         const next = { micLock: result.micLock, readerIds: result.readerIds };
-        if (action !== 'mute' && action !== 'unmute' && action !== 'lower-hand') {
+        if (action !== 'mute' && action !== 'unmute' && action !== 'lower-hand' && action !== 'ask-mute' && action !== 'remind-mute-all') {
           stageRef.current = next;
           setStage(next);
         }
@@ -2507,6 +2526,16 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       {conductTarget ? <ConductSheet target={conductTarget} onClose={() => setConductTarget(null)} /> : null}
       {conductNotice && conductNotice.t !== 'ask-unmute' ? (
         <ConductNoticeModal kind={conductNotice.t} reason={conductNotice.reason} onClose={() => setConductNotice(null)} />
+      ) : null}
+      {muteAsked ? (
+        <AskMuteCard
+          by={muteAsked.by}
+          onMute={() => {
+            setMuteAsked(null);
+            if (micEnabledRef.current) void toggleMic();
+          }}
+          onClose={() => setMuteAsked(null)}
+        />
       ) : null}
       {unmuteAsked ? (
         <AskUnmuteCard
@@ -3416,6 +3445,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                         onMuteAll={() => void moderate('mute-all')}
                         onUnmuteAll={() => void moderate('unmute-all')}
                         onLowerAll={() => void moderate('lower-all-hands')}
+                        onRemindMute={isHost ? () => void moderate('remind-mute-all') : undefined}
                       />
                     ) : null}
                     {canModerate && modError && !modTargetId ? <p className="pr-notice" role="alert">{modError}</p> : null}
@@ -3574,6 +3604,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                     reader: t.reader,
                   }}
                   micLock={stage.micLock}
+                  isHost={isHost}
                   busy={modBusy}
                   error={modError}
                   onClose={() => setModTargetId(null)}

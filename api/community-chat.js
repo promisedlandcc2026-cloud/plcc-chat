@@ -1567,6 +1567,7 @@ async function handleBridge(req, res) {
         ok: true,
         action: command.action,
         asked: body?.unmuteRequested === true,
+        reminded: Number.isFinite(body?.reminded) ? Math.max(0, Math.min(10000, Math.floor(body.reminded))) : 0,
         micLock: body?.micLock === true,
         readerIds: Array.isArray(body?.readerIds)
           ? body.readerIds.filter((id) => typeof id === 'string' && id.length <= 128).slice(0, 12)

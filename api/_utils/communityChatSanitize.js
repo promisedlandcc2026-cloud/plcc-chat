@@ -1255,6 +1255,9 @@ export function sanitizeChatRequest(raw) {
 
 /* Phase 2 Ka Link moderator tools (Nov 2026). */
 const HUDDLE_MODERATE_ACTIONS = new Set([
+  // Nov 25 2026: host-only friendly reminders (Canaan checks the caller is the host).
+  'ask-mute',
+  'remind-mute-all',
   'mute',
   'unmute',
   'mute-all',
@@ -1270,7 +1273,7 @@ const HUDDLE_MODERATE_ACTIONS = new Set([
   'remove',
   'block',
 ]);
-const HUDDLE_ROOM_ACTIONS = new Set(['lower-all-hands', 'mic-lock', 'mic-unlock', 'mute-all', 'unmute-all']);
+const HUDDLE_ROOM_ACTIONS = new Set(['lower-all-hands', 'mic-lock', 'mic-unlock', 'mute-all', 'unmute-all', 'remind-mute-all']);
 const LIVEKIT_IDENTITY_RE = /^[A-Za-z0-9._:@-]{1,128}$/;
 
 /**

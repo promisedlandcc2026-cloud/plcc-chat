@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { orderRaisedHands, parseHandRaisedAt, parseHuddleStageView } from '../lib/huddleStage.ts';
+import { orderRaisedHands, parseHuddleHostId, parseHandRaisedAt, parseHuddleStageView } from '../lib/huddleStage.ts';
 import { parseHuddleModerateCommand } from '../api/_utils/communityChatSanitize.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -56,11 +56,33 @@ describe('stage from room metadata (#8, #11)', () => {
   it('parses mic lock and readers, ignores junk', () => {
     const meta = JSON.stringify({ hostId: 'h', stage: { micLock: true, readerIds: ['r1', 5, ''] } });
     assert.deepEqual(parseHuddleStageView(meta), { micLock: true, readerIds: ['r1'] });
-    // PLCC: locked unless a moderator unlocked it (micLock: false).
-    assert.deepEqual(parseHuddleStageView('{bad'), { micLock: true, readerIds: [] });
-    assert.deepEqual(parseHuddleStageView(undefined), { micLock: true, readerIds: [] });
-    assert.deepEqual(parseHuddleStageView(JSON.stringify({ hostId: 'h' })), { micLock: true, readerIds: [] });
+    // PLCC (Nov 25 2026): mics open unless a moderator locked them (micLock: true).
+    assert.deepEqual(parseHuddleStageView('{bad'), { micLock: false, readerIds: [] });
+    assert.deepEqual(parseHuddleStageView(undefined), { micLock: false, readerIds: [] });
+    assert.deepEqual(parseHuddleStageView(JSON.stringify({ hostId: 'h' })), { micLock: false, readerIds: [] });
     assert.deepEqual(parseHuddleStageView(JSON.stringify({ stage: { micLock: false } })), { micLock: false, readerIds: [] });
+  });
+  it('reads the host (moderator who opened the room)', () => {
+    assert.equal(parseHuddleHostId(JSON.stringify({ hostId: 'h1' })), 'h1');
+    assert.equal(parseHuddleHostId('{bad'), null);
+    assert.equal(parseHuddleHostId(undefined), null);
+  });
+});
+
+describe('host mute reminders (Nov 25 2026)', () => {
+  it('only the host gets the reminder tools', () => {
+    const tools = readFileSync(join(root, 'components/huddle/HuddleModeratorTools.tsx'), 'utf8');
+    assert.match(tools, /isHost && target\.micOn && !target\.moderator/);
+    const call = readFileSync(join(root, 'components/community/ConnectVoiceHuddle.tsx'), 'utf8');
+    assert.match(call, /onRemindMute=\{isHost \?/);
+  });
+  it('forwards remind-mute-all as a room action and ask-mute with a target', () => {
+    assert.equal(parseHuddleModerateCommand({ channelId: CH, action: 'remind-mute-all' }).forward.action, 'remind-mute-all');
+    assert.equal(parseHuddleModerateCommand({ channelId: CH, action: 'ask-mute', targetIdentity: 'u1' }).forward.targetIdentity, 'u1');
+  });
+  it('members accept the ask-mute notice', () => {
+    const conduct = readFileSync(join(root, 'lib/memberConduct.ts'), 'utf8');
+    assert.match(conduct, /v\.t !== 'ask-mute'/);
   });
 });
 

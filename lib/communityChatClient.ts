@@ -925,6 +925,8 @@ export async function submitPrayerRequest(input: {
 /* ---------------- Phase 2: Ka Link moderator tools ---------------- */
 
 export type HuddleModerateAction =
+  | 'ask-mute'
+  | 'remind-mute-all'
   | 'mute'
   | 'unmute'
   | 'mute-all'
@@ -945,7 +947,7 @@ export async function moderateHuddle(
   channelId: string,
   action: HuddleModerateAction,
   targetIdentity?: string
-): Promise<{ micLock: boolean; readerIds: string[]; asked: boolean }> {
+): Promise<{ micLock: boolean; readerIds: string[]; asked: boolean; reminded: number }> {
   const res = await authedFetch('/api/community-chat?resource=huddle-moderate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -964,6 +966,8 @@ export async function moderateHuddle(
     readerIds: Array.isArray(b.readerIds) ? b.readerIds.filter((id: unknown) => typeof id === 'string') : [],
     /** Unmute: LiveKit won't switch someone's mic on, so they were asked to (Nov 20 2026). */
     asked: b.asked === true,
+    /** Host's mute reminder: how many open mics got the pop-up (Nov 25 2026). */
+    reminded: Number.isFinite(b.reminded) ? b.reminded : 0,
   };
 }
 

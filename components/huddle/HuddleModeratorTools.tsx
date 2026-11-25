@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Hand, Loader2, Lock, Mic, MicOff, ShieldBan, Unlock, UserMinus, X } from 'lucide-react';
+import { BellRing, BookOpen, Hand, Loader2, Lock, Mic, MicOff, ShieldBan, Unlock, UserMinus, X } from 'lucide-react';
 import type { HuddleModerateAction } from '../../lib/communityChatClient';
 
 /**
@@ -25,6 +25,7 @@ export function ModeratorRoomBar({
   onLowerAll,
   onMuteAll,
   onUnmuteAll,
+  onRemindMute,
 }: {
   micLock: boolean;
   handsCount: number;
@@ -33,6 +34,8 @@ export function ModeratorRoomBar({
   onLowerAll: () => void;
   onMuteAll: () => void;
   onUnmuteAll: () => void;
+  /** Only for the moderator who opened the Ka Link (host). */
+  onRemindMute?: () => void;
 }) {
   return (
     <div className="pr-mod-bar" role="group" aria-label="Moderator controls" data-testid="huddle-moderator-bar">
@@ -49,6 +52,11 @@ export function ModeratorRoomBar({
       <button type="button" onClick={onLowerAll} disabled={busy || handsCount === 0} className="pr-tool">
         <Hand size={16} aria-hidden /> Lower all hands{handsCount ? ` (${handsCount})` : ''}
       </button>
+      {onRemindMute ? (
+        <button type="button" onClick={onRemindMute} disabled={busy} className="pr-tool is-gold" data-testid="remind-mute-all">
+          <BellRing size={16} aria-hidden /> Remind all to mute
+        </button>
+      ) : null}
       <button type="button" onClick={onMuteAll} disabled={busy} className="pr-tool">
         <MicOff size={16} aria-hidden /> Mute all
       </button>
@@ -67,8 +75,12 @@ export type ModeratorSheetAction = HuddleModerateAction | 'conduct';
 
 type SheetAction = { action: ModeratorSheetAction; label: string; Icon: React.ElementType; danger?: boolean; confirm?: string };
 
-export function moderatorActionsFor(target: ModeratorTarget, micLock: boolean): SheetAction[] {
+export function moderatorActionsFor(target: ModeratorTarget, micLock: boolean, isHost = false): SheetAction[] {
   const out: SheetAction[] = [];
+  // Nov 25 2026: the host can ask (not force) someone with an open mic to mute.
+  if (isHost && target.micOn && !target.moderator) {
+    out.push({ action: 'ask-mute', label: 'Ask them to mute', Icon: BellRing });
+  }
   if (micLock && !target.moderator && !target.reader) {
     out.push({ action: 'allow-mic', label: 'Let them speak', Icon: Mic });
     out.push({ action: 'revoke-mic', label: 'Done speaking (take mic back)', Icon: MicOff });
@@ -106,6 +118,7 @@ export function moderatorActionsFor(target: ModeratorTarget, micLock: boolean): 
 export function PersonActionsSheet({
   target,
   micLock,
+  isHost = false,
   busy,
   error,
   onAction,
@@ -113,12 +126,13 @@ export function PersonActionsSheet({
 }: {
   target: ModeratorTarget;
   micLock: boolean;
+  isHost?: boolean;
   busy: boolean;
   error: string | null;
   onAction: (action: ModeratorSheetAction) => void;
   onClose: () => void;
 }) {
-  const actions = moderatorActionsFor(target, micLock);
+  const actions = moderatorActionsFor(target, micLock, isHost);
   return (
     <div className="pr-sheet-backdrop" onClick={onClose}>
       <div
