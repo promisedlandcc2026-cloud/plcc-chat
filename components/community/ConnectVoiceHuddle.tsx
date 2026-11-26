@@ -1891,6 +1891,61 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     onClose();
   }, [disconnectRoom, onClose]);
 
+  // "No sound? Tap to fix" (always there while connected). If it is still silent, step 2 reconnects
+  // them cleanly: leave this connection first, then join again — no stuck "ghost" left behind.
+  const [soundFixOffered, setSoundFixOffered] = useState(false);
+  useEffect(() => {
+    if (!soundFixOffered) return;
+    const timer = window.setTimeout(() => setSoundFixOffered(false), 30_000);
+    return () => window.clearTimeout(timer);
+  }, [soundFixOffered]);
+  const freshReconnect = useCallback(async () => {
+    logActivity('huddle_auto_rejoin', { reason: 'sound_fix' });
+    leaveIntentionalRef.current = true;
+    try {
+      await disconnectRoom();
+    } finally {
+      leaveIntentionalRef.current = false;
+    }
+    reconnectAttemptsRef.current = 0;
+    lostConnectionRef.current = false;
+    if (!mountedRef.current) return;
+    setError(null);
+    setNeedSoundTap(false);
+    setConn('reconnecting');
+    await joinRef.current();
+  }, [disconnectRoom]);
+  const soundHelp = (className: string) =>
+    conn === 'connected' && !needSoundTap ? (
+      <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${className}`} data-huddle-sound-help="true">
+        <button
+          type="button"
+          onClick={() => {
+            logActivity('huddle_audio_resumed', { reason: 'sound_fix_tap' });
+            void enableSound();
+            void resumeAudioRef.current();
+            setSoundFixOffered(true);
+          }}
+          className="inline-flex items-center gap-1.5 min-h-[40px] font-semibold underline underline-offset-4 opacity-90"
+        >
+          <Volume2 size={16} aria-hidden />
+          No sound? Tap to fix
+        </button>
+        {soundFixOffered ? (
+          <button
+            type="button"
+            onClick={() => {
+              setSoundFixOffered(false);
+              void freshReconnect();
+            }}
+            className="inline-flex items-center gap-1.5 min-h-[40px] font-semibold text-gold underline underline-offset-4"
+          >
+            Still no sound? Reconnect
+          </button>
+        ) : null}
+      </div>
+    ) : null;
+
   // ---------------------------------------------------------------------------
   // Phase 5: Data Saver, phone calls / stepping away, lock-screen controls
   // ---------------------------------------------------------------------------
@@ -3053,6 +3108,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                   Tap to hear the prayer
                 </button>
               ) : null}
+              {soundHelp('px-1 text-white')}
               {canModerate && readyAlerts.length > 0
                 ? readyAlerts.map((a) => (
                     <div key={a.identity} className="pr-ready-alert" role="alert" data-testid="huddle-ready-alert">
@@ -3807,6 +3863,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           Enable sound
         </button>
       ) : null}
+      {soundHelp('mx-3 sm:mx-4 mt-2 text-white')}
 
       {hostMuteNotice ? (
         <p className="mx-3 sm:mx-4 mt-2 sm:mt-3 rounded-2xl bg-burgundy px-4 py-3 text-sm text-white leading-relaxed" role="status">
