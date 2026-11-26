@@ -123,6 +123,7 @@ import {
   type DailyCredentials,
 } from '../../lib/huddleFailsafe';
 import { connectLiveKitOnce, LiveKitQuotaError } from '../../lib/livekitConnect';
+import { startVoiceHeal } from '../../lib/voiceHeal';
 import { KA_LINK_RECONNECT_DELAYS_MS, kaLinkReconnectDelay } from '../../lib/kaLinkSession';
 import {
   CAPTION_LANGUAGES,
@@ -1447,6 +1448,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
           setMicEnabled(micOn);
           micEnabledRef.current = micOn;
           setConn('connected');
+          applySubscriptions(room);
           logActivity('huddle_reconnected', {
             outageSec: wobbleAtRef.current ? Math.round((Date.now() - wobbleAtRef.current) / 1000) : undefined,
           });
@@ -1570,6 +1572,25 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         setHostMuteNotice(HUDDLE_MIC_LOCKED_NOTICE);
       }
       refreshTiles(room);
+      // One-way sound fix: re-subscribe a silent voice / restart a dead mic by itself,
+      // instead of someone having to leave and come back in.
+      startVoiceHeal(room, {
+        ensureAudio: (identity, pub, track) => {
+          if (roomRef.current !== room) return;
+          const key = huddleRemoteAudioKey(identity, pub.trackSid);
+          const el = audioElsRef.current.get(key);
+          const media = track.mediaStreamTrack;
+          const src = el?.srcObject as MediaStream | null | undefined;
+          const playing = Boolean(src && media && src.getAudioTracks().includes(media));
+          if (!el || !playing) {
+            attachRemoteAudio(key, track);
+          } else if (el.paused && room.canPlaybackAudio && document.visibilityState === 'visible') {
+            void el.play().catch(() => undefined);
+          }
+        },
+        log: (event, detail) =>
+          logActivity('huddle_voice_healed', { reason: `${event}:${String(detail.why ?? '')}` }),
+      });
       reconnectAttemptsRef.current = 0;
       joinStallsRef.current = 0;
       lostConnectionRef.current = false;

@@ -49,6 +49,7 @@ export type HuddleActivityCode =
   | 'huddle_keep_awake'
   | 'huddle_interrupted'
   | 'huddle_audio_resumed'
+  | 'huddle_voice_healed'
   | 'huddle_join_stalled';
 
 const DEDUPE_MS = 60_000;

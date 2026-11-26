@@ -149,6 +149,7 @@ export const DmCallProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     async (pass: DmCallPass, opts: { outgoing: boolean }) => {
       const { Room, RoomEvent, Track: TrackNS } = await import('livekit-client');
       const { connectLiveKitOnce } = await import('../lib/livekitConnect');
+      const { startVoiceHeal } = await import('../lib/voiceHeal');
       const room = new Room({ adaptiveStream: true, dynacast: true });
       roomRef.current = room;
 
@@ -211,6 +212,21 @@ export const DmCallProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
       setCallActive(true);
+      // One-way sound fix: re-subscribe a silent voice / restart a dead mic automatically.
+      startVoiceHeal(room, {
+        ensureAudio: (_identity, _pub, track) => {
+          if (roomRef.current !== room || !audioSinkRef.current) return;
+          const els = track.attachedElements;
+          if (els.length === 0) {
+            const el = track.attach();
+            el.setAttribute('playsinline', 'true');
+            audioSinkRef.current.appendChild(el);
+            return;
+          }
+          if (document.visibilityState !== 'visible' || !room.canPlaybackAudio) return;
+          for (const el of els) if (el.paused) void el.play().catch(() => undefined);
+        },
+      });
       try {
         await room.localParticipant.setMicrophoneEnabled(true);
       } catch {
