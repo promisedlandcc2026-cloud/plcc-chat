@@ -53,6 +53,8 @@ export type DmCallState = {
   notice: string | null;
 };
 
+const DM_TAP_NOTICE = "Can't hear? Tap the screen.";
+
 const IDLE: DmCallState = {
   phase: 'idle',
   channelId: null,
@@ -497,6 +499,91 @@ export const DmCallProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (channel) void supabase.removeChannel(channel);
     };
   }, [finish, memberAccessState, selfId, showIncoming]);
+
+  // Back from WhatsApp / another app mid-call: rebuild the sound like a rejoin would,
+  // and on iPhones let one tap anywhere turn the speaker back on.
+  useEffect(() => {
+    let hiddenAt = 0;
+    let disarm: (() => void) | null = null;
+    const replay = () => {
+      const sink = audioSinkRef.current;
+      if (!sink) return;
+      for (const el of Array.from(sink.querySelectorAll('audio')) as HTMLAudioElement[]) {
+        const stream = el.srcObject;
+        if (stream) {
+          el.srcObject = null;
+          el.srcObject = stream;
+        }
+        void el.play().catch(() => undefined);
+      }
+    };
+    const armTap = () => {
+      if (disarm) return;
+      const onTap = () => {
+        disarm?.();
+        void roomRef.current?.startAudio().catch(() => undefined);
+        replay();
+        setCall((c) => (c.notice === DM_TAP_NOTICE ? { ...c, notice: null } : c));
+      };
+      document.addEventListener('touchend', onTap, true);
+      document.addEventListener('click', onTap, true);
+      disarm = () => {
+        document.removeEventListener('touchend', onTap, true);
+        document.removeEventListener('click', onTap, true);
+        disarm = null;
+      };
+    };
+    const onVis = () => {
+      const room = roomRef.current;
+      if (document.visibilityState === 'hidden') {
+        if (room && !hiddenAt) hiddenAt = Date.now();
+        return;
+      }
+      const awayMs = hiddenAt ? Date.now() - hiddenAt : 0;
+      hiddenAt = 0;
+      if (!room || room.state !== 'connected') return;
+      void (async () => {
+        const { Track: TrackNS } = await import('livekit-client');
+        const { isAppleMobile, returnPlan } = await import('../lib/returnRecovery');
+        const plan = returnPlan(awayMs, isAppleMobile());
+        if (!plan.rebuild || roomRef.current !== room) return;
+        for (const p of room.remoteParticipants.values()) {
+          for (const pub of p.trackPublications.values()) {
+            if (pub.kind !== TrackNS.Kind.Audio) continue;
+            if (plan.resubscribe && !pub.isMuted) {
+              try {
+                (pub as import('livekit-client').RemoteTrackPublication).setSubscribed(false);
+              } catch {
+                /* gone */
+              }
+              window.setTimeout(() => {
+                try {
+                  (pub as import('livekit-client').RemoteTrackPublication).setSubscribed(true);
+                } catch {
+                  /* gone */
+                }
+              }, 300);
+            }
+          }
+        }
+        if (!plan.resubscribe) replay();
+        try {
+          await room.startAudio();
+        } catch {
+          /* tap below */
+        }
+        if (plan.askTap) {
+          armTap();
+          setCall((c) => (c.notice ? c : { ...c, notice: DM_TAP_NOTICE }));
+        }
+      })();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      disarm?.();
+    };
+  }, []);
 
   // Leaving the page mid-call: tell the other side.
   useEffect(() => {

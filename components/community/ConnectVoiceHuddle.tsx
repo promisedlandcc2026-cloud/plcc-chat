@@ -123,7 +123,8 @@ import {
   type DailyCredentials,
 } from '../../lib/huddleFailsafe';
 import { connectLiveKitOnce, LiveKitQuotaError } from '../../lib/livekitConnect';
-import { startVoiceHeal } from '../../lib/voiceHeal';
+import { startVoiceHeal, type VoiceHeal } from '../../lib/voiceHeal';
+import { isAppleMobile, returnPlan } from '../../lib/returnRecovery';
 import { KA_LINK_RECONNECT_DELAYS_MS, kaLinkReconnectDelay } from '../../lib/kaLinkSession';
 import {
   CAPTION_LANGUAGES,
@@ -506,6 +507,9 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
   const micInterruptedRef = useRef(false);
   /** Page was hidden since the last time it was visible (phone call, other app). */
   const wasHiddenRef = useRef(false);
+  /** When the member left Ka Link for another app (0 = not away). */
+  const hiddenAtRef = useRef(0);
+  const voiceHealRef = useRef<VoiceHeal | null>(null);
   const weakSignalShownRef = useRef(false);
   const [handRaised, setHandRaised] = useState(false);
   /** Screen share: who is presenting (one at a time), and our own share controls (moderators and up). */
@@ -1107,13 +1111,25 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     let unlocked = true;
     for (const el of audioElsRef.current.values()) {
       try {
+        // Re-hand the stream to the player inside the tap: iPhones can keep an old
+        // player "playing" with no sound after another app used the speaker.
+        const stream = el.srcObject;
+        if (stream) {
+          el.srcObject = null;
+          el.srcObject = stream;
+        }
         await el.play();
       } catch {
         unlocked = false;
       }
     }
-    if (unlocked) setNeedSoundTap(false);
+    if (unlocked) {
+      setNeedSoundTap(false);
+      tapArmedRef.current?.();
+    }
   }, []);
+  const enableSoundRef = useRef(enableSound);
+  enableSoundRef.current = enableSound;
 
   const join = useCallback(async (opts?: { reconnect?: boolean }) => {
     if (joinInFlightRef.current || roomRef.current) return;
@@ -1574,7 +1590,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
       refreshTiles(room);
       // One-way sound fix: re-subscribe a silent voice / restart a dead mic by itself,
       // instead of someone having to leave and come back in.
-      startVoiceHeal(room, {
+      voiceHealRef.current?.stop();
+      voiceHealRef.current = startVoiceHeal(room, {
         ensureAudio: (identity, pub, track) => {
           if (roomRef.current !== room) return;
           const key = huddleRemoteAudioKey(identity, pub.trackSid);
@@ -1940,15 +1957,92 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
     };
   }, [conn, micEnabled]);
 
+  // Back from WhatsApp / another app: do what a rejoin does, without hanging up.
+  const tapArmedRef = useRef<(() => void) | null>(null);
+  const armTapToHear = useCallback(() => {
+    setNeedSoundTap(true);
+    if (tapArmedRef.current) return;
+    // Any tap on the screen counts, not just the banner.
+    const onTap = () => {
+      disarm();
+      void enableSoundRef.current();
+    };
+    const disarm = () => {
+      document.removeEventListener('touchend', onTap, true);
+      document.removeEventListener('click', onTap, true);
+      tapArmedRef.current = null;
+    };
+    document.addEventListener('touchend', onTap, true);
+    document.addEventListener('click', onTap, true);
+    tapArmedRef.current = disarm;
+  }, []);
+  useEffect(() => () => tapArmedRef.current?.(), []);
+
+  const recoverAfterReturn = useCallback(
+    async (awayMs: number) => {
+      const room = roomRef.current;
+      if (!room || !mountedRef.current || room.state !== 'connected') return;
+      const plan = returnPlan(awayMs, isAppleMobile());
+      if (!plan.rebuild) return;
+      logActivity('huddle_audio_resumed', {
+        reason: plan.resubscribe ? 'returned_resubscribe' : 'returned_rebuild',
+        outageSec: Math.round(awayMs / 1000),
+      });
+      if (plan.askTap) armTapToHear();
+      for (const p of room.remoteParticipants.values()) {
+        for (const pub of p.trackPublications.values()) {
+          const rp = pub as RemoteTrackPublication;
+          if (rp.kind !== Track.Kind.Audio) continue;
+          if (plan.resubscribe && !rp.isMuted && rp.isDesired) {
+            // Fresh media from LiveKit; TrackSubscribed attaches a new player.
+            try {
+              rp.setSubscribed(false);
+            } catch {
+              /* gone */
+            }
+            window.setTimeout(() => {
+              if (roomRef.current !== room) return;
+              try {
+                rp.setSubscribed(true);
+              } catch {
+                /* gone */
+              }
+            }, 300);
+            continue;
+          }
+          if (rp.track) {
+            const key = huddleRemoteAudioKey(p.identity, rp.trackSid);
+            detachRemoteAudio(key);
+            attachRemoteAudio(key, rp.track as RemoteTrack);
+          }
+        }
+      }
+      try {
+        await room.startAudio();
+      } catch {
+        if (mountedRef.current) setNeedSoundTap(true);
+      }
+      // Then let the voice watchdog confirm sound is actually arriving.
+      window.setTimeout(() => void voiceHealRef.current?.check(), 3_000);
+    },
+    [armTapToHear, attachRemoteAudio, detachRemoteAudio]
+  );
+  const recoverAfterReturnRef = useRef(recoverAfterReturn);
+  recoverAfterReturnRef.current = recoverAfterReturn;
+
   // Left the app (screen off, another app, a text): "Listening in background" until they are back.
   useEffect(() => {
     const onVis = () => {
       if (!roomRef.current) return;
       if (document.visibilityState === 'hidden') {
         wasHiddenRef.current = true;
+        if (!hiddenAtRef.current) hiddenAtRef.current = Date.now();
         if (!localAwayRef.current) sendAwayRef.current('away');
       } else {
         sendAwayRef.current(null);
+        const awayMs = hiddenAtRef.current ? Date.now() - hiddenAtRef.current : 0;
+        hiddenAtRef.current = 0;
+        void recoverAfterReturnRef.current(awayMs);
         // resumeAudio (same event) reads wasHiddenRef first; clear it after.
         window.setTimeout(() => {
           wasHiddenRef.current = false;
