@@ -166,6 +166,15 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
 
   const verses = chapter ? Object.entries(chapter.verses).map(([n, text]) => ({ n: Number(n), text })).sort((x, y) => x.n - y.n) : [];
   const bookName = chapter?.bookName || book?.name || b;
+  // Verse picker: highlight that verse and scroll to it (within this Bible only —
+  // the prayer room has its own Bible panel too).
+  const goToVerse = (n: number) => {
+    if (!Number.isFinite(n) || n < 1) return;
+    setSelected([n]);
+    window.setTimeout(() => {
+      topRef.current?.querySelector(`[data-verse="${n}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 40);
+  };
   const label = selectionLabel(bookName, c, selected);
   const toggleVerse = (n: number) => setSelected((cur) => (cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n]));
 
@@ -236,6 +245,8 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
           </select>
           {chevron}
         </label>
+      </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_84px_84px] gap-2">
         <label className="relative block">
           <span className="mb-1 block text-xs font-bold text-[#3b2a12]">Book</span>
           <select className={selectClass} value={b} onChange={(e) => go({ b: e.target.value, c: 1 })}>
@@ -250,6 +261,22 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
           <select className={selectClass} value={c} onChange={(e) => go({ c: Number(e.target.value) })}>
             {Array.from({ length: book?.numberOfChapters || 1 }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          {chevron}
+        </label>
+        <label className="relative block">
+          <span className="mb-1 block text-xs font-bold text-[#3b2a12]">Verse</span>
+          <select
+            className={selectClass}
+            value={selected[0] ?? ''}
+            onChange={(e) => goToVerse(Number(e.target.value))}
+            disabled={!verses.length}
+            aria-label="Verse"
+          >
+            <option value="" disabled>–</option>
+            {verses.map((v) => (
+              <option key={v.n} value={v.n}>{v.n}</option>
             ))}
           </select>
           {chevron}
@@ -348,7 +375,7 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
               const on = selected.includes(v.n);
               const other = second?.verses[String(v.n)];
               return (
-                <li key={v.n}>
+                <li key={v.n} data-verse={v.n}>
                   <button
                     type="button"
                     onClick={() => toggleVerse(v.n)}
