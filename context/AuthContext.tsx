@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { isFatalRefreshError, refreshSessionOnce } from '../lib/authAccessToken';
+import { classifyAuthFailure } from '../lib/authFailure';
 import { sendEmailOtp, signOutSession, verifyEmailOtp } from '../lib/authOtp';
 import {
   signInWithPhoneCode,
@@ -63,6 +64,26 @@ interface AuthContextValue {
   applyIdentity: (member: ConnectMemberIdentity) => void;
 }
 
+type ReinstallOutcome = { kind: 'ok'; session: Session } | { kind: 'invalid' } | { kind: 'unreachable' };
+
+/**
+ * Put a known login back into Supabase. "invalid" only when the server clearly
+ * rejects it (bad / used refresh token, 400–403); anything else — no network,
+ * timeouts, 5xx, Cloudflare 52x — is "unreachable", and the member stays signed in.
+ */
+export async function reinstallSession(prev: Session): Promise<ReinstallOutcome> {
+  try {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: prev.access_token,
+      refresh_token: prev.refresh_token,
+    });
+    if (!error && data.session) return { kind: 'ok', session: data.session };
+    return { kind: classifyAuthFailure(error) };
+  } catch {
+    return { kind: 'unreachable' };
+  }
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -84,6 +105,14 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const signingOutRef = useRef(false);
   /** Identity check failed (e.g. network blip on wake) — retry when the app is back. */
   const identityFailedRef = useRef(false);
+  /**
+   * Nov 27 outage: the sign-in server stopped answering, Supabase dropped the stored
+   * login, and we signed members out — which also ended their Ka Link call. Now a
+   * login is only dropped when the server clearly says it is invalid. While the
+   * server is unreachable we keep the member signed in and put the login back
+   * (setSession) as soon as it answers again.
+   */
+  const [reinstallPending, setReinstallPending] = useState(false);
 
   const clearIdentity = useCallback(() => {
     identityRequestId.current += 1;
@@ -169,18 +198,51 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
     const prev = sessionRef.current;
     if (prev?.access_token && prev.refresh_token) {
-      try {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: prev.access_token,
-          refresh_token: prev.refresh_token,
-        });
-        if (!error && data.session) return data.session;
-      } catch {
-        /* not recoverable */
+      const outcome = await reinstallSession(prev);
+      if (outcome.kind === 'ok') return outcome.session;
+      if (outcome.kind === 'unreachable') {
+        // Server down, not "signed out": stay signed in and keep retrying.
+        setReinstallPending(true);
+        return prev;
       }
     }
     return null;
   }, []);
+
+  // While the sign-in server is unreachable, keep trying to put the login back.
+  useEffect(() => {
+    if (!reinstallPending) return undefined;
+    let stopped = false;
+    let delay = 10_000;
+    let timer: number | undefined;
+    const attempt = async () => {
+      if (stopped) return;
+      const prev = sessionRef.current;
+      if (!prev?.access_token || !prev.refresh_token) {
+        setReinstallPending(false);
+        return;
+      }
+      const outcome = await reinstallSession(prev);
+      if (stopped) return;
+      if (outcome.kind === 'ok') {
+        setReinstallPending(false);
+        applySession(outcome.session);
+        return;
+      }
+      if (outcome.kind === 'invalid') {
+        setReinstallPending(false);
+        applySession(null);
+        return;
+      }
+      delay = Math.min(delay * 1.5, 60_000);
+      timer = window.setTimeout(() => void attempt(), delay);
+    };
+    timer = window.setTimeout(() => void attempt(), delay);
+    return () => {
+      stopped = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [applySession, reinstallPending]);
 
   const recoverSession = useCallback(async () => {
     if (!isSupabaseConfigured || recoveringRef.current) return;
