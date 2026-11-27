@@ -60,6 +60,7 @@ import {
   useVoiceRecorder,
 } from '../components/chat/ChatMediaComposer';
 import { useRoomLive } from '../lib/useRoomLive';
+import { readersWaitMs } from '../lib/readReceiptsPace';
 import { ChatMessageBubble } from '../components/chat/ChatMessageBubble';
 import { TypingBubble } from '../components/chat/TypingBubble';
 import { MessageActions } from '../components/chat/MessageActions';
@@ -264,12 +265,37 @@ export const CommunityChatRoomPage: React.FC = () => {
   const selfId = identity?.id || user?.id || '';
   const selfName = identity?.name || 'Someone';
   const liveSelf = React.useMemo(() => (selfId ? { id: selfId, name: selfName } : null), [selfId, selfName]);
-  const loadReaders = useCallback(() => {
+  // "Seen by" refresh, gently: at most once every ~10–15s per phone, never while Ka Link is
+  // in the background. (Nov 27: refetching on every "read" signal in busy rooms flooded the server.)
+  const readersTimerRef = useRef<number | null>(null);
+  const readersLastRef = useRef(0);
+  const fetchReadersNow = useCallback(() => {
     if (!validChannel || memberAccessState !== 'approved_member') return;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    readersLastRef.current = Date.now();
     fetchReadReceipts(channelId)
       .then(setReaders)
       .catch(() => undefined);
   }, [channelId, memberAccessState, validChannel]);
+  const loadReaders = useCallback(() => {
+    if (readersTimerRef.current !== null) return; // one already queued
+    const wait = readersWaitMs(readersLastRef.current, Date.now(), Math.random());
+    readersTimerRef.current = window.setTimeout(() => {
+      readersTimerRef.current = null;
+      fetchReadersNow();
+    }, wait);
+  }, [fetchReadersNow]);
+  useEffect(() => {
+    // New room: forget the old schedule and load right away.
+    readersLastRef.current = 0;
+    if (readersTimerRef.current !== null) window.clearTimeout(readersTimerRef.current);
+    readersTimerRef.current = null;
+    fetchReadersNow();
+    return () => {
+      if (readersTimerRef.current !== null) window.clearTimeout(readersTimerRef.current);
+      readersTimerRef.current = null;
+    };
+  }, [fetchReadersNow]);
   const live = useRoomLive({
     topic: roomTopic,
     self: liveSelf,
