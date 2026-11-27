@@ -200,7 +200,7 @@ describe('client', () => {
     assert.deepEqual(seen, ['huddle-token', 'huddle-token']);
   });
 
-  it('database down: uses the saved permission after the retries', async () => {
+  it('database down: uses the saved permission right after the first failure (no 20s waits)', async () => {
     const c = await loadClient();
     c.saveHuddleFallbackPass(CH, PASS);
     const seen = respond({
@@ -210,7 +210,7 @@ describe('client', () => {
     const t = await c.fetchHuddleTokenResilient(CH, { delaysMs: [1, 1] });
     assert.equal(t.fallback, true);
     assert.equal(t.token, 'lk2');
-    assert.deepEqual(seen, ['huddle-token', 'huddle-token', 'huddle-token', 'huddle-token-fallback']);
+    assert.deepEqual(seen, ['huddle-token', 'huddle-token-fallback']);
   });
 
   it('no saved permission: clear message, no fallback call', async () => {

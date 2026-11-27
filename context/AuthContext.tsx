@@ -10,6 +10,7 @@ import React, {
 import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { isFatalRefreshError, refreshSessionOnce } from '../lib/authAccessToken';
 import { classifyAuthFailure } from '../lib/authFailure';
+import { forgetSavedIdentity, isOutageCode, readSavedIdentity, saveIdentity } from '../lib/outageCache';
 import { sendEmailOtp, signOutSession, verifyEmailOtp } from '../lib/authOtp';
 import {
   signInWithPhoneCode,
@@ -136,11 +137,23 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       setIdentity(member);
       setIdentityError(null);
       setIdentityErrorCode(null);
+      saveIdentity(authUserId, member);
     } catch (err) {
       if (requestId !== identityRequestId.current) return;
       if (authUserIdRef.current !== authUserId) return;
       identityFailedRef.current = true;
+      // Server down (not "not a member" / "signed out"): use the last confirmed membership
+      // so prayer rooms stay reachable. We keep retrying in the background.
+      const code = err instanceof MemberSelfError ? err.code : 'vault_unavailable';
+      const saved = isOutageCode(code) ? readSavedIdentity(authUserId) : null;
+      if (saved) {
+        setIdentity(saved);
+        setIdentityError(null);
+        setIdentityErrorCode(null);
+        return;
+      }
       setIdentity(null);
+      if (!isOutageCode(code)) forgetSavedIdentity();
       if (err instanceof MemberSelfError) {
         setIdentityError(err.message);
         setIdentityErrorCode(err.code);
@@ -465,6 +478,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const signOut = useCallback(async () => {
     setErrorMessage(null);
     signingOutRef.current = true;
+    forgetSavedIdentity();
     try {
       await signOutSession();
       applySession(null);

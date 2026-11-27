@@ -227,6 +227,9 @@ export async function fetchHuddleTokenResilient(
     } catch (err) {
       lastErr = err;
       if (!isServerHiccup(err) || attempt === delays.length) break;
+      // Server trouble and we hold a saved pass: use it now rather than waiting out
+      // more timeouts (each can take ~20s while the database is down).
+      if (readHuddleFallbackPass(channelId)) break;
       opts.onRetry?.(attempt + 1);
       await sleep(delays[attempt]);
     }

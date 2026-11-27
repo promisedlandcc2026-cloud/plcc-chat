@@ -1038,3 +1038,9 @@ export async function listKaLinkSongs(channelId: string): Promise<KaLinkSong[]> 
   }
   return Array.isArray(b.songs) ? b.songs : [];
 }
+
+/** Emergency entry (Nov 27 outage): 24-hour passes for the prayer rooms this member may join. */
+export async function fetchKaLinkPasses(): Promise<Array<{ channelId: string; name: string; pass: string }>> {
+  const d = await postJson<{ passes: Array<{ channelId: string; name: string; pass: string }> }>('ka-link-passes', {}, '');
+  return Array.isArray(d.passes) ? d.passes : [];
+}

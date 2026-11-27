@@ -82,6 +82,9 @@ import {
 } from '../lib/prayerGatherings';
 import { huddleRoomPath, liveHuddleRows } from '../lib/liveHuddles';
 import { fetchIntercessorsAccess } from '../lib/intercessorsClient';
+import { useActiveKaLink } from '../context/ActiveKaLinkContext';
+import { refreshEmergencyPasses } from '../lib/emergencyEntry';
+import { readSavedPrayerRooms } from '../lib/outageCache';
 
 const GATHERING_ICONS: Record<PrayerGatheringKey, React.ReactNode> = {
   'morning-glory': <Sunrise size={22} aria-hidden />,
@@ -171,6 +174,9 @@ export const CommunityChatPage: React.FC = () => {
   const { byChannel: huddleByChannel } = useHuddleLive();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { openKaLink } = useActiveKaLink();
+  // Server trouble: the prayer rooms this phone saved, so members can still join.
+  const emergencyRooms = useMemo(() => (error && ownerId ? readSavedPrayerRooms(ownerId) : []), [error, ownerId]);
   // Filled per account once we know who is signed in (never another account's DMs).
   const [dmRecents, setDmRecents] = useState<ReturnType<typeof listDmRecents>>([]);
 
@@ -254,6 +260,8 @@ export const CommunityChatPage: React.FC = () => {
         );
       }
       setDmRecents(listDmRecents(ownerId));
+      // While Canaan is healthy, keep emergency passes for the prayer rooms fresh.
+      void refreshEmergencyPasses(ownerId);
     } catch (err) {
       const message =
         err instanceof CommunityChatError
@@ -738,6 +746,26 @@ export const CommunityChatPage: React.FC = () => {
           <Button type="button" onClick={() => void load()}>
             Try again
           </Button>
+          {emergencyRooms.length > 0 ? (
+            <div className="space-y-2 border-t border-[#e8e4da] pt-4" data-testid="emergency-prayer-rooms">
+              <p className="text-sm font-semibold">You can still join a prayer room:</p>
+              <ul className="space-y-2">
+                {emergencyRooms.map((room) => (
+                  <li key={room.channelId}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-xl border border-[#d9d2c3] bg-white px-4 py-3 text-left font-semibold"
+                      onClick={() => openKaLink({ channelId: room.channelId, channelName: room.name, mode: 'join' })}
+                    >
+                      <span>{room.name}</span>
+                      <span className="text-sm text-[#1d5b33]">Join</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-[#6b6455]">Chat and other features come back when the server does.</p>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="space-y-6">

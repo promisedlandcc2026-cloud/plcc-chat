@@ -124,6 +124,7 @@ const ALLOWED_RESOURCES = new Set([
   'reaction',
   'message-edit',
   'read-receipts',
+  'ka-link-passes',
   'mentions',
   'pin',
   'room-settings',
@@ -1454,6 +1455,39 @@ async function handleBridge(req, res) {
       const parsed = parseVaultReadReceipts(await upstream.json().catch(() => null));
       if (!parsed.ok) return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Could not load read receipts.' });
       return json(res, 200, { ok: true, readers: parsed.readers });
+    }
+
+    if (resource === 'ka-link-passes') {
+      // Emergency entry (Nov 27 outage): 24-hour passes for the prayer rooms, kept on the
+      // phone and used only if Canaan's database is down when the member tries to join.
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
+      }
+      const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'ka-link-passes'), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+        body: '{}',
+        signal: controller.signal,
+        redirect: 'error',
+      });
+      if (!upstream.ok) return mapUpstreamError(res, upstream.status);
+      const body = await upstream.json().catch(() => null);
+      const passes = Array.isArray(body?.passes)
+        ? body.passes
+            .filter(
+              (p) =>
+                p &&
+                UUID_RE.test(String(p.channelId || '')) &&
+                typeof p.name === 'string' &&
+                typeof p.pass === 'string' &&
+                p.pass.length > 10 &&
+                p.pass.length <= 2000
+            )
+            .slice(0, 12)
+            .map((p) => ({ channelId: p.channelId, name: p.name.replace(/[\u0000-\u001f]/g, ' ').slice(0, 80), pass: p.pass }))
+        : [];
+      return json(res, 200, { ok: true, passes });
     }
 
     if (resource === 'huddle-songs') {

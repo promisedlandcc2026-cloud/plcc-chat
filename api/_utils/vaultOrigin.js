@@ -352,6 +352,7 @@ const CHAT_SUBS = new Set([
   'request-update',
   'edit-message',
   'read-receipts',
+  'ka-link-passes',
   'mention-candidates',
   'pin',
   'room-settings',
