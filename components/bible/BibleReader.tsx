@@ -201,14 +201,16 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
     }
   };
 
+  // PLCC Bible look: deep-green pickers with cream text and gold accents.
   const selectClass =
-    'w-full min-h-[40px] rounded-xl border border-gray-200 bg-white px-2.5 text-[14px] font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-burgundy/30';
+    'w-full min-h-[44px] cursor-pointer appearance-none rounded-xl bg-[#1d372c] pl-3 pr-8 text-[14px] font-semibold text-[#fbf7ee] shadow-[0_3px_10px_rgba(18,36,28,0.18)] focus:outline-none focus:ring-2 focus:ring-[#d9b45e] [&>option]:text-[#16251f]';
+  const chevron = <ChevronRight size={16} className="pointer-events-none absolute bottom-[14px] right-2.5 rotate-90 text-[#f3d27a]" aria-hidden />;
 
   const picker = (
     <section className="space-y-2" aria-label="Choose a passage">
       <div className="grid grid-cols-2 gap-2">
-        <label className="block">
-          <span className="mb-1 block text-xs font-bold text-gray-500">Language</span>
+        <label className="relative block">
+          <span className="mb-1 block text-xs font-bold text-[#3b2a12]">Language</span>
           <select
             className={selectClass}
             value={main?.language || ''}
@@ -223,34 +225,38 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
               <option key={code} value={code}>{name}</option>
             ))}
           </select>
+          {chevron}
         </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-bold text-gray-500">Bible</span>
+        <label className="relative block">
+          <span className="mb-1 block text-xs font-bold text-[#3b2a12]">Bible</span>
           <select className={selectClass} value={t} onChange={(e) => go({ t: e.target.value })}>
             {translations.filter((x) => x.language === main?.language).map((tr) => (
               <option key={tr.id} value={tr.id}>{tr.name}</option>
             ))}
           </select>
+          {chevron}
         </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-bold text-gray-500">Book</span>
+        <label className="relative block">
+          <span className="mb-1 block text-xs font-bold text-[#3b2a12]">Book</span>
           <select className={selectClass} value={b} onChange={(e) => go({ b: e.target.value, c: 1 })}>
             {books.map((bk) => (
               <option key={bk.id} value={bk.id}>{bk.name}</option>
             ))}
           </select>
+          {chevron}
         </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-bold text-gray-500">Chapter</span>
+        <label className="relative block">
+          <span className="mb-1 block text-xs font-bold text-[#3b2a12]">Chapter</span>
           <select className={selectClass} value={c} onChange={(e) => go({ c: Number(e.target.value) })}>
             {Array.from({ length: book?.numberOfChapters || 1 }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
+          {chevron}
         </label>
       </div>
       <div className="flex items-center gap-2">
-        <label className="flex min-h-[40px] min-w-0 flex-1 items-center gap-2 rounded-xl bg-gold-cream px-3 text-sm font-semibold text-ink">
+        <label className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#d9b86a] bg-[#fbf3df] px-3 text-sm font-semibold text-ink">
           <Languages size={16} className="shrink-0 text-gold-ink" aria-hidden />
           <span className="shrink-0">Under:</span>
           <select
@@ -276,7 +282,7 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
             setSize(s);
             writeSaved({ size: s });
           }}
-          className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold text-burgundy"
+          className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-xl border border-[#d9b86a] bg-white px-3 text-sm font-bold text-[#1d372c]"
           aria-label="Change text size"
         >
           <Type size={16} aria-hidden /> Aa
@@ -286,7 +292,7 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
   );
 
   const bar = selected.length ? (
-    <div className="sticky bottom-0 z-10 -mx-3 mt-3 border-t border-gold/40 bg-burgundy px-3 py-2.5 text-white">
+    <div className="sticky bottom-0 z-10 -mx-3 mt-3 border-t border-gold/40 bg-[#12241c] px-3 py-2.5 text-white">
       <div className="flex items-center gap-2">
         <p className="min-w-0 flex-1 truncate text-sm font-bold">{flash || label}</p>
         <button
@@ -303,7 +309,7 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
             type="button"
             disabled={busy}
             onClick={() => void run(action)}
-            className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-3 text-sm font-bold disabled:opacity-60 ${action.primary ? 'bg-gold text-burgundy-dark' : 'bg-white/10'}`}
+            className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-3 text-sm font-bold disabled:opacity-60 ${action.primary ? 'bg-gradient-to-b from-[#f3cd6b] to-[#d9a83a] text-[#12241c]' : 'bg-white/10'}`}
           >
             {busy && action.primary ? <Loader2 size={16} className="animate-spin" aria-hidden /> : action.icon ?? <Send size={16} aria-hidden />} {action.label}
           </button>
@@ -324,16 +330,17 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
         dir={main?.textDirection || 'ltr'}
         lang={main?.language === 'lug' ? 'lg' : undefined}
       >
-        <h2 className="font-display text-[22px] font-bold leading-tight text-ink">
+        <h2 className="font-display text-[30px] font-bold leading-tight text-[#1d372c]">
           {bookName} {c}
         </h2>
-        {main ? <p className="mb-2 font-display text-[13px] italic text-burgundy">{main.name}</p> : null}
+        {main ? <p className="text-[14px] font-medium text-gray-600">{main.name}</p> : null}
+        <span aria-hidden className="mb-3 mt-2 block h-[3px] w-14 rounded-full bg-gradient-to-r from-[#c9a35a] to-[#c9a35a]/30" />
 
         {error ? (
           <p className="rounded-xl bg-red-50 px-3 py-3 text-sm font-semibold text-red-800" role="alert">{error}</p>
         ) : loading && !verses.length ? (
           <p className="flex items-center gap-2 py-10 text-gray-500" role="status">
-            <Loader2 className="animate-spin text-burgundy" size={20} aria-hidden /> Loading…
+            <Loader2 className="animate-spin text-[#1d372c]" size={20} aria-hidden /> Loading…
           </p>
         ) : (
           <ol className={`space-y-1 ${loading ? 'opacity-60' : ''}`}>
@@ -346,10 +353,10 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
                     type="button"
                     onClick={() => toggleVerse(v.n)}
                     aria-pressed={on}
-                    className={`w-full rounded-xl px-2 py-1.5 text-left transition-colors ${on ? 'bg-gold/20 ring-1 ring-gold' : 'hover:bg-gold-cream/60'}`}
+                    className={`w-full rounded-xl px-2 py-1.5 text-left transition-colors ${on ? 'bg-[#fbecc4] font-semibold shadow-[inset_3px_0_0_#c9a35a]' : 'hover:bg-[#fbf3df]'}`}
                   >
                     <span className={`font-display leading-relaxed text-ink ${SIZES[size] ?? SIZES[0]}`}>
-                      <sup className="mr-1.5 font-sans text-[12px] font-bold text-gold-ink">{v.n}</sup>
+                      <sup className="mr-1.5 font-sans text-[12px] font-bold text-[#a8833c]">{v.n}</sup>
                       {v.text}
                     </span>
                     {other ? (
@@ -373,17 +380,20 @@ export const BibleReader: React.FC<Props> = ({ actions = [] }) => {
             type="button"
             disabled={!prev}
             onClick={() => prev && go(prev)}
-            className="inline-flex min-h-[42px] items-center gap-1 rounded-xl border border-gray-200 px-3 text-sm font-bold text-burgundy disabled:opacity-40"
+            className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-[#d9b86a] bg-[#fbf3df] px-4 text-sm font-bold text-[#16251f] disabled:opacity-40"
           >
-            <ChevronLeft size={18} aria-hidden /> Previous
+            <ChevronLeft size={18} className="text-[#a8833c]" aria-hidden /> Prev
           </button>
+          <span className="min-w-0 truncate rounded-full border border-[#d9b86a] bg-[#fbf3df] px-4 py-2.5 text-sm font-bold text-[#16251f]">
+            {bookName} {c}
+          </span>
           <button
             type="button"
             disabled={!next}
             onClick={() => next && go(next)}
-            className="inline-flex min-h-[42px] items-center gap-1 rounded-xl bg-burgundy px-4 text-sm font-bold text-white disabled:opacity-40"
+            className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-[#d9b86a] bg-[#fbf3df] px-4 text-sm font-bold text-[#16251f] disabled:opacity-40"
           >
-            Next <ChevronRight size={18} aria-hidden />
+            Next <ChevronRight size={18} className="text-[#a8833c]" aria-hidden />
           </button>
         </nav>
 
