@@ -84,6 +84,9 @@ export function moderatorActionsFor(target: ModeratorTarget, micLock: boolean, i
   if (micLock && !target.moderator && !target.reader) {
     out.push({ action: 'allow-mic', label: 'Let them speak', Icon: Mic });
     out.push({ action: 'revoke-mic', label: 'Done speaking (take mic back)', Icon: MicOff });
+  } else if (target.handRaised && !target.micOn) {
+    // Mics unlocked (or the lock state didn't load): asks them to unmute and lowers their hand.
+    out.push({ action: 'allow-mic', label: 'Let them speak', Icon: Mic });
   }
   out.push(
     target.micOn

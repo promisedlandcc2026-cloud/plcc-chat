@@ -266,6 +266,8 @@ type Tile = {
   speaking: boolean;
   /** Room moderator (from the LiveKit token's plcc.role attribute). */
   moderator: boolean;
+  /** Name badge from Canaan (Apostle / Bishop / Pastor / Super Admin), or null. */
+  badge: string | null;
   /** When the hand went up (ms), for first-come, first-served order. */
   raisedAt: number | null;
   /** Fixed hand number for this Ka Link (kept after the hand is lowered). */
@@ -284,6 +286,12 @@ type Tile = {
 const HUDDLE_READY_TOPIC = 'plcc-ready';
 const READY_RESEND_MS = 30_000;
 type ReadyAlert = { identity: string; name: string; at: number };
+
+/** Apostle / Bishop / Pastor / Super Admin — signed into the token by Canaan. */
+export function participantBadge(p: Pick<Participant, 'attributes'>): string | null {
+  const b = String(p.attributes?.['plcc.badge'] || '').trim();
+  return ['Apostle', 'Bishop', 'Pastor', 'Super Admin'].includes(b) ? b : null;
+}
 
 function participantTeam(p: Participant): 'admin' | 'leader' | 'reader' | null {
   const t = p.attributes?.['plcc.team'];
@@ -817,6 +825,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         handRaised: parseHandRaised(p.metadata),
         speaking: speakers.has(p.identity),
         moderator: p.attributes?.['plcc.role'] === 'moderator' || (isLocal && canModerateRef.current),
+        badge: participantBadge(p),
         raisedAt: parseHandRaisedAt(p.metadata),
         handNo: parseHandNo(p.metadata),
         // Bible reader for this session, or a standing reader from Canaan's Ka Link team.
@@ -2682,8 +2691,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
 
   const letSpeak = useCallback(
     async (identity: string): Promise<boolean> => {
-      // Locked: give the mic back. Unlocked: they can already unmute. Either way, lower the hand.
-      if (stageRef.current.micLock && !(await moderate('allow-mic', identity))) return false;
+      // Locked: give the mic back. Unlocked: ask them to unmute. Either way, lower the hand.
+      if (stageRef.current.micLock) {
+        if (!(await moderate('allow-mic', identity))) return false;
+      } else if (!(await moderate('unmute', identity))) {
+        return false;
+      }
       return moderate('lower-hand', identity);
     },
     [moderate]
@@ -3082,7 +3095,7 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                                 setActiveTab('attendance');
                               }
                             }}
-                            aria-label={`${tile.name}${tile.isLocal ? ' (you)' : ''}${tile.moderator ? ', moderator' : ''}${pos ? `, hand raised number ${pos}` : ''}${tile.micOn ? ', mic on' : ', muted'}${tile.away ? `, ${awayLabel(tile.away).toLowerCase()}` : tile.signal !== 'ok' ? `, ${signalLabel(tile.signal).toLowerCase()}` : ''}`}
+                            aria-label={`${tile.name}${tile.isLocal ? ' (you)' : ''}${tile.badge ? `, ${tile.badge.toLowerCase()}` : tile.moderator ? ', moderator' : ''}${pos ? `, hand raised number ${pos}` : ''}${tile.micOn ? ', mic on' : ', muted'}${tile.away ? `, ${awayLabel(tile.away).toLowerCase()}` : tile.signal !== 'ok' ? `, ${signalLabel(tile.signal).toLowerCase()}` : ''}`}
                           >
                             <span className={`pr-avatar ${tile.speaking && tile.micOn ? 'is-speaking' : ''} ${tile.moderator ? 'is-mod' : ''}`}>
                               {initials(tile.name)}
@@ -3658,6 +3671,8 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
                           ) : null}
                           {tile.speaking && tile.micOn ? (
                             <span className="pr-role is-speaking">Praying</span>
+                          ) : tile.badge ? (
+                            <span className="pr-role is-mod"><Crown size={12} aria-hidden /> {tile.badge}</span>
                           ) : tile.moderator ? (
                             <span className="pr-role is-mod"><Crown size={12} aria-hidden /> Mod</span>
                           ) : tile.reader ? (
