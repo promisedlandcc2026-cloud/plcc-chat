@@ -39,14 +39,10 @@ export function useRoomLive(opts: {
   topic: string | null;
   self: { id: string; name: string } | null;
   onChange: () => void;
-  /** Someone opened the room (their read position moved) → refresh ✓✓. */
-  onRead?: () => void;
 }) {
   const { topic, self } = opts;
   const onChangeRef = useRef(opts.onChange);
   onChangeRef.current = opts.onChange;
-  const onReadRef = useRef(opts.onRead);
-  onReadRef.current = opts.onRead;
   const channelRef = useRef<RealtimeChannel | null>(null);
   const lastTypingSent = useRef(0);
   const typingMap = useRef(new Map<string, { name: string; until: number }>());
@@ -66,7 +62,6 @@ export function useRoomLive(opts: {
         refresh();
       })
       .on('broadcast', { event: 'deleted' }, refresh)
-      .on('broadcast', { event: 'read' }, () => onReadRef.current?.())
       .on('broadcast', { event: 'typing' }, (msg) => {
         const p = (msg.payload || {}) as { id?: unknown; name?: unknown };
         const id = String(p.id || '').slice(0, 64);

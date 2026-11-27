@@ -5,10 +5,7 @@ import {
   canEdit,
   mentionHandle,
   mentionIdsInText,
-  seenBy,
-  seenLabel,
   splitMentions,
-  tickState,
   toggleReaction,
 } from '../lib/chatMessageUtils.ts';
 
@@ -16,24 +13,6 @@ const ME = 'me';
 const msg = (over = {}) => ({
   id: 'm', channelId: 'c', content: 'hi', isDeleted: false, createdAt: '2026-11-02T12:00:00Z',
   author: { id: ME, name: 'Me', avatarUrl: null }, parent: null, attachments: [], ...over,
-});
-
-describe('read ticks', () => {
-  const readers = [
-    { userId: 'a', name: 'Ann Smith', lastReadAt: '2026-11-02T12:01:00Z' },
-    { userId: 'b', name: 'Paul', lastReadAt: '2026-11-02T11:00:00Z' },
-    { userId: ME, name: 'Me', lastReadAt: '2026-11-02T13:00:00Z' },
-  ];
-  it('seen by people who read after it was sent, never the author', () => {
-    assert.deepEqual(seenBy(msg(), readers).map((r) => r.userId), ['a']);
-    assert.equal(tickState(seenBy(msg(), readers)), 'seen');
-    assert.equal(tickState([]), 'sent');
-  });
-  it('labels', () => {
-    assert.equal(seenLabel([], false), 'Sent');
-    assert.equal(seenLabel(seenBy(msg(), readers), true), 'Seen');
-    assert.equal(seenLabel(seenBy(msg(), readers), false), 'Seen by Ann');
-  });
 });
 
 describe('editing', () => {

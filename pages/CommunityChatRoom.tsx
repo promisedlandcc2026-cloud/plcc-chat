@@ -14,7 +14,6 @@ import {
   fetchHuddleStatuses,
   fetchHuddleCanStart,
   fetchRoomInfo,
-  fetchReadReceipts,
   editChatMessage,
   removeChatMessage,
   reportChatMessage,
@@ -60,7 +59,6 @@ import {
   useVoiceRecorder,
 } from '../components/chat/ChatMediaComposer';
 import { useRoomLive } from '../lib/useRoomLive';
-import { readersWaitMs } from '../lib/readReceiptsPace';
 import { ChatMessageBubble } from '../components/chat/ChatMessageBubble';
 import { TypingBubble } from '../components/chat/TypingBubble';
 import { MessageActions } from '../components/chat/MessageActions';
@@ -74,9 +72,10 @@ import {
   mentionIdsInText,
   toggleReaction,
 } from '../lib/chatMessageUtils';
-import { POLL_MESSAGE_PREFIX, REQUEST_PREFIX, type ChatRequest, type ChatRequestAction, isCardMessageText, type ChatCard, type ChatEventCard, type ChatServeCard, type ChatMentionPerson, type ChatPinned, type ChatPoll, type ChatReader, type ChatSearchHit } from '../lib/communityChatTypes';
+import { POLL_MESSAGE_PREFIX, REQUEST_PREFIX, type ChatRequest, type ChatRequestAction, isCardMessageText, type ChatCard, type ChatEventCard, type ChatServeCard, type ChatMentionPerson, type ChatPinned, type ChatPoll, type ChatSearchHit } from '../lib/communityChatTypes';
 import { GroupInfoSheet } from '../components/chat/GroupInfoSheet';
 import { CHAT_LEADER_ROLES } from '../lib/chatRoles';
+import { FALLBACK_POLL_MS, markReadDue, reloadDelayMs } from '../lib/chatPace';
 
 /** Backup refresh when the live connection is up (it normally delivers instantly). */
 const LIVE_POLL_MS = 30_000;
@@ -86,7 +85,7 @@ const PRAYER_WATCH_URL = 'https://plcc-connect.vercel.app/intercessors';
 const HUDDLE_NOT_STARTED_TEXT =
   "This Ka Link hasn't started yet. A leader or room moderator will start it — you can join as soon as it's live.";
 
-const POLL_MS = 5000;
+const POLL_MS = FALLBACK_POLL_MS;
 const HUDDLE_POLL_MS = 10_000;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -139,8 +138,6 @@ export const CommunityChatRoomPage: React.FC = () => {
   const [muted, setMuted] = useState(false);
   const [muteBusy, setMuteBusy] = useState(false);
   const [vaultRoomName, setVaultRoomName] = useState<string | null>(null);
-  /** Everyone else's read position (✓✓ / "Seen by"). */
-  const [readers, setReaders] = useState<ChatReader[]>([]);
   const [replyTo, setReplyTo] = useState<CommunityChatMessage | null>(null);
   const [editing, setEditing] = useState<CommunityChatMessage | null>(null);
   const [actionsFor, setActionsFor] = useState<CommunityChatMessage | null>(null);
@@ -236,6 +233,7 @@ export const CommunityChatRoomPage: React.FC = () => {
     }
   };
 
+  const lastMarkReadRef = useRef(0);
   const load = useCallback(
     async (opts?: { quiet?: boolean }) => {
       if (!validChannel || memberAccessState !== 'approved_member') return;
@@ -244,9 +242,14 @@ export const CommunityChatRoomPage: React.FC = () => {
         const list = await fetchChatMessages(channelId);
         setMessages(list);
         setError(null);
-        void markChatChannelRead(channelId).catch(() => {
-          /* non-blocking */
-        });
+        // Unread counts: at most every 15s per room (not once per message per phone).
+        const now = Date.now();
+        if (!opts?.quiet || markReadDue(lastMarkReadRef.current, now)) {
+          lastMarkReadRef.current = now;
+          void markChatChannelRead(channelId).catch(() => {
+            /* non-blocking */
+          });
+        }
       } catch (err) {
         if (!opts?.quiet) {
           const message =
@@ -265,46 +268,29 @@ export const CommunityChatRoomPage: React.FC = () => {
   const selfId = identity?.id || user?.id || '';
   const selfName = identity?.name || 'Someone';
   const liveSelf = React.useMemo(() => (selfId ? { id: selfId, name: selfName } : null), [selfId, selfName]);
-  // "Seen by" refresh, gently: at most once every ~10–15s per phone, never while Ka Link is
-  // in the background. (Nov 27: refetching on every "read" signal in busy rooms flooded the server.)
-  const readersTimerRef = useRef<number | null>(null);
-  const readersLastRef = useRef(0);
-  const fetchReadersNow = useCallback(() => {
-    if (!validChannel || memberAccessState !== 'approved_member') return;
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-    readersLastRef.current = Date.now();
-    fetchReadReceipts(channelId)
-      .then(setReaders)
-      .catch(() => undefined);
-  }, [channelId, memberAccessState, validChannel]);
-  const loadReaders = useCallback(() => {
-    if (readersTimerRef.current !== null) return; // one already queued
-    const wait = readersWaitMs(readersLastRef.current, Date.now(), Math.random());
-    readersTimerRef.current = window.setTimeout(() => {
-      readersTimerRef.current = null;
-      fetchReadersNow();
-    }, wait);
-  }, [fetchReadersNow]);
-  useEffect(() => {
-    // New room: forget the old schedule and load right away.
-    readersLastRef.current = 0;
-    if (readersTimerRef.current !== null) window.clearTimeout(readersTimerRef.current);
-    readersTimerRef.current = null;
-    fetchReadersNow();
-    return () => {
-      if (readersTimerRef.current !== null) window.clearTimeout(readersTimerRef.current);
-      readersTimerRef.current = null;
-    };
-  }, [fetchReadersNow]);
+  // A new message: every phone in the room hears it. Wait a random moment and reload
+  // once, so a burst of messages (or 50 phones) doesn't hit the server in the same instant.
+  const reloadTimerRef = useRef<number | null>(null);
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const scheduleReload = useCallback(() => {
+    if (reloadTimerRef.current !== null) return;
+    reloadTimerRef.current = window.setTimeout(() => {
+      reloadTimerRef.current = null;
+      void loadRef.current({ quiet: true });
+    }, reloadDelayMs(Math.random()));
+  }, []);
+  useEffect(
+    () => () => {
+      if (reloadTimerRef.current !== null) window.clearTimeout(reloadTimerRef.current);
+    },
+    []
+  );
   const live = useRoomLive({
     topic: roomTopic,
     self: liveSelf,
-    onChange: () => void load({ quiet: true }),
-    onRead: loadReaders,
+    onChange: scheduleReload,
   });
-  useEffect(() => {
-    loadReaders();
-  }, [loadReaders, messages.length]);
   useEffect(() => {
     recentAuthorsRef.current = recentAuthorIds(messages);
   }, [messages]);
@@ -1259,7 +1245,6 @@ export const CommunityChatRoomPage: React.FC = () => {
               message={msg}
               selfId={selfId}
               isDm={isDm}
-              readers={readers}
               highlighted={highlightId === msg.id}
               onReply={startReply}
               onOpenActions={setActionsFor}

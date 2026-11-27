@@ -7,13 +7,13 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
 describe('Light polling', () => {
-  it('chat list once every 5 minutes; LIVE status every 20s', () => {
+  it('chat list once every 5 minutes; LIVE status every 45s', () => {
     const c = read('context/HuddleLiveContext.tsx');
-    assert.match(c, /const POLL_MS = 20_000;/);
+    assert.match(c, /const POLL_MS = 45_000;/);
     assert.match(c, /const CHANNEL_LIST_MS = 5 \* 60_000;/);
     assert.match(c, /if \(cached\.owner !== authUserId \|\| Date\.now\(\) - cached\.at > CHANNEL_LIST_MS\) \{/);
   });
-  it('missed-ring safety check every 30s', () => {
-    assert.match(read('context/DmCallContext.tsx'), /setInterval\(\(\) => void checkPending\(\), 30_000\)/);
+  it('missed-ring safety check about every 60s (spread out, Nov 27 audit)', () => {
+    assert.match(read('context/DmCallContext.tsx'), /setInterval\(\(\) => void checkPending\(\), jittered\(60_000, Math\.random\(\)\)\)/);
   });
 });

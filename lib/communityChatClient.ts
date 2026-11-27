@@ -18,7 +18,6 @@ import {
   REQUEST_PREFIX,
   REQUEST_CATEGORY_OPTIONS,
   type ChatSearchHit,
-  type ChatReader,
   type CommunityChatChannel,
   type CommunityChatErrorCode,
   type CommunityChatMessage,
@@ -436,11 +435,6 @@ export async function reportChatMessage(messageId: string, reason: ChatReportRea
   await postJson('message-report', { messageId, reason, note: note.trim().slice(0, 500) }, 'Could not send that report.');
 }
 
-/** Everyone else's read position in this room. */
-export async function fetchReadReceipts(channelId: string): Promise<ChatReader[]> {
-  const d = await postJson<{ readers: ChatReader[] }>('read-receipts', { channelId }, '');
-  return Array.isArray(d.readers) ? d.readers : [];
-}
 
 /** People in this room whose name starts with / contains q (for @mentions). */
 export async function searchRoomMentions(channelId: string, q: string): Promise<ChatMentionPerson[]> {

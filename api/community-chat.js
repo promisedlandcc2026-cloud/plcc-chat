@@ -43,7 +43,6 @@ import {
   UUID_RE,
   parseReactionCommand,
   parseEditMessageCommand,
-  parseVaultReadReceipts,
   parseVaultMentionCandidates,
   sanitizePinned,
   sanitizePoll,
@@ -123,7 +122,6 @@ const ALLOWED_RESOURCES = new Set([
   'room-info',
   'reaction',
   'message-edit',
-  'read-receipts',
   'ka-link-passes',
   'mentions',
   'pin',
@@ -1375,7 +1373,7 @@ async function handleBridge(req, res) {
       return json(res, 200, { ok: true, polls });
     }
 
-    if (resource === 'reaction' || resource === 'message-edit' || resource === 'read-receipts') {
+    if (resource === 'reaction' || resource === 'message-edit') {
       if (req.method !== 'POST') {
         res.setHeader('Allow', 'POST');
         return json(res, 405, { ok: false, code: 'method_not_allowed', message: 'Only POST is supported.' });
@@ -1439,22 +1437,6 @@ async function handleBridge(req, res) {
         if (!parsed.ok) return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Could not edit that message.' });
         return json(res, 200, { ok: true, message: parsed.message });
       }
-      // read-receipts
-      const b = parsedBody.body;
-      if (!b || typeof b !== 'object' || !UUID_RE.test(String(b.channelId || '')) || Object.keys(b).some((k) => k !== 'channelId')) {
-        return json(res, 400, { ok: false, code: 'invalid_body', message: 'That request was not valid.' });
-      }
-      const upstream = await fetch(buildVaultCommunityChatSubUrl(originResult.origin, 'read-receipts'), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ channelId: b.channelId }),
-        signal: controller.signal,
-        redirect: 'error',
-      });
-      if (!upstream.ok) return mapUpstreamError(res, upstream.status);
-      const parsed = parseVaultReadReceipts(await upstream.json().catch(() => null));
-      if (!parsed.ok) return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Could not load read receipts.' });
-      return json(res, 200, { ok: true, readers: parsed.readers });
     }
 
     if (resource === 'ka-link-passes') {

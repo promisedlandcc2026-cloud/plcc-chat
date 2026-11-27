@@ -69,8 +69,6 @@ export type CommunityChatMessage = {
 
 export type CommunityChatReaction = { emoji: string; userIds: string[] };
 
-/** Someone else's read position in a room (for ✓✓ and "Seen by"). */
-export type ChatReader = { userId: string; name: string; lastReadAt: string };
 
 export type ChatMentionPerson = {
   id: string;

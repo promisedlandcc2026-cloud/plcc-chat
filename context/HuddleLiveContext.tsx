@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useAuth } from './AuthContext';
+import { jittered } from '../lib/chatPace';
 import {
   isDmChannel,
   isHuddleChannelLive,
@@ -27,7 +28,8 @@ const HuddleLiveContext = createContext<HuddleLiveContextValue | null>(null);
  * to light the LIVE dots — the biggest source of database traffic. Now the list is downloaded once
  * every 5 minutes (it rarely changes) and only the LIVE status is checked every 20s.
  */
-const POLL_MS = 20_000;
+const POLL_MS = 45_000;
+/** Nov 27 audit: 20s → 45s (LIVE dots can be a little slower; join still checks live status). */
 const CHANNEL_LIST_MS = 5 * 60_000;
 const MAX_CHANNELS = 50;
 
@@ -85,9 +87,10 @@ export const HuddleLiveProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (document.visibilityState === 'visible') void refresh();
     };
     document.addEventListener('visibilitychange', onVisible);
+    // Spread out (±20%) so thousands of open apps don't all ask in the same second.
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refresh();
-    }, POLL_MS);
+    }, jittered(POLL_MS, Math.random()));
     return () => {
       controller.abort();
       document.removeEventListener('visibilitychange', onVisible);

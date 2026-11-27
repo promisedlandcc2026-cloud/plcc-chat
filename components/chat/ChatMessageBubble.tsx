@@ -1,12 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { Check, CheckCheck, ChevronDown, CornerUpLeft } from 'lucide-react';
-import type { ChatCard, ChatEventCard, ChatPoll, ChatReader, ChatRequest, ChatRequestAction, ChatServeCard, CommunityChatMessage } from '../../lib/communityChatTypes';
+import { Check, ChevronDown, CornerUpLeft } from 'lucide-react';
+import type { ChatCard, ChatEventCard, ChatPoll, ChatRequest, ChatRequestAction, ChatServeCard, CommunityChatMessage } from '../../lib/communityChatTypes';
 import { RequestCard } from './RequestCard';
 import { ChatCardView } from './ChatCardView';
 import { PollCard } from './PollCard';
 import { ChatAttachments } from './ChatAttachments';
 import { visibleCaption } from '../../lib/chatMedia';
-import { seenBy, seenLabel, splitRich, tickState } from '../../lib/chatMessageUtils';
+import { splitRich } from '../../lib/chatMessageUtils';
 import { parseVerseMessage } from '../../lib/verseShare';
 import { VerseCard } from './VerseCard';
 
@@ -56,7 +56,6 @@ export const ChatMessageBubble: React.FC<{
   message: CommunityChatMessage;
   selfId: string;
   isDm: boolean;
-  readers: ChatReader[];
   highlighted?: boolean;
   onReply: (m: CommunityChatMessage) => void;
   onOpenActions: (m: CommunityChatMessage) => void;
@@ -75,10 +74,9 @@ export const ChatMessageBubble: React.FC<{
   /** Help request on this message. */
   request?: ChatRequest | null;
   onRequestAction?: (r: ChatRequest, action: ChatRequestAction, extra?: { assigneeId?: string; note?: string }) => Promise<void>;
-}> = ({ message: msg, selfId, isDm, readers, highlighted, onReply, onOpenActions, onToggleReaction, onJumpTo, poll, onPollVote, onPollClose, canCloseAnyPoll, card, onCardGoing, onCardServe, request, onRequestAction }) => {
+}> = ({ message: msg, selfId, isDm, highlighted, onReply, onOpenActions, onToggleReaction, onJumpTo, poll, onPollVote, onPollClose, canCloseAnyPoll, card, onCardGoing, onCardServe, request, onRequestAction }) => {
   const mine = Boolean(selfId && msg.author.id === selfId);
   const [dx, setDx] = useState(0);
-  const [showSeen, setShowSeen] = useState(false);
   const touch = useRef<{ x: number; y: number; timer: number | null; moved: boolean } | null>(null);
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -121,7 +119,6 @@ export const ChatMessageBubble: React.FC<{
 
   const text = msg.isDeleted ? 'This message was removed' : visibleCaption(msg.content, msg.attachments);
   const verse = msg.isDeleted ? null : parseVerseMessage(text);
-  const seen = mine && !msg.isDeleted ? seenBy(msg, readers) : [];
   const reactions = msg.reactions || [];
 
   return (
@@ -213,23 +210,8 @@ export const ChatMessageBubble: React.FC<{
         <div className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${mine ? 'text-white/85' : 'text-gray-600'}`}>
           {msg.editedAt && !msg.isDeleted ? <span>edited ·</span> : null}
           <time dateTime={msg.createdAt}>{formatTime(msg.createdAt)}</time>
-          {mine && !msg.isDeleted ? (
-            <button
-              type="button"
-              onClick={() => setShowSeen((v) => !v)}
-              className="inline-flex items-center"
-              aria-label={seenLabel(seen, isDm)}
-              title={seenLabel(seen, isDm)}
-            >
-              {tickState(seen) === 'seen' ? (
-                <CheckCheck size={15} className="text-gold" aria-hidden />
-              ) : (
-                <Check size={15} aria-hidden />
-              )}
-            </button>
-          ) : null}
+          {mine && !msg.isDeleted ? <Check size={15} aria-label="Sent" /> : null}
         </div>
-        {showSeen && mine ? <p className="text-[11px] text-white/80 text-right">{seenLabel(seen, isDm)}</p> : null}
       </div>
 
       {reactions.length ? (

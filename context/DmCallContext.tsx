@@ -30,6 +30,7 @@ import {
 import { startRingback, startRingtone, type CallTone } from '../lib/callTone';
 import { setCallActive } from '../lib/staleBuild';
 import { reportIssue } from '../lib/issueReport';
+import { jittered } from '../lib/chatPace';
 
 const DmCallScreen = lazy(() => import('../components/call/DmCallScreen').then((m) => ({ default: m.DmCallScreen })));
 const CallPip = lazy(() => import('../components/call/CallPip').then((m) => ({ default: m.CallPip })));
@@ -489,7 +490,9 @@ export const DmCallProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const onOnline = () => void subscribe();
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', onOnline);
-    const poll = window.setInterval(() => void checkPending(), 30_000);
+    // Backup check for incoming calls (the live connection normally rings instantly).
+    // Nov 27 audit: 30s → ~60s, spread out, so thousands of open apps don't line up.
+    const poll = window.setInterval(() => void checkPending(), jittered(60_000, Math.random()));
     return () => {
       alive = false;
       if (retryTimer) window.clearTimeout(retryTimer);

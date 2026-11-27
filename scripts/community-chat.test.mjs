@@ -405,7 +405,7 @@ describe('Connect Ka Link bridge + UI wiring', () => {
     assert.ok(list.includes('openDirectMessage'));
     const huddleCtx = readFileSync(join(root, 'context/HuddleLiveContext.tsx'), 'utf8');
     assert.ok(huddleCtx.includes('fetchHuddleStatuses'));
-    assert.ok(huddleCtx.includes('20_000')) // Nov 20 2026: LIVE dots every 20s (lighter on the database);
+    assert.ok(huddleCtx.includes('45_000')) // Nov 20 2026: LIVE dots every 20s (lighter on the database);
     const badge = readFileSync(join(root, 'components/huddle/HuddleLiveDot.tsx'), 'utf8');
     assert.ok(badge.includes('bg-emerald-500'));
     assert.equal(list.includes('bg-red-600'), false);
@@ -644,7 +644,7 @@ describe('Jordan: instant messages, typing, phone alerts, desktop', () => {
   });
 });
 
-describe('Jordan: replies, reactions, edit, mentions, read receipts', async () => {
+describe('Jordan: replies, reactions, edit, mentions', async () => {
   const s = await import('../api/_utils/communityChatSanitize.js');
   const C = '11111111-1111-4111-8111-111111111111';
   const M = '22222222-2222-4222-8222-222222222222';
@@ -676,16 +676,18 @@ describe('Jordan: replies, reactions, edit, mentions, read receipts', async () =
     assert.equal(msg.editedAt, '2026-11-02T00:05:00.000Z');
   });
   it('read receipts and mention names are cleaned', () => {
-    const rr = s.parseVaultReadReceipts({ readers: [{ userId: U, name: 'Ann', lastReadAt: '2026-11-02T00:00:00Z' }, { userId: 'bad' }] });
-    assert.equal(rr.readers.length, 1);
+    // "Seen by" was removed (Nov 27, 2026 outage): no read-receipt parser any more.
+    assert.equal(s.parseVaultReadReceipts, undefined);
     const mc = s.parseVaultMentionCandidates([{ id: U, name: 'Ann Smith', role: 'MEMBER', email: 'x@y.z' }]);
     assert.deepEqual(mc.people, [{ id: U, name: 'Ann Smith', label: null }]);
   });
   it('bridge exposes the new routes and only allowlisted Vault paths', () => {
     const bridge = readFileSync(join(root, 'api/community-chat.js'), 'utf8');
     const origin = readFileSync(join(root, 'api/_utils/vaultOrigin.js'), 'utf8');
-    for (const r of ["'reaction'", "'message-edit'", "'read-receipts'", "'mentions'"]) assert.ok(bridge.includes(r), r);
-    for (const sub of ['reactions', 'edit-message', 'read-receipts', 'mention-candidates', 'pin', 'search', 'channel-members']) {
+    for (const r of ["'reaction'", "'message-edit'", "'mentions'"]) assert.ok(bridge.includes(r), r);
+    assert.ok(!bridge.includes("'read-receipts'"), '"Seen by" route removed');
+    assert.ok(!origin.includes("'read-receipts'"), '"Seen by" Canaan path removed');
+    for (const sub of ['reactions', 'edit-message', 'mention-candidates', 'pin', 'search', 'channel-members']) {
       assert.ok(origin.includes(`'${sub}'`), sub);
     }
     assert.ok(origin.includes("if (!CHAT_SUBS.has(sub)) throw"));
@@ -707,10 +709,11 @@ describe('Jordan room: swipe/hold actions, reply bar, reactions, ticks', () => {
     assert.ok(room.includes('mentionIdsInText(content, mentionPicked.current)'));
     assert.ok(room.includes("(min-width: 1024px)"));
   });
-  it('delete asks first; ticks show Sent / Seen', () => {
+  it('delete asks first; one plain ✓ for Sent, no "Seen by" (removed Nov 27)', () => {
     assert.ok(actions.includes('Remove this message for everyone?'));
-    assert.ok(bubble.includes('CheckCheck'));
-    assert.ok(room.includes('onRead: loadReaders'));
+    assert.ok(bubble.includes('aria-label="Sent"'));
+    assert.ok(!bubble.includes('CheckCheck'));
+    assert.ok(!room.includes('fetchReadReceipts'));
   });
 });
 

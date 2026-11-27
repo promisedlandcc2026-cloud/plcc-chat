@@ -370,19 +370,6 @@ export function parseEditMessageCommand(raw) {
   return { ok: true, messageId, content: contentResult.content };
 }
 
-/** Vault read-receipts → [{ userId, name, lastReadAt }]. */
-export function parseVaultReadReceipts(body) {
-  if (!body || typeof body !== 'object' || !Array.isArray(body.readers)) return { ok: false };
-  const readers = [];
-  for (const r of body.readers.slice(0, 300)) {
-    const userId = asNullableString(r?.userId);
-    const lastReadAt = asIsoTimestamp(r?.lastReadAt);
-    if (!userId || !UUID_RE.test(userId) || !lastReadAt) continue;
-    readers.push({ userId, name: (asNullableString(r?.name) || 'Member').slice(0, 80), lastReadAt });
-  }
-  return { ok: true, readers };
-}
-
 /** Church role → short label for the @ list (leaders only; members get none). */
 const ROLE_LABELS = {
   SUPER_ADMIN: 'Admin',

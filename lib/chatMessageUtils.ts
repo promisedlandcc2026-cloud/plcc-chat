@@ -1,30 +1,10 @@
 /**
- * Small, pure helpers for message bubbles: read ticks, @mentions, reactions, editing.
+ * Small, pure helpers for message bubbles: @mentions, reactions, editing.
  */
-import type { ChatReader, CommunityChatMessage, CommunityChatReaction } from './communityChatTypes';
+import type { CommunityChatMessage, CommunityChatReaction } from './communityChatTypes';
 
 export const CHAT_REACTIONS = ['👍', '❤️', '🙏', '😂', '😮', '😢', '🙌', '🔥'] as const;
 export const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-/** People (other than the author) who have read up to this message. */
-export function seenBy(message: Pick<CommunityChatMessage, 'createdAt' | 'author'>, readers: ChatReader[]): ChatReader[] {
-  const sent = Date.parse(message.createdAt);
-  if (!Number.isFinite(sent)) return [];
-  return readers.filter((r) => r.userId !== message.author.id && Date.parse(r.lastReadAt) >= sent);
-}
-
-/** ✓ sent · ✓✓ seen by someone (in a direct message: seen by them). */
-export function tickState(seen: ChatReader[]): 'sent' | 'seen' {
-  return seen.length > 0 ? 'seen' : 'sent';
-}
-
-export function seenLabel(seen: ChatReader[], isDm: boolean): string {
-  if (!seen.length) return 'Sent';
-  if (isDm) return 'Seen';
-  const names = seen.map((r) => r.name.split(/\s+/)[0] || r.name);
-  if (names.length <= 3) return `Seen by ${names.join(', ')}`;
-  return `Seen by ${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
-}
 
 export function canEdit(message: CommunityChatMessage, selfId: string, now = Date.now()): boolean {
   if (message.isDeleted || message.author.id !== selfId) return false;
