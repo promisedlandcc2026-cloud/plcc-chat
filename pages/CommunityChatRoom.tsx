@@ -76,6 +76,7 @@ import { POLL_MESSAGE_PREFIX, REQUEST_PREFIX, type ChatRequest, type ChatRequest
 import { GroupInfoSheet } from '../components/chat/GroupInfoSheet';
 import { CHAT_LEADER_ROLES } from '../lib/chatRoles';
 import { FALLBACK_POLL_MS, markReadDue, reloadDelayMs } from '../lib/chatPace';
+import { CHAT_WINDOW, fullRefreshDue, mergeMessages, newestCreatedAt, planReload } from '../lib/chatSync';
 
 /** Backup refresh when the live connection is up (it normally delivers instantly). */
 const LIVE_POLL_MS = 30_000;
@@ -234,13 +235,35 @@ export const CommunityChatRoomPage: React.FC = () => {
   };
 
   const lastMarkReadRef = useRef(0);
+  const lastFullRef = useRef(0);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const loadedChannelRef = useRef('');
+  /**
+   * Full: the latest 200 messages (first open, the odd refresh).
+   * Light (Nov 28): only the messages live pings named (ids) and/or anything
+   * newer than what's on screen (after) — merged in, not a whole-room reload.
+   */
   const load = useCallback(
-    async (opts?: { quiet?: boolean }) => {
+    async (opts?: { quiet?: boolean; ids?: string[]; after?: string | null }) => {
       if (!validChannel || memberAccessState !== 'approved_member') return;
       if (!opts?.quiet) setLoading(true);
+      const light =
+        loadedChannelRef.current === channelId && ((opts?.ids?.length ?? 0) > 0 || Boolean(opts?.after));
       try {
-        const list = await fetchChatMessages(channelId);
-        setMessages(list);
+        if (light) {
+          const [named, newer] = await Promise.all([
+            opts?.ids?.length ? fetchChatMessages(channelId, { ids: opts.ids }) : Promise.resolve([]),
+            opts?.after ? fetchChatMessages(channelId, { after: opts.after, limit: CHAT_WINDOW }) : Promise.resolve([]),
+          ]);
+          if (loadedChannelRef.current !== channelId) return;
+          setMessages((prev) => mergeMessages(prev, [...named, ...newer]));
+        } else {
+          const list = await fetchChatMessages(channelId, { limit: CHAT_WINDOW });
+          loadedChannelRef.current = channelId;
+          lastFullRef.current = Date.now();
+          setMessages(list);
+        }
         setError(null);
         // Unread counts: at most every 15s per room (not once per message per phone).
         const now = Date.now();
@@ -270,14 +293,27 @@ export const CommunityChatRoomPage: React.FC = () => {
   const liveSelf = React.useMemo(() => (selfId ? { id: selfId, name: selfName } : null), [selfId, selfName]);
   // A new message: every phone in the room hears it. Wait a random moment and reload
   // once, so a burst of messages (or 50 phones) doesn't hit the server in the same instant.
+  // Each ping names the message that changed, so the wait collects those ids and
+  // then fetches just them (Nov 28) instead of the whole conversation.
   const reloadTimerRef = useRef<number | null>(null);
+  const pendingIdsRef = useRef(new Set<string>());
+  const pendingCatchUpRef = useRef(false);
   const loadRef = useRef(load);
   loadRef.current = load;
-  const scheduleReload = useCallback(() => {
+  const scheduleReload = useCallback((change?: { id?: string; catchUp?: boolean }) => {
+    if (change?.id) pendingIdsRef.current.add(change.id);
+    else pendingCatchUpRef.current = true;
     if (reloadTimerRef.current !== null) return;
     reloadTimerRef.current = window.setTimeout(() => {
       reloadTimerRef.current = null;
-      void loadRef.current({ quiet: true });
+      const plan = planReload({
+        pendingIds: pendingIdsRef.current,
+        catchUp: pendingCatchUpRef.current,
+        messages: messagesRef.current,
+      });
+      pendingIdsRef.current = new Set();
+      pendingCatchUpRef.current = false;
+      void loadRef.current(plan.kind === 'full' ? { quiet: true } : { quiet: true, ids: plan.ids, after: plan.after });
     }, reloadDelayMs(Math.random()));
   }, []);
   useEffect(
@@ -371,9 +407,16 @@ export const CommunityChatRoomPage: React.FC = () => {
     if (!validChannel || memberAccessState !== 'approved_member') return;
 
     let timer: number | null = null;
+    // Background check: "anything newer?" only, with a full refresh every 5 minutes
+    // to pick up edits/reactions a ping may have missed.
+    const check = () => {
+      const after = newestCreatedAt(messagesRef.current);
+      if (!after || fullRefreshDue(lastFullRef.current, Date.now())) void load({ quiet: true });
+      else void load({ quiet: true, after });
+    };
     const tick = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      void load({ quiet: true });
+      check();
     };
     const start = () => {
       if (timer != null) return;
@@ -387,7 +430,7 @@ export const CommunityChatRoomPage: React.FC = () => {
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
-        void load({ quiet: true });
+        check();
         start();
       } else {
         stop();

@@ -106,6 +106,17 @@ describe('bridge', () => {
     assert.deepEqual(JSON.parse(calls[0].init.body), { channelId: CH, fallbackPass: PASS });
   });
 
+  it('Nov 28 backup-line test: database down, the pass asks for Daily and gets Daily credentials', async () => {
+    reply.body = { ok: true, fallback: true, provider: 'daily', token: 'daily-tok', url: 'https://plcc.daily.co/awc-vault-x', roomName: 'awc-vault-x', expiresIn: 3600, channelId: CH };
+    const res = await run('huddle-token-fallback', { channelId: CH, fallbackPass: PASS, line: 'daily' }, undefined);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.provider, 'daily');
+    assert.equal(res.body.token, 'daily-tok');
+    assert.equal(res.body.fallback, true);
+    assert.deepEqual(JSON.parse(calls[0].init.body), { channelId: CH, fallbackPass: PASS, line: 'daily' });
+    assert.equal(parseHuddleFallbackCommand({ channelId: CH, fallbackPass: PASS, line: 'zoom' }).ok, false);
+  });
+
   it('expired permission is explained, not a generic error', async () => {
     reply = { status: 401, body: { ok: false, error: 'expired' } };
     const res = await run('huddle-token-fallback', { channelId: CH, fallbackPass: PASS }, undefined);
@@ -211,6 +222,42 @@ describe('client', () => {
     assert.equal(t.fallback, true);
     assert.equal(t.token, 'lk2');
     assert.deepEqual(seen, ['huddle-token', 'huddle-token-fallback']);
+  });
+
+  it('Nov 28 backup-line test: database down + room on Daily → the saved pass joins Daily', async () => {
+    const c = await loadClient();
+    c.saveHuddleFallbackPass(CH, PASS);
+    const seen = respond({
+      'huddle-token': { status: 503, body: { ok: false, code: 'huddle_unavailable' } },
+      'huddle-token-fallback': { status: 200, body: { ok: true, fallback: true, provider: 'daily', token: 'd1', url: 'https://plcc.daily.co/r', channelId: CH } },
+    });
+    const t = await c.fetchHuddleTokenResilient(CH, { delaysMs: [1, 1] });
+    assert.deepEqual(t.daily, { token: 'd1', url: 'https://plcc.daily.co/r' });
+    assert.deepEqual(seen, ['huddle-token', 'huddle-token-fallback']);
+  });
+
+  it('Nov 28 backup-line test: LiveKit out of minutes + database down → Daily via the saved pass', async () => {
+    const c = await loadClient();
+    c.saveHuddleFallbackPass(CH, PASS);
+    const bodies = [];
+    const seen = respond({
+      'huddle-daily-token': { status: 401, body: { ok: false, code: 'unauthorized' } },
+      'huddle-token-fallback': { status: 200, body: { ok: true, fallback: true, provider: 'daily', token: 'd2', url: 'https://plcc.daily.co/r', channelId: CH } },
+    });
+    const inner = globalThis.fetch;
+    globalThis.fetch = async (url, init) => { bodies.push(init?.body ? JSON.parse(init.body) : null); return inner(url, init); };
+    const creds = await c.fetchDailyCredentials(CH);
+    assert.deepEqual(creds, { token: 'd2', url: 'https://plcc.daily.co/r' });
+    assert.deepEqual(seen, ['huddle-daily-token', 'huddle-token-fallback']);
+    assert.equal(bodies[1].line, 'daily');
+  });
+
+  it('backup line refused for a real reason (no access): no pass shortcut', async () => {
+    const c = await loadClient();
+    c.saveHuddleFallbackPass(CH, PASS);
+    const seen = respond({ 'huddle-daily-token': { status: 403, body: { ok: false, code: 'forbidden', message: 'No access' } } });
+    await assert.rejects(c.fetchDailyCredentials(CH), /No access/);
+    assert.deepEqual(seen, ['huddle-daily-token']);
   });
 
   it('no saved permission: clear message, no fallback call', async () => {

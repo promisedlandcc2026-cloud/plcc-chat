@@ -327,7 +327,11 @@ async function handleHuddleTokenFallback(req, res) {
     const upstream = await fetch(buildVaultHuddleFailsafeUrl(originResult.origin, 'fallback'), {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channelId: command.channelId, fallbackPass: command.fallbackPass }),
+      body: JSON.stringify(
+        command.line
+          ? { channelId: command.channelId, fallbackPass: command.fallbackPass, line: command.line }
+          : { channelId: command.channelId, fallbackPass: command.fallbackPass }
+      ),
       signal: controller.signal,
       redirect: 'error',
     });
@@ -347,6 +351,14 @@ async function handleHuddleTokenFallback(req, res) {
             ? 'Saved Ka Link permission expired. Try again after the church database is back.'
             : 'Could not open the Ka Link while the church database is down.',
       });
+    }
+    // The room is on (or this phone needs) the backup line: Canaan sent Daily credentials.
+    if (body && body.provider === 'daily') {
+      const daily = parseVaultDailyTokenResponse(body);
+      if (!daily.ok) {
+        return json(res, 502, { ok: false, code: 'invalid_upstream', message: 'Backup Ka Link audio is unavailable right now.' });
+      }
+      return json(res, 200, { ok: true, ...daily.daily, fallback: true });
     }
     const parsed = parseVaultHuddleTokenResponse(body);
     if (!parsed.ok) {
@@ -685,7 +697,7 @@ async function handleBridge(req, res) {
           });
         }
         const upstream = await fetch(
-          buildVaultCommunityChatMessagesUrl(originResult.origin, page.channelId),
+          buildVaultCommunityChatMessagesUrl(originResult.origin, page.channelId, page),
           {
             method: 'GET',
             headers: {

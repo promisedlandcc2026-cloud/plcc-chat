@@ -166,9 +166,20 @@ export async function fetchChatChannels(opts?: {
 
 export async function fetchChatMessages(
   channelId: string,
-  opts?: { signal?: AbortSignal }
+  opts?: {
+    signal?: AbortSignal;
+    /** Light reloads: only these messages (from live pings). */
+    ids?: string[];
+    /** Light reloads: only messages sent at or after this time. */
+    after?: string | null;
+    /** Only the latest N messages. */
+    limit?: number;
+  }
 ): Promise<CommunityChatMessage[]> {
   const qs = new URLSearchParams({ resource: 'messages', channelId });
+  if (opts?.ids?.length) qs.set('ids', opts.ids.join(','));
+  if (opts?.after) qs.set('after', opts.after);
+  if (opts?.limit) qs.set('limit', String(opts.limit));
   const res = await authedFetch(`/api/community-chat?${qs}`, {
     method: 'GET',
     signal: opts?.signal,

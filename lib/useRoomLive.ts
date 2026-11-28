@@ -3,7 +3,8 @@
  *
  * The Vault pings the room's private live channel (topic from room-info) when a
  * message is sent, gets a photo, or is removed. The ping holds ids only; we then
- * reload messages through the normal access-checked API. People in the room
+ * fetch just those messages through the normal access-checked API (Nov 28: no
+ * more whole-room reloads per message). People in the room
  * also share "typing…" on the same channel.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -38,7 +39,8 @@ export function typingLabel(people: TypingPerson[]): string {
 export function useRoomLive(opts: {
   topic: string | null;
   self: { id: string; name: string } | null;
-  onChange: () => void;
+  /** id = the message a ping named; catchUp = "check for anything newer" (no id / reconnect). */
+  onChange: (change: { id?: string; catchUp?: boolean }) => void;
 }) {
   const { topic, self } = opts;
   const onChangeRef = useRef(opts.onChange);
@@ -53,15 +55,18 @@ export function useRoomLive(opts: {
   useEffect(() => {
     if (!topic || !isSupabaseConfigured) return;
     const channel = supabase.channel(topic, { config: { broadcast: { self: false } } });
-    const refresh = () => onChangeRef.current();
+    const changed = (payload: unknown) => {
+      const id = String((payload as any)?.id || '').slice(0, 64);
+      onChangeRef.current(id ? { id } : { catchUp: true });
+    };
     channel
       .on('broadcast', { event: 'message' }, (msg) => {
         // Their message arrived — they've stopped typing.
         const from = String((msg.payload as any)?.from || '');
         if (from) typingMap.current.delete(from);
-        refresh();
+        changed(msg.payload);
       })
-      .on('broadcast', { event: 'deleted' }, refresh)
+      .on('broadcast', { event: 'deleted' }, (msg) => changed(msg.payload))
       .on('broadcast', { event: 'typing' }, (msg) => {
         const p = (msg.payload || {}) as { id?: unknown; name?: unknown };
         const id = String(p.id || '').slice(0, 64);
@@ -73,7 +78,7 @@ export function useRoomLive(opts: {
       .subscribe((status) => {
         setConnected(status === 'SUBSCRIBED');
         // Catch up on anything sent while we were connecting / reconnecting.
-        if (status === 'SUBSCRIBED') refresh();
+        if (status === 'SUBSCRIBED') onChangeRef.current({ catchUp: true });
       });
     channelRef.current = channel;
     const sweep = window.setInterval(() => setTypers(activeTypers(typingMap.current, selfId)), 1000);

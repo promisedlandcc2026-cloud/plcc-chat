@@ -116,6 +116,8 @@ export type HuddleJoinToken = {
   fallbackPass?: string;
   /** True when this token came from the saved permission (database down). */
   fallback?: boolean;
+  /** Database down and the room is on the backup line: join Daily with these instead. */
+  daily?: { token: string; url: string };
 };
 
 export type CommunityChatErrorCode =

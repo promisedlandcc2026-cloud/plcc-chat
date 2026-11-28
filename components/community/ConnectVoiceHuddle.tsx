@@ -1200,6 +1200,12 @@ export const ConnectVoiceHuddle: React.FC<Props> = ({
         },
       });
       if (!mountedRef.current || joinGenRef.current !== gen) return;
+      if (tokenPayload.daily) {
+        // Database down and this prayer is on the backup line: join everyone there.
+        setNotice('The church database is having trouble, so you joined the backup line with the permission saved on your phone.');
+        setDailyCreds(tokenPayload.daily);
+        return;
+      }
       setNotice(
         tokenPayload.fallback
           ? 'The church database is having trouble, so you joined with the permission saved from your last Ka Link. Everything in the call works as usual.'

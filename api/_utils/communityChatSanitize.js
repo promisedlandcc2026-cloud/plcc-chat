@@ -57,21 +57,46 @@ export function validateConnectChatContent(content) {
   return { ok: true, content: trimmed };
 }
 
+/** Light reloads (Nov 28): at most this many message ids per request. */
+export const CHAT_PAGE_MAX_IDS = 50;
+
 /**
- * GET query: exactly channelId UUID.
+ * GET query: channelId UUID, plus optional light-reload params —
+ * ids=uuid,uuid (messages named in live pings), after=ISO time, limit=1–200.
  * @param {Record<string, unknown> | null | undefined} query
  */
 export function parseChatMessagesListQuery(query) {
   const q = query && typeof query === 'object' ? query : {};
   const keys = Object.keys(q);
   if (keys.length === 0) return { ok: false, reason: 'missing_channel_id' };
-  if (keys.some((k) => k !== 'channelId')) return { ok: false, reason: 'unexpected_param' };
-  if (keys.length !== 1) return { ok: false, reason: 'unexpected_param' };
-  const raw = q.channelId;
-  if (Array.isArray(raw)) return { ok: false, reason: 'duplicate_channel_id' };
-  const channelId = asNullableString(raw);
+  const allowed = new Set(['channelId', 'ids', 'after', 'limit']);
+  if (keys.some((k) => !allowed.has(k))) return { ok: false, reason: 'unexpected_param' };
+  if (keys.some((k) => Array.isArray(q[k]))) return { ok: false, reason: 'duplicate_param' };
+  const channelId = asNullableString(q.channelId);
   if (!channelId || !UUID_RE.test(channelId)) return { ok: false, reason: 'invalid_channel_id' };
-  return { ok: true, channelId };
+  /** @type {{ ok: true, channelId: string, ids?: string[], after?: string, limit?: number }} */
+  const out = { ok: true, channelId };
+  const rawIds = asNullableString(q.ids);
+  if (rawIds) {
+    const ids = [...new Set(rawIds.split(',').map((s) => s.trim()).filter(Boolean))];
+    if (ids.length > CHAT_PAGE_MAX_IDS || ids.some((id) => !UUID_RE.test(id))) {
+      return { ok: false, reason: 'invalid_ids' };
+    }
+    if (ids.length) out.ids = ids;
+  }
+  const rawAfter = asNullableString(q.after);
+  if (rawAfter) {
+    const t = Date.parse(rawAfter);
+    if (!Number.isFinite(t)) return { ok: false, reason: 'invalid_after' };
+    out.after = new Date(t).toISOString();
+  }
+  const rawLimit = asNullableString(q.limit);
+  if (rawLimit) {
+    const n = Number(rawLimit);
+    if (!Number.isInteger(n) || n < 1 || n > CONNECT_CHAT_MESSAGE_LIMIT) return { ok: false, reason: 'invalid_limit' };
+    out.limit = n;
+  }
+  return out;
 }
 
 /**
@@ -1012,13 +1037,15 @@ export function sanitizeHuddleFallbackPass(value) {
 /** POST body for huddle-token-fallback: { channelId, fallbackPass } only. */
 export function parseHuddleFallbackCommand(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false };
-  const keys = Object.keys(body).sort();
+  const keys = Object.keys(body).sort().filter((k) => k !== 'line');
   if (keys.join(',') !== 'channelId,fallbackPass') return { ok: false };
   const channelId = typeof body.channelId === 'string' ? body.channelId.trim() : '';
   if (!UUID_RE.test(channelId)) return { ok: false };
   const fallbackPass = sanitizeHuddleFallbackPass(body.fallbackPass);
   if (!fallbackPass) return { ok: false };
-  return { ok: true, channelId, fallbackPass };
+  // Nov 28: the saved pass can also open the backup line (Daily) while the database is down.
+  if (body.line !== undefined && body.line !== 'livekit' && body.line !== 'daily') return { ok: false };
+  return { ok: true, channelId, fallbackPass, line: body.line ?? null };
 }
 
 /** POST body for huddle-line: { channelId, provider? } where provider is livekit|daily. */

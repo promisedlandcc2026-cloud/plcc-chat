@@ -277,12 +277,18 @@ export function buildVaultCommunityChatChannelsUrl(origin) {
 /**
  * @param {string} origin
  * @param {string} [channelId] — already validated UUID for GET list
+ * @param {{ ids?: string[], after?: string, limit?: number }} [page]
  * @returns {string}
  */
-export function buildVaultCommunityChatMessagesUrl(origin, channelId) {
+export function buildVaultCommunityChatMessagesUrl(origin, channelId, page) {
   const base = String(origin || '').replace(/\/+$/, '');
   if (channelId) {
-    return `${base}${VAULT_COMMUNITY_CHAT_MESSAGES_PATH}&channelId=${encodeURIComponent(channelId)}`;
+    let url = `${base}${VAULT_COMMUNITY_CHAT_MESSAGES_PATH}&channelId=${encodeURIComponent(channelId)}`;
+    // Light reloads: only the messages that changed (already validated by the parser).
+    if (page?.ids?.length) url += `&ids=${page.ids.map(encodeURIComponent).join(',')}`;
+    if (page?.after) url += `&after=${encodeURIComponent(page.after)}`;
+    if (page?.limit) url += `&limit=${Number(page.limit)}`;
+    return url;
   }
   return `${base}${VAULT_COMMUNITY_CHAT_MESSAGES_PATH}`;
 }

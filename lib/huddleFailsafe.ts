@@ -164,7 +164,7 @@ export async function claimHuddleLine(
   }
 }
 
-export async function fetchDailyCredentials(channelId: string): Promise<DailyCredentials> {
+async function fetchDailyCredentialsDirect(channelId: string): Promise<DailyCredentials> {
   const { res, data } = await postBridge('huddle-daily-token', { channelId });
   if (!res.ok || typeof data.token !== 'string' || typeof data.url !== 'string') {
     throw new CommunityChatError(
@@ -176,8 +176,42 @@ export async function fetchDailyCredentials(channelId: string): Promise<DailyCre
   return { token: data.token, url: data.url };
 }
 
-async function fetchFallbackToken(channelId: string, fallbackPass: string): Promise<HuddleJoinToken> {
-  const { res, data } = await postBridge('huddle-token-fallback', { channelId, fallbackPass }, { auth: 'optional' });
+/**
+ * Backup line (Daily) credentials. Nov 28 test: with the database down the normal
+ * route can't check the member, so the saved 24-hour pass opens Daily instead.
+ */
+export async function fetchDailyCredentials(channelId: string): Promise<DailyCredentials> {
+  try {
+    return await fetchDailyCredentialsDirect(channelId);
+  } catch (err) {
+    const saved = readHuddleFallbackPass(channelId);
+    if (!saved || !databaseMayBeDown(err)) throw err;
+    const token = await fetchFallbackToken(channelId, saved, 'daily').catch(() => null);
+    if (token?.daily) return token.daily;
+    throw err;
+  }
+}
+
+async function fetchFallbackToken(channelId: string, fallbackPass: string, line?: HuddleLine): Promise<HuddleJoinToken> {
+  const { res, data } = await postBridge(
+    'huddle-token-fallback',
+    line ? { channelId, fallbackPass, line } : { channelId, fallbackPass },
+    { auth: 'optional' }
+  );
+  if (res.ok && data.provider === 'daily' && typeof data.token === 'string' && typeof data.url === 'string') {
+    // The room is on the backup line (or we asked for it): join Daily.
+    return {
+      token: '',
+      url: '',
+      roomName: String(data.roomName || ''),
+      expiresIn: typeof data.expiresIn === 'number' ? data.expiresIn : 0,
+      canModerate: false,
+      channelId: String(data.channelId || channelId),
+      channelName: 'Live Ka Link',
+      fallback: true,
+      daily: { token: data.token, url: data.url },
+    };
+  }
   if (!res.ok || typeof data.token !== 'string' || typeof data.url !== 'string') {
     throw new CommunityChatError(
       (String(data.code || 'vault_unavailable') as CommunityChatError['code']),
